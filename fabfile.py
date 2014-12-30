@@ -9,9 +9,12 @@ env.hosts = ['arizaro']
 # figure out the release name and version
 dist = local('python setup.py --fullname', capture=True).strip()
 
+# where to deploy the application
+remote_directory = '/home/lde/prkng'
+
 
 @task
-def pack():
+def archive():
     """
     create a new source distribution as tarball
     """
@@ -23,10 +26,10 @@ def deploy():
     """
     upload the source tarball to the temporary folder on the server
     """
-    with cd('/home/lde/prkng'):
+    with cd(remote_directory):
         put(dist, '.')
 
-    with cd('/home/lde/prkng'), prefix('. venv/bin/activate'):
+    with cd(remote_directory), prefix('. venv/bin/activate'):
         run('pip install --force-reinstall --ignore-installed '
             '--upgrade --no-index --find-links={} prkng'.format(dist))
 
