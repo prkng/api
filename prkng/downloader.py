@@ -79,16 +79,18 @@ class Montreal(DataSource):
 
     def load(self):
         check_call(
-            'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user=ludo" -overwrite '
+            'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user={PG_USERNAME}  '
+            'password={PG_PASSWORD} port={PG_PORT}" -overwrite '
             '-nlt point -s_srs EPSG:2145 -t_srs EPSG:3857 -lco GEOMETRY_NAME=geom  '
-            '-nln montreal_poteaux {}'.format(self.jsonfiles[0]),
+            '-nln montreal_poteaux {}'.format(self.jsonfiles[0], **CONFIG),
             shell=True
         )
         for jsondata in self.jsonfiles[1:]:
             check_call(
-                'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user=ludo" -append '
-                '-nlt point -s_srs EPSG:2145 -t_srs EPSG:3857 '
-                '-nln montreal_poteaux {}'.format(jsondata),
+                'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user={PG_USERNAME}  '
+                'password={PG_PASSWORD} port={PG_PORT}" '
+                '-append -nlt point -s_srs EPSG:2145 -t_srs EPSG:3857 '
+                '-nln montreal_poteaux {}'.format(jsondata, **CONFIG),
                 shell=True
             )
 
