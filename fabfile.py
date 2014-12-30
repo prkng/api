@@ -12,13 +12,17 @@ dist = local('python setup.py --fullname', capture=True).strip()
 
 @task
 def pack():
-    # create a new source distribution as tarball
+    """
+    create a new source distribution as tarball
+    """
     local('pip wheel --wheel-dir={} .'.format(dist))
 
 
 @task
 def deploy():
-    # upload the source tarball to the temporary folder on the server
+    """
+    upload the source tarball to the temporary folder on the server
+    """
     with cd('/home/lde/prkng'):
         put(dist, '.')
 
@@ -30,8 +34,6 @@ def deploy():
 @task
 def restart():
     """
-    Check if already started else restart the remote uwsgi process
+    touch the .wsgi file to restart the application
     """
-    # touch the .wsgi file so that mod_wsgi triggers
-    # a reload of the application
     run('touch /home/lde/prkng/prkng-uwsgi.reload')
