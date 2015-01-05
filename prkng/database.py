@@ -29,6 +29,7 @@ class PostgresWrapper(object):
             yield cur
             self.db.commit()
         except psycopg2.InternalError:
+            Logger.error("Rollback")
             self.db.rollback()
 
     def query(self, stmt):

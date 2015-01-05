@@ -10,7 +10,7 @@ Each downloader will :
 """
 from __future__ import print_function
 from subprocess import check_call
-from os.path import join, basename
+from os.path import join, basename, dirname
 from zipfile import ZipFile
 import requests
 
@@ -44,21 +44,25 @@ class Montreal(DataSource):
         # ckan API
         self.url = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show"\
                    "?id=stationnement-sur-rue-signalisation-courant"
-        self.subset = (
-            'Plateau-Mont-Royal',
+        self.resources = (
+            # 'Plateau-Mont-Royal',
             'La Petite-Patrie',
-            'Le Sud-Ouest',
-            'Ville-Marie',
+            # 'Le Sud-Ouest',
+            # 'Ville-Marie',
+            'signalisation-description-panneau',
         )
 
         self.jsonfiles = []
 
     def download(self):
+        """
+        Load ``poteaux`` and ``panneaux``
+        """
         json = requests.get(self.url).json()
         subs = {}
         for res in json['result']['resources']:
-            for sub in self.subset:
-                if sub in res['name']:
+            for sub in self.resources:
+                if sub.lower() in res['name'].lower():
                     subs[res['name']] = res['url']
 
         for area, url in subs.iteritems():
@@ -71,10 +75,17 @@ class Montreal(DataSource):
 
             Logger.info("Unzipping")
             with ZipFile(zipfile) as zip:
-                self.jsonfiles.append(join(CONFIG['DOWNLOAD_DIRECTORY'], [
-                    name for name in zip.namelist()
-                    if name.lower().endswith('.json')
-                ][0]))
+                if 'description' not in zipfile:
+                    self.jsonfiles.append(join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                        name for name in zip.namelist()
+                        if name.lower().endswith('.json')
+                    ][0]))
+                else:
+                    self.csvfile = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                        name for name in zip.namelist()
+                        if name.lower().endswith('.csv')
+                    ][0])
+
                 zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
 
     def load(self):
@@ -96,8 +107,14 @@ class Montreal(DataSource):
 
         self.db.vacuum_analyze("public", "montreal_poteaux")
 
-        # echo 'Loading description of panneaux' &&
-        # psql -d prkng -f load_descr.sql
+        script = join(dirname(__file__), 'data', 'montreal_load_panneau_descr.sql')
+
+        # loading csv data using script
+        Logger.debug("loading file '%s' with script '%s'" % (self.csvfile, script))
+
+        with open(script, 'rb') as infile:
+            self.db.query(infile.read().format(description_panneau=self.csvfile))
+            self.db.vacuum_analyze("public", "montreal_descr_panneau")
 
     def get_extent(self):
         """
@@ -163,19 +180,6 @@ class Quebec(DataSource):
             ) select st_ymin(geom), st_xmin(geom), st_ymax(geom), st_xmax(geom) from tmp
             """)[0]
         return res
-
-
-def osm_url(bbox):
-    """
-    Helper to download openstreetmap data using the overpass api
-
-    :param tuple bbox: bounding box: lat min, long min, lat max, long max
-    :returns: file created
-    """
-    url = "http://overpass.osm.rambler.ru/cgi/interpreter?data=(way({}));out;".format(
-          ','.join(map(str, bbox))),
-    Logger.debug(url)
-    return url
 
 
 class OsmLoader(object):

@@ -22,11 +22,10 @@ def init_api(app):
     api.init_app(app)
 
 
-@api.route('/coverage')
-class coverage(Resource):
+@api.route('/cities')
+class cities(Resource):
     def get(self):
         """
         Returns the list of available cities
         """
-        db.connection.query("select 1")
         return ['Montreal', 'Quebec']
