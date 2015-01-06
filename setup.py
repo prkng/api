@@ -11,7 +11,8 @@ requirements = (
     'flask-restplus==0.4.0',
     'psycopg2==2.5.4',
     'click==3.3',
-    'requests==2.5.1'
+    'requests==2.5.1',
+    'geojson==1.0.9'
 )
 
 
