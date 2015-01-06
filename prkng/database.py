@@ -28,8 +28,9 @@ class PostgresWrapper(object):
         try:
             yield cur
             self.db.commit()
-        except psycopg2.InternalError:
-            Logger.error("Rollback")
+        except psycopg2.InternalError as err:
+            Logger.error(err.message.strip())
+            Logger.warning("Rollbacking")
             self.db.rollback()
 
     def query(self, stmt):
@@ -38,7 +39,13 @@ class PostgresWrapper(object):
         """
         res = []
         with self._query() as cur:
-            res = cur.execute(stmt)
+            try:
+                res = cur.execute(stmt)
+            except psycopg2.ProgrammingError as err:
+                Logger.error(err.message.strip())
+                Logger.warning("Rollbacking")
+                self.db.rollback()
+
             if cur.rowcount != -1:
                 try:
                     res = cur.fetchall()
@@ -101,7 +108,7 @@ class PostgresWrapper(object):
         # for executing in a non transaction block
         self.db.set_session(autocommit=True)
 
-        Logger.info("VACUUM ANALYZE {schema}.{table}".format(schema=schema, table=table))
+        Logger.debug("VACUUM ANALYZE {schema}.{table}".format(schema=schema, table=table))
 
         self.query("VACUUM ANALYZE {schema}.{table}".format(
             schema=schema, table=table))
