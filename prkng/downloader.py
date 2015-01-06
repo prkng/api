@@ -23,6 +23,9 @@ from database import PostgresWrapper
 # get global config through flask application
 CONFIG = create_app().config
 
+# returns the location of sql scripts
+script = lambda scr: join(dirname(__file__), 'data', scr)
+
 
 class DataSource(object):
     """
@@ -89,6 +92,9 @@ class Montreal(DataSource):
                 zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
 
     def load(self):
+        """
+        Loads geojson files
+        """
         check_call(
             'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user={PG_USERNAME}  '
             'password={PG_PASSWORD} port={PG_PORT} host={PG_HOST}" -overwrite '
@@ -107,14 +113,25 @@ class Montreal(DataSource):
 
         self.db.vacuum_analyze("public", "montreal_poteaux")
 
-        script = join(dirname(__file__), 'data', 'montreal_load_panneau_descr.sql')
-
         # loading csv data using script
-        Logger.debug("loading file '%s' with script '%s'" % (self.csvfile, script))
+        Logger.debug("loading file '%s' with script '%s'" %
+                    (self.csvfile, script('montreal_load_panneau_descr.sql')))
 
-        with open(script, 'rb') as infile:
+        with open(script('montreal_load_panneau_descr.sql'), 'rb') as infile:
             self.db.query(infile.read().format(description_panneau=self.csvfile))
             self.db.vacuum_analyze("public", "montreal_descr_panneau")
+
+    def load_rules(self):
+        """
+        load parking rules translation
+        """
+        Logger.info("Loading parking rules for {}".format(self.name))
+        Logger.debug("loading file '%s' with script '%s'" %
+                    (script("montreal_rules.csv"), script('montreal_load_rules.sql')))
+
+        with open(script('montreal_load_rules.sql'), 'rb') as infile:
+            self.db.query(infile.read().format(script("montreal_rules.csv")))
+            self.db.vacuum_analyze("public", "montreal_rules_translation")
 
     def get_extent(self):
         """
@@ -169,6 +186,12 @@ class Quebec(DataSource):
 
         self.db.vacuum_analyze("public", "quebec_panneau")
 
+    def load_rules(self):
+        """
+        load parking rules translation
+        """
+        Logger.info("Loading parking rules for {}".format(self.name))
+
     def get_extent(self):
         """
         get extent in the format latmin, longmin, latmax, longmax
@@ -189,6 +212,9 @@ class OsmLoader(object):
     def __init__(self):
         # queue containing osm filenames
         self.queue = []
+        self.db = PostgresWrapper(
+            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
     def download(self, name, extent):
         Logger.info("Getting Openstreetmap ways for {}".format(name))
@@ -206,7 +232,14 @@ class OsmLoader(object):
         Load data using osm2pgsql
         """
         check_call(
-            "osm2pgsql -E 3857 -d {PG_DATABASE} -H {PG_HOST} -U {PG_USERNAME} -P {PG_PORT} {osm_files}"
-            .format(osm_files=' '.join(self.queue), **CONFIG),
+            "osm2pgsql -E 3857 -d {PG_DATABASE} -H {PG_HOST} -U {PG_USERNAME} "
+            "-P {PG_PORT} {osm_files}".format(osm_files=' '.join(self.queue), **CONFIG),
             shell=True
         )
+
+        # add indexes on OSM lines
+        self.db.create_index('planet_osm_line', 'way', index_type='gist')
+        self.db.create_index('planet_osm_line', 'osm_id')
+        self.db.create_index('planet_osm_line', 'name')
+        self.db.create_index('planet_osm_line', 'highway')
+        self.db.vacuum_analyze("public", "montreal_rules_translation")
