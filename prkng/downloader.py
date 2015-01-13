@@ -8,7 +8,8 @@ Each downloader will :
     - load into database,
     - download related openstreetmap data
 """
-from __future__ import print_function
+from __future__ import print_function, unicode_literals
+
 from subprocess import check_call
 from os.path import join, basename, dirname
 from zipfile import ZipFile
@@ -45,23 +46,55 @@ class Montreal(DataSource):
     def __init__(self):
         super(Montreal, self).__init__()
         # ckan API
-        self.url = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show"\
-                   "?id=stationnement-sur-rue-signalisation-courant"
+        self.url_signs = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=stationnement-sur-rue-signalisation-courant"
+
+        self.url_roads = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=geobase"
+
         self.resources = (
-            # 'Plateau-Mont-Royal',
+            'Plateau-Mont-Royal',
             'La Petite-Patrie',
-            # 'Le Sud-Ouest',
-            # 'Ville-Marie',
+            'Le Sud-Ouest',
+            'Ville-Marie',
             'signalisation-description-panneau',
         )
 
         self.jsonfiles = []
 
     def download(self):
+        self.download_signs()
+        self.download_roads()
+
+    def download_roads(self):
         """
-        Load ``poteaux`` and ``panneaux``
+        Download roads (geobase) using CKAN API
         """
-        json = requests.get(self.url).json()
+        json = requests.get(self.url_roads).json()
+        url = ''
+
+        for res in json['result']['resources']:
+            if res['name'].lower() == 'géobase' and res['format'] == 'ZIP':
+                url = res['url']
+
+        Logger.info("Downloading Montreal Géobase")
+        zipfile = download_progress(
+            url.replace('ckanprod', 'donnees.ville.montreal.qc.ca'),
+            basename(url),
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+
+        Logger.info("Unzipping")
+        with ZipFile(zipfile) as zip:
+            self.road_shapefile = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                name for name in zip.namelist()
+                if name.lower().endswith('.shp')
+            ][0])
+            zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
+
+    def download_signs(self):
+        """
+        Download signs using CKAN API
+        """
+        json = requests.get(self.url_signs).json()
         subs = {}
         for res in json['result']['resources']:
             for sub in self.resources:
@@ -112,6 +145,16 @@ class Montreal(DataSource):
             )
 
         self.db.vacuum_analyze("public", "montreal_poteaux")
+
+        check_call(
+            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I "
+            "{filename} montreal_geobase | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=self.road_shapefile, **CONFIG),
+            shell=True
+        )
+
+        self.db.vacuum_analyze("public", "montreal_geobase")
 
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %
@@ -242,4 +285,5 @@ class OsmLoader(object):
         self.db.create_index('planet_osm_line', 'osm_id')
         self.db.create_index('planet_osm_line', 'name')
         self.db.create_index('planet_osm_line', 'highway')
+        self.db.create_index('planet_osm_line', 'boundary')
         self.db.vacuum_analyze("public", "montreal_rules_translation")

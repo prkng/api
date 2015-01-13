@@ -3,10 +3,14 @@
 :author: ludovic.delaune@oslandia.com
 
 """
-from flask.ext.restplus import Api, Resource
-from geojson import FeatureCollection, loads, Feature
+from flask.ext.restplus import Api, Resource, fields
+from geojson import FeatureCollection, Feature
 
-from database import db
+from .models import SlotsModel
+
+GEOM_TYPES = ('Point', 'LineString', 'Polygon',
+              'MultiPoint', 'MultiLineString', 'MultiPolygon')
+
 
 # api instance
 api = Api(
@@ -23,93 +27,105 @@ def init_api(app):
     api.init_app(app)
 
 
-@api.route('/cities')
-class cities(Resource):
-    def get(self):
-        """
-        Returns the list of available cities
-        """
-        return ['Montreal', 'Quebec']
+# define response models
 
-SLOT_PROPERTIES = (
-    'osm_id',
-    'code',
-    'description',
-    'season_start',
-    'season_end',
-    'time_max_parking',
-    'time_start',
-    'time_end',
-    'time_duration',
-    'lun',
-    'mar',
-    'mer',
-    'jeu',
-    'ven',
-    'sam',
-    'dim',
-    'daily',
-    'special_days',
-    'restrict_typ',
-)
+@api.model(fields={
+    'type': fields.String(description='The GeoJSON Type', required=True, enum=GEOM_TYPES),
+    'coordinates': fields.List(fields.Raw, description='The geometry as coordinates lists', required=True),
+})
+class Geometry(fields.Raw):
+    pass
 
+
+@api.model(fields={
+    'description': fields.String(description='The description of the parking rule', required=True),
+    'season_start': fields.String(description='when the permission begins in the year (ex: 12-01 for december 1)', required=True),
+    'season_end': fields.String(description='when the permission no longer applies', required=True),
+    'time_max_parking': fields.String(description='restriction on parking time (minutes)', required=True),
+    'time_start': fields.Float(description='hour of the day when the permission starts', required=True),
+    'time_end': fields.Float(description='hour of the day when the permission ends (null if beyond the day) ', required=True),
+    'time_duration': fields.Float(description='permission duration', required=True),
+    'days': fields.List(fields.Integer, description='list of days when the permission apply (1: monday, ..., 7: sunday)', required=True),
+    'special_days': fields.String(description='school days for example', required=True),
+    'restrict_typ': fields.String(description='special permissions details (may not be used for the v1 i think)', required=True)
+})
+class SlotsField(fields.Raw):
+    pass
+
+slots_fields = api.model('GeoJSONFeature', {
+    'id': fields.String(required=True),
+    'type': fields.String(required=True, enum=['Feature']),
+    'geometry': Geometry(required=True),
+    'properties': SlotsField(required=True),
+})
+
+slots_collection_fields = api.model('GeoJSONFeatureCollection', {
+    'type': fields.String(required=True, enum=['FeatureCollection']),
+    'features': api.as_list(fields.Nested(slots_fields))
+})
+
+
+# endpoints
 
 @api.route('/slot/<string:id>')
-@api.doc(params={'id': 'slot id'},
-         responses={404: "feature not found"})
-class slot(Resource):
+@api.doc(
+    params={'id': 'slot id'},
+    responses={404: "feature not found"}
+)
+class SlotResource(Resource):
+    @api.marshal_list_with(slots_fields)
     def get(self, id):
         """
         Returns the parking slot corresponding to the id
         """
-        res = db.connection.query("""SELECT
-            id
-            , ST_AsGeoJSON(st_transform(geom, 4326))
-            , {prop}
-        FROM slots
-        WHERE id = {id}""".format(id=id, prop=','.join(SLOT_PROPERTIES)))
-
+        res = SlotsModel.get_byid(id)
         if not res:
             api.abort(404, "feature not found")
 
-        return FeatureCollection([
-            Feature(
-                id=feat[0],
-                geometry=loads(feat[1]),
-                properties={
-                    field: feat[num]
-                    for num, field in enumerate(SLOT_PROPERTIES, start=2)
-                }
-            )
-            for feat in res
-        ]), 200
+        res = res[0]
+        return Feature(
+            id=res[0],
+            geometry=res[1],
+            properties={
+                field: res[num]
+                for num, field in enumerate(SlotsModel.properties[2:], start=2)
+            }
+        ), 200
 
 
-@api.route('/slots/<string:x>/<string:y>/<string:radius>')
+slot_parser = api.parser()
+slot_parser.add_argument('radius', type=int, location='args', default=300)
+slot_parser.add_argument('checkin', type=str, location='args', default=None)
+slot_parser.add_argument('duration', type=int, location='args', default=1)
+
+
+@api.route('/slots/<string:x>/<string:y>')
 @api.doc(
     params={
-        'x': 'x coordinate (longitude in wgs84)',
-        'y': 'y coordinate (latitude in wgs84)',
-        'radius': 'radius',
+        'x': 'Longitude location',
+        'y': 'Latitude location',
+        'duration': 'Parking duration estimated (hours) ; default is 1 hour',
+        'radius': 'Radius search ; default is 300m',
+        'checkin': "Check-in timestamp in ISO 8601 ('2013-01-01T12:00') ; default is now",
     },
-    responses={404: "no feature found"})
-class slots(Resource):
-    def get(self, x, y, radius):
+    responses={404: "no feature found"}
+)
+class SlotsResource(Resource):
+    @api.marshal_list_with(slots_collection_fields)
+    def get(self, x, y):
         """
-        Returns a list of slots around the point defined by (x, y)
-        Example : -73.5830569267273, 45.55033143523324
+        Returns slots around the point defined by (x, y)
+
+        Coordinates example : x=-73.5830569267273, y=45.55033143523324
         """
-        res = db.connection.query("""SELECT
-            id
-            , ST_AsGeoJSON(st_transform(geom, 4326))
-            , {prop}
-        FROM slots
-        WHERE ST_Dwithin(
-            st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-            geom,
-            {radius}
+        args = slot_parser.parse_args()
+
+        res = SlotsModel.get_within(
+            x, y,
+            args['radius'],
+            args['duration'],
+            args['checkin']
         )
-        """.format(prop=','.join(SLOT_PROPERTIES), x=x, y=y, radius=radius))
 
         if not res:
             api.abort(404, "no feature found")
@@ -117,10 +133,10 @@ class slots(Resource):
         return FeatureCollection([
             Feature(
                 id=feat[0],
-                geometry=loads(feat[1]),
+                geometry=feat[1],
                 properties={
                     field: feat[num]
-                    for num, field in enumerate(SLOT_PROPERTIES, start=2)
+                    for num, field in enumerate(SlotsModel.properties[2:], start=2)
                 }
             )
             for feat in res

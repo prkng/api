@@ -46,8 +46,8 @@ def process():
     """
     Process source data and create the target model
     """
-    from prkng.processing import create_model
-    create_model.main()
+    from prkng.processing import pipeline
+    pipeline.run()
 
 main.add_command(serve)
 main.add_command(update)

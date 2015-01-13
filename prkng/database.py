@@ -28,10 +28,12 @@ class PostgresWrapper(object):
         try:
             yield cur
             self.db.commit()
-        except psycopg2.InternalError as err:
+        except psycopg2.Error as err:
             Logger.error(err.message.strip())
+            Logger.error("Query : {}".format(cur.query))
             Logger.warning("Rollbacking")
             self.db.rollback()
+            raise err
 
     def query(self, stmt):
         """
@@ -39,12 +41,7 @@ class PostgresWrapper(object):
         """
         res = []
         with self._query() as cur:
-            try:
-                res = cur.execute(stmt)
-            except psycopg2.ProgrammingError as err:
-                Logger.error(err.message.strip())
-                Logger.warning("Rollbacking")
-                self.db.rollback()
+            res = cur.execute(stmt)
 
             if cur.rowcount != -1:
                 try:
