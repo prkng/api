@@ -13,9 +13,9 @@ SELECT
 FROM planet_osm_line
 WHERE
     name is not NULL
-    AND name is not NULL
     AND railway is NULL
     AND waterway is NULL
+    AND boundary is NULL
     AND leisure is NULL -- avoid parks
     AND landuse is NULL -- avoid industrial areas
     AND st_issimple(way)
@@ -27,11 +27,11 @@ SELECT
 FROM planet_osm_line
 WHERE
     name is not NULL
-    AND name is not NULL
     AND railway is NULL
     AND waterway is NULL
     AND leisure is NULL -- avoid parks
     AND landuse is NULL -- avoid industrial areas
+    AND boundary is NULL
     AND NOT st_issimple(way)
 """
 

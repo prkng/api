@@ -99,7 +99,7 @@ def cleanup_table():
 
 def run():
 
-    Logger.debug("Loading extension fuzzymatch")
+    Logger.debug("Loading extension fuzzystrmatch")
     db.query("create extension if not exists fuzzystrmatch")
 
     Logger.info("Filtering osm ways")
