@@ -58,7 +58,7 @@ insert_signpost = """
 INSERT INTO signpost
     SELECT
         distinct s.signpost
-        , pt.trc_id
+        , pt.trc_id::integer
         , pt.geom
     FROM sign s
     JOIN montreal_poteaux pt ON pt.poteau_id_pot = s.signpost
