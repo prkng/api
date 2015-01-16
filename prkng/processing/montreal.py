@@ -240,13 +240,13 @@ SELECT
         WHEN min(spo.isleft) = 1 then
             ST_OffsetCurve(
                 st_linemerge(st_union(sl.geom))
-                , 10
+                , 8
                 , 'quad_segs=4 join=round'
             )
         ELSE
             ST_OffsetCurve(
                 st_linemerge(st_union(sl.geom))
-                , -10
+                , -8
                 , 'quad_segs=4 join=round'
             )
       END as geom
@@ -344,9 +344,9 @@ SELECT
     , elevation
     , CASE
         WHEN isleft = 1 then
-            ST_OffsetCurve(geom, 10, 'quad_segs=4 join=round')
+            ST_OffsetCurve(geom, 8, 'quad_segs=4 join=round')
         ELSE
-            ST_OffsetCurve(geom, -10, 'quad_segs=4 join=round')
+            ST_OffsetCurve(geom, -8, 'quad_segs=4 join=round')
       END as geom
 FROM ranked
 WHERE rank = 1
