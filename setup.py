@@ -12,7 +12,8 @@ requirements = (
     'psycopg2==2.5.4',
     'click==3.3',
     'requests==2.5.1',
-    'geojson==1.0.9'
+    'geojson==1.0.9',
+    'aniso8601==0.92'
 )
 
 

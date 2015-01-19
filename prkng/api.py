@@ -3,6 +3,9 @@
 :author: ludovic.delaune@oslandia.com
 
 """
+from time import strftime
+from aniso8601 import parse_datetime
+
 from flask.ext.restplus import Api, Resource, fields
 from geojson import FeatureCollection, Feature
 
@@ -93,25 +96,44 @@ class SlotResource(Resource):
         ), 200
 
 
+timestamp = lambda x: parse_datetime(x).isoformat('T')
+
+
 slot_parser = api.parser()
-slot_parser.add_argument('radius', type=int, location='args', default=300)
-slot_parser.add_argument('checkin', type=str, location='args', default=None)
-slot_parser.add_argument('duration', type=int, location='args', default=1)
+slot_parser.add_argument(
+    'radius',
+    type=int,
+    location='args',
+    default=300,
+    help='Radius search in meters; default is 300'
+)
+slot_parser.add_argument(
+    'checkin',
+    type=timestamp,
+    location='args',
+    default=strftime("%Y-%m-%dT%H:%M:%S"),
+    help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00') ; default is now"
+)
+slot_parser.add_argument(
+    'duration',
+    type=int,
+    location='args',
+    default=1,
+    help='Parking duration estimated in hours ; default is 1 hour'
+)
 
 
-@api.route('/slots/<string:x>/<string:y>')
+@api.route('/slots/<x>/<y>')
 @api.doc(
     params={
         'x': 'Longitude location',
         'y': 'Latitude location',
-        'duration': 'Parking duration estimated (hours) ; default is 1 hour',
-        'radius': 'Radius search ; default is 300m',
-        'checkin': "Check-in timestamp in ISO 8601 ('2013-01-01T12:00') ; default is now",
     },
     responses={404: "no feature found"}
 )
 class SlotsResource(Resource):
     @api.marshal_list_with(slots_collection_fields)
+    @api.doc(parser=slot_parser)
     def get(self, x, y):
         """
         Returns slots around the point defined by (x, y)
@@ -119,7 +141,6 @@ class SlotsResource(Resource):
         Coordinates example : x=-73.5830569267273, y=45.55033143523324
         """
         args = slot_parser.parse_args()
-
         res = SlotsModel.get_within(
             x, y,
             args['radius'],
