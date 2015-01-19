@@ -6,6 +6,7 @@
 from time import strftime
 from aniso8601 import parse_datetime
 
+from flask import render_template, Response
 from flask.ext.restplus import Api, Resource, fields
 from geojson import FeatureCollection, Feature
 
@@ -185,3 +186,36 @@ class SlotsResource(Resource):
             )
             for feat in res
         ]), 200
+
+
+@api.route('/map/slots/<x>/<y>')
+@api.hide
+class SlotsOnMap(Resource):
+    def get(self, x, y):
+        """
+        Backdoor to check results on a map
+
+        """
+        args = slot_parser.parse_args()
+        res = SlotsModel.get_within(
+            x, y,
+            args['radius'],
+            args['duration'],
+            args['checkin']
+        )
+
+        if not res:
+            api.abort(404, "no feature found")
+
+        resp = Response(render_template('map.html', geojson=FeatureCollection([
+            Feature(
+                id=feat[0],
+                geometry=feat[1],
+                properties={
+                    field: feat[num]
+                    for num, field in enumerate(SlotsModel.properties[2:], start=2)
+                }
+            )
+            for feat in res
+        ])), mimetype='text/html')
+        return resp
