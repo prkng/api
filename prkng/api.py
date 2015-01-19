@@ -96,6 +96,7 @@ class SlotResource(Resource):
         ), 200
 
 
+# validate timestamp and returns it
 timestamp = lambda x: parse_datetime(x).isoformat('T')
 
 
@@ -116,10 +117,10 @@ slot_parser.add_argument(
 )
 slot_parser.add_argument(
     'duration',
-    type=int,
+    type=float,
     location='args',
     default=1,
-    help='Parking duration estimated in hours ; default is 1 hour'
+    help='Desired Parking time in hours ; default is 1 hour'
 )
 
 
