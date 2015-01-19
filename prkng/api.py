@@ -34,23 +34,46 @@ def init_api(app):
 
 @api.model(fields={
     'type': fields.String(description='The GeoJSON Type', required=True, enum=GEOM_TYPES),
-    'coordinates': fields.List(fields.Raw, description='The geometry as coordinates lists', required=True),
+    'coordinates': fields.List(
+        fields.Raw,
+        description='The geometry as coordinates lists',
+        required=True),
 })
 class Geometry(fields.Raw):
     pass
 
 
 @api.model(fields={
-    'description': fields.String(description='The description of the parking rule', required=True),
-    'season_start': fields.String(description='when the permission begins in the year (ex: 12-01 for december 1)', required=True),
-    'season_end': fields.String(description='when the permission no longer applies', required=True),
-    'time_max_parking': fields.String(description='restriction on parking time (minutes)', required=True),
-    'time_start': fields.Float(description='hour of the day when the permission starts', required=True),
-    'time_end': fields.Float(description='hour of the day when the permission ends (null if beyond the day) ', required=True),
-    'time_duration': fields.Float(description='permission duration', required=True),
-    'days': fields.List(fields.Integer, description='list of days when the permission apply (1: monday, ..., 7: sunday)', required=True),
-    'special_days': fields.String(description='school days for example', required=True),
-    'restrict_typ': fields.String(description='special permissions details (may not be used for the v1 i think)', required=True)
+    'description': fields.String(
+        description='The description of the parking rule',
+        required=True),
+    'season_start': fields.String(
+        description='when the permission begins in the year (ex: 12-01 for december 1)',
+        required=True),
+    'season_end': fields.String(
+        description='when the permission no longer applies',
+        required=True),
+    'time_max_parking': fields.String(
+        description='restriction on parking time (minutes)',
+        required=True),
+    'time_start': fields.Float(
+        description='hour of the day when the permission starts',
+        required=True),
+    'time_end': fields.Float(
+        description='hour of the day when the permission ends (null if beyond the day) ',
+        required=True),
+    'time_duration': fields.Float(
+        description='permission duration',
+        required=True),
+    'days': fields.List(
+        fields.Integer,
+        description='list of days when the permission apply (1: monday, ..., 7: sunday)',
+        required=True),
+    'special_days': fields.String(
+        description='school days for example', required=True),
+    'restrict_typ': fields.String(
+        description='special permissions details (may not be used for the v1 i think)',
+        required=True)
 })
 class SlotsField(fields.Raw):
     pass
@@ -139,7 +162,6 @@ class SlotsResource(Resource):
         """
         Returns slots around the point defined by (x, y)
 
-        Coordinates example : x=-73.5830569267273, y=45.55033143523324
         """
         args = slot_parser.parse_args()
         res = SlotsModel.get_within(
