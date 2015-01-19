@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 
+# filter osm ways and node geometries that are not simple (rings)
 create_osm_ways = """
 DROP TABLE IF EXISTS osm_ways;
 CREATE TABLE osm_ways
@@ -36,6 +37,7 @@ WHERE
 """
 
 
+# detect ways intersections
 create_way_intersection = """
 DROP TABLE IF EXISTS way_intersection;
 CREATE TABLE way_intersection(
@@ -62,6 +64,7 @@ UNION -- remove duplicates
     FROM tmp WHERE st_geometrytype(geom) = 'ST_Point';
 """
 
+# remove intersections on
 remove_bad_intersection = """
 DROP TABLE IF EXISTS bad_intersection;
 CREATE TABLE bad_intersection(
@@ -85,7 +88,8 @@ INSERT INTO bad_intersection
 SELECT DISTINCT id
 FROM unn where rel = 'tt';
 
-DELETE FROM way_intersection where id in (SELECT * from bad_intersection);
+DELETE FROM way_intersection where id in (SELECT * from bad_intersection)
+RETURNING id;
 """
 
 # split lines to create segments between intersections

@@ -113,7 +113,9 @@ def run():
     db.create_index('way_intersection', 'way_id')
     db.create_index('way_intersection', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'way_intersection')
-    db.query(osm.remove_bad_intersection)
+    res = db.query(osm.remove_bad_intersection)
+    if res:
+        Logger.debug("Removed {} bad intersections".format(len(res)))
 
     Logger.info("Splitting ways on intersections")
     db.query(osm.split_osm_roads)
