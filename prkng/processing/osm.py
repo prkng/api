@@ -19,6 +19,7 @@ WHERE
     AND boundary is NULL
     AND leisure is NULL -- avoid parks
     AND landuse is NULL -- avoid industrial areas
+    AND tunnel is NULL
     AND st_issimple(way)
 UNION ALL
 SELECT
@@ -33,6 +34,7 @@ WHERE
     AND leisure is NULL -- avoid parks
     AND landuse is NULL -- avoid industrial areas
     AND boundary is NULL
+    AND tunnel is NULL
     AND NOT st_issimple(way)
 """
 
@@ -64,7 +66,7 @@ UNION -- remove duplicates
     FROM tmp WHERE st_geometrytype(geom) = 'ST_Point';
 """
 
-# remove intersections on
+# remove intersections that are not nodes
 remove_bad_intersection = """
 DROP TABLE IF EXISTS bad_intersection;
 CREATE TABLE bad_intersection(
