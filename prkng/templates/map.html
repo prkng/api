@@ -7,9 +7,9 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='leaflet/leaflet.css') }}" />
     <style>
         html, body, #map {
-            height:100%;
-            width:100%;
-            padding:0px;
+            height:99%;
+            width:99%;
+            /*padding:0px;*/
         }
     </style>
 </head>
@@ -25,7 +25,7 @@
     var map = L.map('map').setView([45.55, -73.585], 9);
 
     L.tileLayer('https://{s}.tiles.mapbox.com/v3/{id}/{z}/{x}/{y}.png', {
-        maxZoom: 18,
+        maxZoom: 20,
         attribution: 'Map data &copy; <a href="http://openstreetmap.org">OpenStreetMap</a> contributors, ' +
             '<a href="http://creativecommons.org/licenses/by-sa/2.0/">CC-BY-SA</a>, ' +
             'Imagery © <a href="http://mapbox.com">Mapbox</a>',
