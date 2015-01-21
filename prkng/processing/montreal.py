@@ -2,6 +2,7 @@
 from __future__ import unicode_literals
 
 
+# create table hosting all signs
 create_sign = """
 DROP TABLE IF EXISTS sign;
 CREATE TABLE sign (
@@ -153,6 +154,7 @@ DROP TABLE IF EXISTS slots_likely;
 CREATE TABLE slots_likely(
     id serial
     , signposts integer[]
+    , rid integer  -- road id
     , geom geometry(linestring, 3857)
 );
 """
@@ -194,9 +196,10 @@ UNION ALL
         , signpost
     FROM point_list
 )
-INSERT INTO slots_likely (signposts, geom)
+INSERT INTO slots_likely (signposts, rid, geom)
 SELECT
     ARRAY[loc1.signpost, loc2.signpost]
+    , w.id
     , st_line_substring(w.geom, loc1.position, loc2.position) as geom
 FROM loc_with_idx loc1
 JOIN loc_with_idx loc2 using (rid)
@@ -205,10 +208,11 @@ WHERE loc2.idx = loc1.idx+1;
 """
 
 # one slot per sign
-create_slots = """
-DROP TABLE IF EXISTS slots;
-CREATE TABLE slots (
+create_slots_staging = """
+DROP TABLE IF EXISTS slots_staging;
+CREATE TABLE slots_staging (
     id integer
+    , rid integer
     , code varchar
     , description varchar
     , season_start varchar
@@ -224,7 +228,6 @@ CREATE TABLE slots (
     , signpost integer NOT NULL
     , elevation smallint
     , geom geometry(linestring, 3857)
-    , geojson jsonb
 )
 """
 
@@ -232,6 +235,7 @@ insert_slots_bothsides = """
 WITH tmp as (
 SELECT
     s.id
+    , min(sl.rid) as rid
     , s.direction
     , s.signpost
     , s.elevation
@@ -256,8 +260,9 @@ JOIN slots_likely sl on ARRAY[s.signpost] <@ sl.signposts
 group by s.id
 having direction = 0
 )
-INSERT INTO slots(
+INSERT INTO slots_staging(
     id
+    , rid
     , code
     , description
     , season_start
@@ -273,10 +278,10 @@ INSERT INTO slots(
     , signpost
     , elevation
     , geom
-    , geojson
 )
 SELECT
     t.id
+    , t.rid
     , t.code
     , p.description
     , p.season_start
@@ -305,7 +310,6 @@ SELECT
     , t.signpost
     , t.elevation
     , t.geom
-    , ST_AsGeoJSON(st_transform(t.geom, 4326))::jsonb
 FROM tmp t
 JOIN montreal_rules_translation p on p.code = t.code
 
@@ -315,14 +319,21 @@ insert_slots_north_south = """
 WITH tmp as (
 SELECT
     s.id
+    , sl.rid
     , s.code
     , s.direction
     , s.signpost
     , s.elevation
     , sl.geom
     , case
-        when st_equals(st_startpoint(sl.geom), spo.geom) then st_pointN(sl.geom, 2)
-        when st_equals(st_endpoint(sl.geom), spo.geom) then st_pointN(st_reverse(sl.geom), 2)
+        when st_equals(
+                ST_SnapToGrid(st_startpoint(sl.geom), 0.01),
+                ST_SnapToGrid(spo.geom, 0.01)
+            ) then st_pointN(sl.geom, 2)
+        when st_equals(
+                ST_SnapToGrid(st_endpoint(sl.geom), 0.01),
+                ST_SnapToGrid(spo.geom, 0.01)
+            ) then st_pointN(st_reverse(sl.geom), 2)
         else NULL
       end as nextpoint
     , spo.isleft
@@ -338,6 +349,7 @@ FROM tmp
 ), raw as (
 SELECT
     id
+    , rid
     , code
     , direction
     , signpost
@@ -350,8 +362,10 @@ SELECT
       END as geom
 FROM ranked
 WHERE rank = 1
-) INSERT INTO slots(
+)
+INSERT INTO slots_staging(
     id
+    , rid
     , code
     , description
     , season_start
@@ -367,10 +381,10 @@ WHERE rank = 1
     , signpost
     , elevation
     , geom
-    , geojson
 )
 SELECT
     r.id
+    , r.rid
     , r.code
     , p.description
     , p.season_start
@@ -399,14 +413,98 @@ SELECT
     , r.signpost
     , r.elevation
     , r.geom
-    , ST_AsGeoJSON(st_transform(r.geom, 4326))::jsonb
 FROM raw r
 JOIN montreal_rules_translation p on p.code = r.code
 """
 
-
 remove_empty_days = """
-DELETE FROM slots
+DELETE FROM slots_staging
 WHERE cardinality(days) = 0
 RETURNING id
+"""
+
+# final slots aggregates with the same code
+create_final_slots = """
+DROP TABLE IF EXISTS slots;
+CREATE TABLE slots (
+    id integer
+    , code varchar
+    , description varchar
+    , season_start varchar
+    , season_end varchar
+    , time_max_parking float
+    , time_start float
+    , time_end float
+    , time_duration float
+    , days int[]
+    , special_days varchar
+    , restrict_typ varchar
+    , direction smallint
+    , signpost integer NOT NULL
+    , elevation smallint
+    , geom geometry(multilinestring, 3857)
+    , geojson jsonb
+);
+
+with tmp as (
+SELECT
+    min(id) as id,
+    code,
+    min(description) as description,
+    min(season_start) as season_start,
+    min(season_end) as season_end,
+    min(time_max_parking) as time_max_parking,
+    min(time_start) as time_start,
+    min(time_end) as time_end,
+    min(time_duration) as time_duration,
+    min(days) as days,
+    min(special_days) as special_days,
+    min(restrict_typ) as restrict_typ,
+    min(direction) as direction,
+    signpost,
+    max(elevation) as elevation,
+    st_multi(st_linemerge(st_union(geom))) as geom
+FROM slots_staging
+group by signpost, code, rid
+-- for now aggregate only if connected on the same signpost
+)
+INSERT INTO slots
+SELECT
+    id
+    , code
+    , description
+    , season_start
+    , season_end
+    , time_max_parking
+    , time_start
+    , time_end
+    , time_duration
+    , days
+    , special_days
+    , restrict_typ
+    , direction
+    , signpost
+    , elevation
+    , CASE
+        WHEN st_length(geom) > 31 THEN
+        ST_Line_Substring(
+            geom,
+            8 / st_length(geom),
+            least(abs(1 - 8 / st_length(geom)), 1)
+            )
+        ELSE geom
+        END as geom
+    , ST_AsGeoJSON(
+        st_transform(
+            CASE
+            WHEN st_length(geom) > 31 THEN
+            ST_Line_Substring(
+                geom,
+                8 / st_length(geom),
+                least(abs(1 - 8 / st_length(geom)), 1)
+                )
+            ELSE geom
+            END
+        , 4326))::jsonb
+FROM tmp
 """

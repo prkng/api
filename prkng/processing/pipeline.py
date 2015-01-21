@@ -66,13 +66,18 @@ def process_montreal():
     db.create_index('slots_likely', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'slots_likely')
 
-    db.query(mrl.create_slots)
+    db.query(mrl.create_slots_staging)
     db.query(mrl.insert_slots_bothsides)
     # insert north direction
     db.query(mrl.insert_slots_north_south.format(direction=1, y_ordering='DESC'))
     # insert south direction
     db.query(mrl.insert_slots_north_south.format(direction=2, y_ordering='ASC'))
 
+    db.create_index('slots_staging', 'geom', index_type='gist')
+    db.create_index('slots_staging', 'id')
+    db.vacuum_analyze('public', 'slots')
+
+    db.query(mrl.create_final_slots)
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'id')
     db.create_index('slots', 'days', index_type='gin')
