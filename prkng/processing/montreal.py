@@ -470,6 +470,7 @@ group by signpost, code, rid
 )
 INSERT INTO slots
 SELECT
+    distinct on (geom, restrict_typ)
     id
     , code
     , description

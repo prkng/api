@@ -1,4 +1,5 @@
 -e .
+git+https://github.com/flask-restful/flask-restful.git@231da4bec647a20edd10888d965230ccac9efd37#egg=flask-restful
 sphinx==1.2.3
 pygments==2.0.1
 docutils==0.12

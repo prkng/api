@@ -1,1 +1,2 @@
 .
+git+https://github.com/flask-restful/flask-restful.git@231da4bec647a20edd10888d965230ccac9efd37#egg=flask-restful
