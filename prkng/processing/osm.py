@@ -20,6 +20,7 @@ WHERE
     AND leisure is NULL -- avoid parks
     AND landuse is NULL -- avoid industrial areas
     AND tunnel is NULL
+    AND (highway not in ('cycleway') or highway is NULL)
     AND st_issimple(way)
 UNION ALL
 SELECT
@@ -35,6 +36,7 @@ WHERE
     AND landuse is NULL -- avoid industrial areas
     AND boundary is NULL
     AND tunnel is NULL
+    AND (highway not in ('cycleway') or highway is NULL)
     AND NOT st_issimple(way)
 """
 
