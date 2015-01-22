@@ -1,0 +1,3 @@
+recursive-include prkng/data *
+recursive-include prkng/templates *
+recursive-include prkng/static *

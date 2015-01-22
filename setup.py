@@ -47,7 +47,7 @@ setup(
         'License :: Other/Proprietary License'
     ],
     packages=find_packages(),
-    package_data={'prkng': ['data/*']},
+    include_package_data=True,
     install_requires=requirements,
     entry_points={
         'console_scripts': ['prkng = prkng.commands:main'],
