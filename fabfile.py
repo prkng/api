@@ -35,6 +35,24 @@ def deploy():
 
 
 @task
+def update():
+    """
+    update data sources on the server
+    """
+    with cd(remote_directory), prefix('. venv/bin/activate'):
+        run('prkng update'.format(dist))
+
+
+@task
+def process():
+    """
+    process data on the server
+    """
+    with cd(remote_directory), prefix('. venv/bin/activate'):
+        run('prkng process'.format(dist))
+
+
+@task
 def restart():
     """
     touch the .wsgi file to restart the application
