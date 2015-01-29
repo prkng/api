@@ -121,7 +121,8 @@ class SlotResource(Resource):
 
 
 # validate timestamp and returns it
-timestamp = lambda x: parse_datetime(x).isoformat('T')
+def timestamp(x):
+    return parse_datetime(x).isoformat('T')
 
 
 slot_parser = api.parser()

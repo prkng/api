@@ -91,7 +91,7 @@ class PostgresWrapper(object):
         Create indexes on ``column`` using ``index_type``
         """
         self.query("CREATE INDEX on {table} USING {index_type}({column})"
-            .format(**locals()))
+                   .format(**locals()))
 
     def vacuum_analyze(self, schema, table):
         """
