@@ -24,8 +24,10 @@ from database import PostgresWrapper
 # get global config through flask application
 CONFIG = create_app().config
 
-# returns the location of sql scripts
-script = lambda scr: join(dirname(__file__), 'data', scr)
+
+def script(src):
+    """returns the location of sql scripts"""
+    return join(dirname(__file__), 'data', src)
 
 
 class DataSource(object):
@@ -158,7 +160,7 @@ class Montreal(DataSource):
 
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %
-                    (self.csvfile, script('montreal_load_panneau_descr.sql')))
+                     (self.csvfile, script('montreal_load_panneau_descr.sql')))
 
         with open(script('montreal_load_panneau_descr.sql'), 'rb') as infile:
             self.db.query(infile.read().format(description_panneau=self.csvfile))
@@ -168,12 +170,14 @@ class Montreal(DataSource):
         """
         load parking rules translation
         """
+        filename = script("rules_montreal.csv")
+
         Logger.info("Loading parking rules for {}".format(self.name))
         Logger.debug("loading file '%s' with script '%s'" %
-                    (script("montreal_rules.csv"), script('montreal_load_rules.sql')))
+                     (filename, script('montreal_load_rules.sql')))
 
         with open(script('montreal_load_rules.sql'), 'rb') as infile:
-            self.db.query(infile.read().format(script("montreal_rules.csv")))
+            self.db.query(infile.read().format(filename))
             self.db.vacuum_analyze("public", "montreal_rules_translation")
 
     def get_extent(self):
