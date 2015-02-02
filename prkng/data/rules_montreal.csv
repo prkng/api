@@ -1,7 +1,6 @@
 "code","description","season_start","season_end","time_max_parking","time_start","time_end","time_duration","lun","mar","mer","jeu","ven","sam","dim","daily","special_days","restrict_typ"
 "PP-JA","HORAIRE DE STATIONNEMENT TARIFE 09h-24h (PARCOJOUR)",,,,9,24,15,,,,,,,,1,,"paid"
 "GS-A-06","RAPPEL...",,,,0,24,24,,,,,,,,1,,"paid"
-"PD-TT","P 60 min",,,60,0,,24,,,,,,,,1,,
 "PP-AJ","HORAIRE DE STATIONNEMENT TARIFE 7h-22h",,,,7,22,15,,,,,,,,1,,"paid"
 "PV-JF","P 60 min 08h-18h LUN. AU VEN.",,,60,8,18,10,1,1,1,1,1,,,,,
 "D-PH","PARCOMETRE",,,,0,24,24,,,,,,,,1,,"paid"
@@ -34,9 +33,9 @@
 "SLR-ST-175","120 MIN - MAR 18H À MER 18H - JEU 18H À VEN 18H - SAM 18H À LUN 18H",,,120,18,,24,,,,1,,,,,,
 "SLR-ST-175","120 MIN - MAR 18H À MER 18H - JEU 18H À VEN 18H - SAM 18H À LUN 18H",,,120,18,,24,,1,,,,,,,,
 "SLR-ST-175","120 MIN - MAR 18H À MER 18H - JEU 18H À VEN 18H - SAM 18H À LUN 18H",,,120,18,,48,,,,,,1,,,,
-"SLR-ST-27","6H Ã  12H LUNDI",,,,6,12,6,1,,,,,,,,,
-"SLR-ST-28","7H Ã  13H LUNDI",,,,7,13,6,1,,,,,,,,,
-"SLR-ST-33","9H Ã  12H - LUNDI - 15 AVR au 15 NOV",04-15,11-15,,9,12,3,1,,,,,,,,,
+"SLR-ST-27","6H À  12H LUNDI",,,,6,12,6,1,,,,,,,,,
+"SLR-ST-28","7H À  13H LUNDI",,,,7,13,6,1,,,,,,,,,
+"SLR-ST-33","9H À  12H - LUNDI - 15 AVR au 15 NOV",04-15,11-15,,9,12,3,1,,,,,,,,,
 "SLR-ST-42","9H À 12H - MARDI - 15 AVR AU 15 NOV",04-15,11-15,,9,12,3,,1,,,,,,,,
 "SLR-ST-59","7H À 12H LUN ET JEU",,,,7,12,5,1,,,1,,,,,,
 "SLR-ST-60","7H À 12H LUN ET JEU (NON CONFORME)",,,,7,12,5,1,,,1,,,,,,
@@ -510,10 +509,10 @@
 "SLR-ST-04","EXCEPTÉ VÉHICULES COMMUNAUTO",,,,0,,24,,,,,,,,1,,"communauto"
 "SLR-ST-05","RÉSERVÉ MESSAGER",,,,0,,24,,,,,,,,1,,"messenger"
 "SLR-ST-06","ZONE DE LIVRAISON",,,,0,,24,,,,,,,,1,,"delivery"
-"SLR-ST-07","DÉBARCADÃˆRE SEULEMENT",,,3,0,,24,,,,,,,,1,,"dropoff"
-"SLR-ST-08","5 MÃˆTRES",,,,,,0,,,,,,,,,,"distance_5m"
-"SLR-ST-09","15 MÃˆTRES",,,,,,0,,,,,,,,,,"distance_15m"
-"SLR-ST-10","50 MÃˆTRES",,,,,,0,,,,,,,,,,"distance_50m"
+"SLR-ST-07","DÉBARCADÈRE SEULEMENT",,,3,0,,24,,,,,,,,1,,"dropoff"
+"SLR-ST-08","5 MÈTRES",,,,,,0,,,,,,,,,,"distance_5m"
+"SLR-ST-09","15 MÈTRES",,,,,,0,,,,,,,,,,"distance_15m"
+"SLR-ST-10","50 MÈTRES",,,,,,0,,,,,,,,,,"distance_50m"
 "SLR-ST-100","13H À 17H MAR JEU",,,,13,17,4,,1,,1,,,,,,
 "SLR-ST-101","13H À 17H MAR JEU 15 AVR - 15 NOV",04-15,11-15,,13,17,4,,1,,1,,,,,,
 "SLR-ST-102","15H À 17H MAR JEU",,,,15,17,2,,1,,1,,,,,,
@@ -521,14 +520,14 @@
 "SLR-ST-104","MAR JEU SAM",,,,0,,24,,1,,1,,1,,,,
 "SLR-ST-108","8H À 17H MAR JEU SAM DIM",,,,8,17,9,,1,,1,,1,1,,,
 "SLR-ST-109","8H À 18H MAR JEU SAM",,,,8,18,10,,1,,1,,1,,,,
-"SLR-ST-11","6 PIEDS DE CHAQUE CÃ”TÉ DU TROTTOIR",,,,,,0,,,,,,,,,,"distance_2m"
+"SLR-ST-11","6 PIEDS DE CHAQUE CÔTÉ DU TROTTOIR",,,,,,0,,,,,,,,,,"distance_2m"
 "SLR-ST-113","10 MIN",,,10,0,24,24,,,,,,,,1,,
-"SLR-ST-114","10 MIN DÉBARCADÃˆRE",,,10,0,24,24,,,,,,,,1,,"dropoff"
+"SLR-ST-114","10 MIN DÉBARCADÈRE",,,10,0,24,24,,,,,,,,1,,"dropoff"
 "SLR-ST-115","10 MIN (pour famille)",,,10,0,24,24,,,,,,,,1,,"family"
 "SLR-ST-116","10 MIN - JOURS DE CLASSE",,,10,0,24,24,,,,,,,,,"school",
 "SLR-ST-117","10 MIN 7H À 17H JOURS DE CLASSE",,,10,7,17,10,,,,,,,,,"school",
 "SLR-ST-118","10 MIN 7H À 18H LUN À VEN",,,10,7,18,11,1,1,1,1,1,,,,,
-"SLR-ST-119","DÉBARCADÃˆRE DE COURTE DURÉE RÉSERVÉ AUX FAMILLES AVEC JEUNES ENFANTS",,,3,0,24,24,,,,,,,,1,,"big_family"
+"SLR-ST-119","DÉBARCADÈRE DE COURTE DURÉE RÉSERVÉ AUX FAMILLES AVEC JEUNES ENFANTS",,,3,0,24,24,,,,,,,,1,,"big_family"
 "SLR-ST-120","15 MIN JOURS DE CLASSE",,,15,0,24,24,,,,,,,,,"school",
 "SLR-ST-121","15 MIN EXCEPTÉ LIVRAISON",,,15,0,24,24,,,,,,,,1,,"delivery"
 "SLR-ST-122","15 MIN LUN À VEN",,,15,0,24,24,1,1,1,1,1,,,,,
@@ -536,7 +535,7 @@
 "SLR-ST-124","15 MIN 7H À 9H 15H À 18H JOURS DE CLASSE",,,15,7,19,12,,,,,,,,,"school",
 "SLR-ST-124","15 MIN 7H À 9H 15H À 18H JOURS DE CLASSE",,,15,15,18,3,,,,,,,,,"school",
 "SLR-ST-126","15 MIN 8H À 16H JOURS DE CLASSE",,,15,8,16,8,,,,,,,,,"school",
-"SLR-ST-127","15 MIN 8H À 17H JOURS DE CLASSE DÉBARCADÃˆRE",,,15,7,17,10,,,,,,,,,"school","dropoff"
+"SLR-ST-127","15 MIN 8H À 17H JOURS DE CLASSE DÉBARCADÈRE",,,15,7,17,10,,,,,,,,,"school","dropoff"
 "SLR-ST-128","30 MIN",,,30,0,24,24,,,,,,,,1,,
 "SLR-ST-129","VISITEURS 30 MIN MAX",,,30,0,24,24,,,,,,,,1,,"visitor"
 "SLR-ST-13","SABBAT ET JOURS DE FÊTE",,,,0,24,24,,,,,,,,,"holiday",
@@ -553,7 +552,7 @@
 "SLR-ST-140","60 MIN - 8H À 18H - MAR JEU",,,60,8,18,10,,1,,1,,,,1,,
 "SLR-ST-141","60 MIN - 9H À 16H",,,60,9,16,7,,,,,,,,1,,
 "SLR-ST-142","90 MIN",,,90,0,24,24,,,,,,,,1,,
-"SLR-ST-143","120 MIN RÉSERVÉ AUX USAGERS DE LA BIBLIOTHÃˆQUE",,,120,0,24,24,,,,,,,,1,,"visitor_library"
+"SLR-ST-143","120 MIN RÉSERVÉ AUX USAGERS DE LA BIBLIOTHÈQUE",,,120,0,24,24,,,,,,,,1,,"visitor_library"
 "SLR-ST-144","120 MIN LUN MER VEN",,,120,0,24,24,1,,1,,1,,,,,
 "SLR-ST-145","120 MIN 8H À 17H LUN MER VEN",,,120,8,17,9,1,,1,,1,,,,,
 "SLR-ST-146","LUN AU VEN 120 MIN 9H À 16H",,,120,9,16,7,1,1,1,1,1,,,,,
@@ -563,7 +562,7 @@
 "SLR-ST-15","15 JUIN AU 1ER SEPT.",06-15,09-01,,0,24,24,,,,,,,,1,,
 "SLR-ST-150","RÉSERVÉ INCENDIE",,,,0,24,24,,,,,,,,1,,"firefighters"
 "SLR-ST-151","POUR LES EMPLOYÉS SEULEMENT",,,,0,24,24,,,,,,,,1,,"employees"
-"SLR-ST-152","RÉSERVÉ BILBIOTHÃˆQUE",,,,0,24,24,,,,,,,,1,,"library"
+"SLR-ST-152","RÉSERVÉ BILBIOTHÈQUE",,,,0,24,24,,,,,,,,1,,"library"
 "SLR-ST-153","ESPACE RÉSERVÉE NAVETTE CAPREIT",,,,0,24,24,,,,,,,,1,,"navette_capreit"
 "SLR-ST-154","7H À 13H DIMANCHE",,,,7,13,6,,,,,,,1,,,
 "SLR-ST-155","8H À 18H LUN MER VEN",,,,8,18,10,1,,1,,1,,,,,
@@ -572,7 +571,7 @@
 "SLR-ST-158","12H À 15H VENDREDI",,,,12,15,3,,,,,1,,,,,
 "SLR-ST-159","8H À 18H SAM DIM - MAI-JUIN",05-01,06-30,,8,18,10,,,,,,1,1,,,
 "SLR-ST-16","RÉSERVÉ AUTOBUS 15 JUIN au 1er SEPT.",06-15,09-01,,0,,24,,,,,,,,1,,"bus"
-"SLR-ST-160","HANDICAPÉS - DÉBARCADÃˆRE (Bleu)",,,,0,,24,,,,,,,,1,,"handicap"
+"SLR-ST-160","HANDICAPÉS - DÉBARCADÈRE (Bleu)",,,,0,,24,,,,,,,,1,,"handicap"
 "SLR-ST-161","60 MIN",,,60,0,,24,,,,,,,,1,,
 "SLR-ST-162","23H00 À 7H00 EXCEPTÉ VÉHICULES AUTORISÉS",,,,23,,8,,,,,,,,1,,"authorized"
 "SLR-ST-163","LUN MER VEN",,,,0,,24,1,,1,,1,,,,,
@@ -603,7 +602,7 @@
 "SLR-ST-188","7H00 À 9H00 - 15H00 À 18H00 - LUN À VEN",,,,15,18,3,1,1,1,1,1,,,,,
 "SLR-ST-189","7H00 À 9H00 - 16H00 À 19H00 - LUN À VEN",,,,7,9,2,1,1,1,1,1,,,,,
 "SLR-ST-189","7H00 À 9H00 - 16H00 À 19H00 - LUN À VEN",,,,16,19,3,1,1,1,1,1,,,,,
-"SLR-ST-19","22H Ã  8H",,,,22,,10,,,,,,,,1,,
+"SLR-ST-19","22H À  8H",,,,22,,10,,,,,,,,1,,
 "SLR-ST-190","8H00 À 9H00 - 14H00 À 17H00 - LUN AU VEN",,,,8,9,1,1,1,1,1,1,,,,,
 "SLR-ST-190","8H00 À 9H00 - 14H00 À 17H00 - LUN AU VEN",,,,14,17,3,1,1,1,1,1,,,,,
 "SLR-ST-191","15H00 À 18H00 - LUN À VEN",,,,15,18,3,1,1,1,1,1,,,,,
@@ -631,30 +630,30 @@
 "SLR-ST-21","SAUF AUTOBUS SCOLAIRE - JOURS DE CLASSE",,,,0,,24,,,,,,,,1,"school","schoolbus"
 "SLR-ST-210","\P 08h - 12h jeudi 1er mars - 1er déc",03-01,12-01,,8,12,4,,,,1,,,,,,
 "SLR-ST-211","\P 13h - 17h jeudi 1er mars - 1er déc",03-01,12-01,,13,17,4,,,,1,,,,,,
-"SLR-ST-22","8H Ã  17H - JOURS DE CLASSE - SAUF AUTOBUS SCOLAIRE",,,,8,17,9,,,,,,,,,"school","schoolbus"
+"SLR-ST-22","8H À  17H - JOURS DE CLASSE - SAUF AUTOBUS SCOLAIRE",,,,8,17,9,,,,,,,,,"school","schoolbus"
 "SLR-ST-23","7H30 À 18H00 JOURS DE CLASSE",,,,"7.5",18,"10.5",,,,,,,,,"school",
 "SLR-ST-24","8H À 17H30 JOURS DE CLASSE",,,,8,"17.5","9.5",,,,,,,,,"school",
-"SLR-ST-25","9H00 Ã  15H30 JOURS DE CLASSE",,,,9,"15.5","6.5",,,,,,,,,"school",
+"SLR-ST-25","9H00 À  15H30 JOURS DE CLASSE",,,,9,"15.5","6.5",,,,,,,,,"school",
 "SLR-ST-26","9H À 17H JOURS DE CLASSE",,,,9,17,8,,,,,,,,,"school",
-"SLR-ST-29","9H Ã  11H - LUNDI - ENTRETIEN",,,,9,11,2,1,,,,,,,,,"maintenance"
-"SLR-ST-30","9H Ã  11H - LUNDI - 15 AVR - 15 NOV",04-15,11-15,,9,11,2,1,,,,,,,,,
+"SLR-ST-29","9H À  11H - LUNDI - ENTRETIEN",,,,9,11,2,1,,,,,,,,,"maintenance"
+"SLR-ST-30","9H À  11H - LUNDI - 15 AVR - 15 NOV",04-15,11-15,,9,11,2,1,,,,,,,,,
 "SLR-ST-31","9H À 11H LUNDI 15 AVR - 15 NOV ENTRETIEN",04-15,11-15,,9,11,2,1,,,,,,,,,"maintenance"
-"SLR-ST-32","9H00 Ã  12H00 LUNDI",,,,9,12,3,1,,,,,,,,,
-"SLR-ST-34","9H Ã  12H - LUNDI - 15 AVR au 15 NOV - ENTRETIEN",04-15,11-15,,9,12,3,1,,,,,,,,,"maintenance"
-"SLR-ST-35","7H Ã  12H MARDI",,,,7,12,5,,1,,,,,,,,
-"SLR-ST-36","7H Ã  14H MARDI",,,,7,14,7,,1,,,,,,,,
-"SLR-ST-37","8H Ã  12H MARDI",,,,8,12,4,,1,,,,,,,,
-"SLR-ST-38","8H Ã  16H30 - MARDI - ENTRETIEN",,,,8,"16.5","8.5",,1,,,,,,,,"maintenance"
+"SLR-ST-32","9H00 À  12H00 LUNDI",,,,9,12,3,1,,,,,,,,,
+"SLR-ST-34","9H À  12H - LUNDI - 15 AVR au 15 NOV - ENTRETIEN",04-15,11-15,,9,12,3,1,,,,,,,,,"maintenance"
+"SLR-ST-35","7H À  12H MARDI",,,,7,12,5,,1,,,,,,,,
+"SLR-ST-36","7H À  14H MARDI",,,,7,14,7,,1,,,,,,,,
+"SLR-ST-37","8H À  12H MARDI",,,,8,12,4,,1,,,,,,,,
+"SLR-ST-38","8H À  16H30 - MARDI - ENTRETIEN",,,,8,"16.5","8.5",,1,,,,,,,,"maintenance"
 "SLR-ST-39","9H À 11H MARDI ENTRETIEN",,,,9,11,2,,1,,,,,,,,"maintenance"
 "SLR-ST-40","9H À 11H MARDI 15 AVR - 15 NOV",04-15,11-15,,9,11,2,,1,,,,,,,,
-"SLR-ST-41","9H00 Ã  12H00 MARDI",,,,9,12,3,,1,,,,,,,,
+"SLR-ST-41","9H00 À  12H00 MARDI",,,,9,12,3,,1,,,,,,,,
 "SLR-ST-43","9H À 12H - MARDI - 15 AVR AU 15 NOV - ENTRETIEN",04-15,11-15,,9,12,3,,1,,,,,,,,"maintenance"
 "SLR-ST-44","9H À 15H MARDI",,,,9,15,6,,1,,,,,,,,
 "SLR-ST-45","13H00 À 14H00 MARDI 15 AVR - 15 NOV",04-15,11-15,,13,14,1,,1,,,,,,,,
 "SLR-ST-46","13H À 15H MARDI 15 MARS - 15 NOVEMBRE - ENTRETIEN",03-15,11-15,,13,15,2,,1,,,,,,,,
 "SLR-St-47","13H À 17H MARDI",,,,13,17,4,,1,,,,,,,,
-"SLR-ST-48","8H Ã  12H - MERCREDI",,,,8,12,4,,,1,,,,,,,
-"SLR-ST-49","13H Ã  15H MERCREDI 15 MRS - 15 NOV. ENTRETIEN",03-15,11-15,,12,15,3,,,1,,,,,,,"maintenance"
+"SLR-ST-48","8H À  12H - MERCREDI",,,,8,12,4,,,1,,,,,,,
+"SLR-ST-49","13H À  15H MERCREDI 15 MRS - 15 NOV. ENTRETIEN",03-15,11-15,,12,15,3,,,1,,,,,,,"maintenance"
 "SLR-ST-51","13H À 17H MERCREDI",,,,13,17,4,,,1,,,,,,,
 "SLR-ST-52","8H À 12H - JEUDI",,,,8,12,4,,,,1,,,,,,
 "SLR-ST-53","12H À 16H JEUDI",,,,12,16,4,,,,1,,,,,,
@@ -663,14 +662,14 @@
 "SLR-ST-56","7H À 12H VENDREDI",,,,7,12,5,,,,,1,,,,,
 "SLR-ST-57","8H00 À 9H00 LUN ET MER 15 MARS À 15 NOV - ENTRETIEN",03-15,11-15,,8,9,1,1,,1,,,,,,,"maintenance"
 "SLR-ST-58","13H À 14H - LUN ET MER - 15 MARS AU 15 NOV - ENTRETIEN",03-15,11-15,,13,14,1,1,,1,,,,,,,"maintenance"
-"SLR-ST-61","8H À 17H LUNDI JEUDI 3 MÃˆTRES",,,,8,17,9,,,,1,,,,,,
+"SLR-ST-61","8H À 17H LUNDI JEUDI 3 MÈTRES",,,,8,17,9,,,,1,,,,,,
 "SLR-ST-63","LUN MER VEN",,,,0,,24,1,,1,,1,,,,,
 "SLR-ST-65","8H À 16H30 - LUN MER VEN",,,,8,"16.5","8.5",1,,1,,1,,,,,
 "SLR-ST-66","8H À 17H LUN MER VEN 15 NOV - 15 AVR",11-15,04-15,,8,17,9,1,,1,,1,,,,,
 "SLR-ST-69","8H À 17H LUN MER VEN 1er SEPT AU 31 MAI",09-01,05-31,,8,17,9,1,,1,,1,,,,,
 "SLR-ST-71","8H À 19H LUN MER VEN",,,,8,19,11,1,,1,,1,,,,,
-"SLR-ST-74","9H À 12H 14H Ã  17H LUN MER VEN",,,,9,12,3,1,,1,,1,,,,,
-"SLR-ST-74","9H À 12H 14H Ã  17H LUN MER VEN",,,,14,17,3,1,,1,,1,,,,,
+"SLR-ST-74","9H À 12H 14H À  17H LUN MER VEN",,,,9,12,3,1,,1,,1,,,,,
+"SLR-ST-74","9H À 12H 14H À  17H LUN MER VEN",,,,14,17,3,1,,1,,1,,,,,
 "SLR-ST-75","9H À 17H LUN MER VEN 15 NOV AU 15 MARS, 11H À 12H MERCREDI 15 MARS AU 15 NOV",11-15,03-15,,9,17,8,1,,1,,1,,,,,
 "SLR-ST-75","9H À 17H LUN MER VEN 15 NOV AU 15 MARS, 11H À 12H MERCREDI 15 MARS AU 15 NOV",03-15,11-15,,11,12,1,,,1,,,,,,,
 "SLR-ST-76","13H À 17H LUN MER VEN 15 AVR - 15 NOV",04-15,11-15,,13,17,4,1,,1,,1,,,,,
@@ -1106,7 +1105,7 @@
 "SV-JU","\P 08h-20h   LUN A VEN",,,,8,20,12,1,1,1,1,1,,,,,
 "SV-JV","\P 9h30 A 15h30 LUN A VEN  DU 1 SEPT. AU 23 JUIN",09-01,06-23,,"9.5","15.5",6,1,1,1,1,1,,,,,
 "SV-JW","\P 10h-18h LUN A VEN",,,,10,18,8,1,1,1,1,1,,,,,
-"SV-JX","\P 7h-21h LUN Ã  VEN",,,,7,21,14,1,1,1,1,1,,,,,
+"SV-JX","\P 7h-21h LUN À  VEN",,,,7,21,14,1,1,1,1,1,,,,,
 "SV-JY","\P 8h-15h30 LUN A VEN",,,,8,"15.5","7.5",1,1,1,1,1,,,,,
 "SV-OA","\P 09h00 A 11h00 et 15h00 A 18h00 LUNDI AU VENDREDI",,,,9,11,2,1,1,1,1,1,,,,,
 "SV-OA","\P 09h00 A 11h00 et 15h00 A 18h00 LUNDI AU VENDREDI",,,,15,18,3,1,1,1,1,1,,,,,
@@ -1267,7 +1266,6 @@
 "R-PH","\P RESERVE S3R 15h-09h",,,,15,,18,,,,,,,,1,,"permit"
 "R-PZ","\P RESERVE S3R 16h-20h LUNDI AU SAMEDI",,,,16,20,4,1,1,1,1,1,1,,,,"permit"
 "PD-TS","P 15 min",,,15,0,24,24,,,,,,,,1,,
-"PV-JF","P 60 min 08h-18h LUN. AU VEN.",,,60,8,18,10,1,1,1,1,1,,,,,
 "R-VP","\P RESERVE VEHICULES DU SERVICE DE LA POLICE",,,,0,24,24,,,,,,,,1,,"police"
 "AV-PP","\A 15h-18h30 LUN. AU VEN.",,,,15,"18.5","3.5",1,1,1,1,1,,,,,
 "OUT-ADN-27","\A 8h - 9h MER ET VEN 1er AVRIL - 30 NOV",04-01,11-30,,8,9,1,,1,,,1,,,,,
@@ -1310,7 +1308,6 @@
 "AV-RD","\A 06h-09h  15h30-18h30 LUN. AU VEN.",,,,"15.5","18.5",3,1,1,1,1,1,,,,,
 "PE-QC","P 15 MIN. 7h-8h30 ET 15h-18h   JOURS D'ECOLE",,,15,7,"8.5","1.5",,,,,,,,,"school",
 "PE-QC","P 15 MIN. 7h-8h30 ET 15h-18h   JOURS D'ECOLE",,,15,15,18,3,,,,,,,,,"school",
-"PV-OT","P 60 min 7h-18h LUN A VEN",,,60,7,8,1,1,1,1,1,1,,,,,
 "R-RA","\P RESERVE S3R 09h30-23h",,,,"9.5",23,"13.5",,,,,,,,1,,"permit"
 "R-RE","\P RESERVE S3R 18h-23h LUN.AU VEN., 9h-23h SAM.ET DIM.",,,,18,23,5,1,1,1,1,1,,,,,"permit"
 "R-RE","\P RESERVE S3R 18h-23h LUN.AU VEN., 9h-23h SAM.ET DIM.",,,,9,23,14,,,,,,1,1,,,"permit"
@@ -1389,8 +1386,8 @@
 "OUT-SDN-08","\P 8h - 12h MERCREDI 1ER AVRIL - 30 NOV",04-01,11-30,,8,12,4,,,1,,,,,,,
 "OUT-SPH-07","P 2h 8h - 22h LUN À SAM",,,120,8,22,14,1,1,1,1,1,1,,,,
 "OUT-SRV-10-1S","panonceau excepté détenteurs de permis secteur 142",,,,0,24,24,,,,,,,,1,,"permit"
-"OUT-SPM-06-2","p 15 min 8h Ã  9h et 16h30 - 17h30 lun Ã  ven",,,15,8,9,1,1,1,1,1,1,,,,,
-"OUT-SPM-06-2","p 15 min 8h Ã  9h et 16h30 - 17h30 lun Ã  ven",,,15,"16.5","17.5",1,1,1,1,1,1,,,,,
+"OUT-SPM-06-2","p 15 min 8h À  9h et 16h30 - 17h30 lun À  ven",,,15,8,9,1,1,1,1,1,1,,,,,
+"OUT-SPM-06-2","p 15 min 8h À  9h et 16h30 - 17h30 lun À  ven",,,15,"16.5","17.5",1,1,1,1,1,1,,,,,
 "OUT-SDN-15","\P 7h - 9h VENDREDI 1ER AVRIL - 30 NOV",04-01,11-30,,7,9,2,,,,,1,,,,,
 "PS-AA","P 60 min 09h-18h LUN. MAR. MER. SAM. 09h-21h JEU. VEN.",,,60,9,18,9,1,1,1,,,,,,,
 "PS-AA","P 60 min 09h-18h LUN. MAR. MER. SAM. 09h-21h JEU. VEN.",,,60,9,21,12,,,,1,1,,,,,
@@ -1468,8 +1465,8 @@
 "AV-RB","\A 06h-10h  15h30-19h30 LUN. AU VEN.",,,,"15.5","19.5",4,1,1,1,1,1,,,,,
 "AV-OD","\A 08h-18h  LUN. AU VEN.",,,,8,18,10,1,1,1,1,1,,,,,
 "R-AL","\P RESERVE AUTOBUS TOURISTIQUES 2h",,,120,0,24,24,,,,,,,,1,,"tourist_bus"
-"R-XH","\P EXCEPTE S3R 15h-21h LUN. Ã  VEN. et 9h-21h SAM.DIM.",,,,15,21,6,1,1,1,1,1,,,,,"permit"
-"R-XH","\P EXCEPTE S3R 15h-21h LUN. Ã  VEN. et 9h-21h SAM.DIM.",,,,9,21,12,,,,,,1,1,,,"permit"
+"R-XH","\P EXCEPTE S3R 15h-21h LUN. À  VEN. et 9h-21h SAM.DIM.",,,,15,21,6,1,1,1,1,1,,,,,"permit"
+"R-XH","\P EXCEPTE S3R 15h-21h LUN. À  VEN. et 9h-21h SAM.DIM.",,,,9,21,12,,,,,,1,1,,,"permit"
 "AV-QZ","\A 07h-09h30  15h-19h LUN. AU VEN.",,,,7,"9.5","2.5",1,1,1,1,1,,,,,
 "AV-QZ","\A 07h-09h30  15h-19h LUN. AU VEN.",,,,15,19,4,1,1,1,1,1,,,,,
 "R-RY-2S","\P RESERVE S3R 09h-23h LUN A VEN  (2 SECTEURS)",,,,9,23,14,1,1,1,1,1,,,,,"permit"
@@ -1500,7 +1497,7 @@
 "LAC-46","\P 9H @ 12H MERCREDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,9,12,3,,,1,,,,,,,
 "LAC-27","P RÉSERVÉ EN TOUT TEMPS DÉTENTEURS DE PERMIS #",,,,0,24,24,,,,,,,,1,,"permit"
 "LAC-50","\P D'ICI AU COIN",,,,0,24,24,,,,,,,,1,,"distance_till_corner"
-"LAC-51","\P (FLÃˆCHE SEULEMENT)",,,,0,24,24,,,,,,,,1,,
+"LAC-51","\P (FLÈCHE SEULEMENT)",,,,0,24,24,,,,,,,,1,,
 "LAC-16","P 2H",,,120,0,24,24,,,,,,,,1,,
 "LAC-18","P 60 MIN",,,120,0,24,24,,,,,,,,1,,
 "LAC-48","\P 9H @ 16H JEUDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,9,16,7,,,,1,,,,,,
@@ -1511,7 +1508,7 @@
 "LAC-8","\ARRÊT INTERDIT ZONE D'AUTOBUS",,,,0,24,24,,,,,,,,1,,"bus"
 "LAC-26","P RÉSERVÉ AUX VISITEURS DE L'ÉGLISE - DIMANCHE 10H @14H",,,,10,14,4,,,,,,,1,,,"visitor_church"
 "LAC-2","\ARRÊT INTERDIT",,,,0,24,24,,,,,,,,1,,
-"LAC-53","\P RÃˆGL. 2027",,,,,,0,,,,,,,,1,,"rule_2027"
+"LAC-53","\P RÈGL. 2027",,,,,,0,,,,,,,,1,,"rule_2027"
 "LAC-59","\P 15 AVRIL AU 15 OCTOBRE",,,,0,24,24,,,,,,,,1,,
 "LAC-40","\P 7H @ 9H LUNDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,7,9,2,1,,,,,,,,,
 "LAC-45","\P 7H @ 9H MERCREDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,7,9,2,,,1,,,,,,,
@@ -1520,7 +1517,7 @@
 "LAC-44","\P 9H @ 16H MARDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,9,16,7,,1,,,,,,,,
 "LAC-42","\P 9H @ 16H LUNDI 1 AVRIL AU 15 NOVEMBRE",04-01,11-15,,9,16,7,1,,,,,,,,,
 "LAC-21","P 60 MIN - 9H @ 18H LUN AU SAM",,,60,9,18,9,1,1,1,1,1,1,,,,
-"LAC-25","DÉBARCADÃˆRE 15 MIN 7H @ 9H",,,15,7,9,2,,,,,,,,1,,"dropoff"
+"LAC-25","DÉBARCADÈRE 15 MIN 7H @ 9H",,,15,7,9,2,,,,,,,,1,,"dropoff"
 "LAC-7","\P RÉSERVÉ PERSONNE HANDICAPÉE",,,,0,24,24,,,,,,,,1,,"handicap"
 "LAC-57","\P 9H @ 18H",,,,9,18,9,,,,,,,,1,,
 "LAC-36","\P 9H @ 16H JEUDI",,,,9,16,7,,,,1,,,,,,
@@ -1647,8 +1644,8 @@
 "PS-OG","P 60 min 09h30-15h30 LUN. AU SAM.",,,60,"9.5","15.5",6,1,1,1,1,1,1,,,,
 "OUT-ADN-08","\A 6h -8h MERCREDI 1er AVRIL - 30 NOV",04-01,11-30,,6,8,2,,,1,,,,,,,
 "OUT-SDE-02","\P 7h30 - 16h LUN À VEN EXCEPTE AUTOBUS SCOLAIRE ",,,,"7.5",16,"8.5",1,1,1,1,1,,,,,"schoolbus"
-"OUT-SDE-10-1","\P 8h - 10h et 14h - 17h30 lun Ã  ven excepté autobus scolaire",,,,8,10,2,1,1,1,1,1,,,,,"schoolbus"
-"OUT-SDE-10-1","\P 8h - 10h et 14h - 17h30 lun Ã  ven excepté autobus scolaire",,,,14,"17.5","3.5",1,1,1,1,1,,,,,"schoolbus"
+"OUT-SDE-10-1","\P 8h - 10h et 14h - 17h30 lun À  ven excepté autobus scolaire",,,,8,10,2,1,1,1,1,1,,,,,"schoolbus"
+"OUT-SDE-10-1","\P 8h - 10h et 14h - 17h30 lun À  ven excepté autobus scolaire",,,,14,"17.5","3.5",1,1,1,1,1,,,,,"schoolbus"
 "R-VL","\P RESERVE BICYCLETTE",,,,0,24,24,,,,,,,,1,,"bike"
 "PV-DH","P 15 min 09h-19h LUN A VEN",,,15,9,19,10,1,1,1,1,1,,,,,
 "OUT-SDE-07","\P 8h - 18h LUN À VEN EXCEPTE AUTOBUS SCOLAIRE ",,,,8,18,10,1,1,1,1,1,,,,,"schoolbus"
@@ -1677,10 +1674,10 @@
 "R-WC","\P EXCEPTE S3R 16h-22h",,,,16,22,6,,,,,,,,1,,"permit"
 "LAC-28","P RÉSERVÉ LUN AU VEN 18 @ 8H ET SAM-DIM DÉTENTEURS DE PERMIS #11",,,,18,,14,1,1,1,1,1,,,,,"permit"
 "LAC-28","P RÉSERVÉ LUN AU VEN 18 @ 8H ET SAM-DIM DÉTENTEURS DE PERMIS #11",,,,0,24,24,,,,,,1,1,,,"permit"
-"LAC-3","\ARRÊT INTERDIT (FLÃˆCHE)",,,,0,24,24,,,,,,,,1,,
+"LAC-3","\ARRÊT INTERDIT (FLÈCHE)",,,,0,24,24,,,,,,,,1,,
 "LAC-39","\P 9H @ 17H LUN AU VEN",,,,9,17,8,1,1,1,1,1,,,,,
-"LAC-37","\P DÉBARCADÃˆRE LUNDI AU VENDREDI 7H @ 17H",,,3,7,17,10,1,1,1,1,1,,,,,"dropoff"
-"LAC-24","DÉBARCADÃˆRE",,,3,0,24,24,,,,,,,,1,,"dropoff"
+"LAC-37","\P DÉBARCADÈRE LUNDI AU VENDREDI 7H @ 17H",,,3,7,17,10,1,1,1,1,1,,,,,"dropoff"
+"LAC-24","DÉBARCADÈRE",,,3,0,24,24,,,,,,,,1,,"dropoff"
 "LAC-30","P 2H - 9H @ 16H EXCEPTÉ MARDI",,,120,9,16,7,1,,1,1,1,1,1,,,
 "LAC-22","P 30 MIN - POSTE DE POLICE",,,30,0,24,24,,,,,,,,1,,"police"
 "LAC-49","\P 7H @ 17H LUN AU VEN",,,,7,17,10,1,1,1,1,1,,,,,
@@ -1726,8 +1723,8 @@
 "R-RH","\P RESERVE S3R 16h-19h LUN A SAM",,,,16,19,3,1,1,1,1,1,1,,,,"permit"
 "R-RJ","\P RESERVE S3R 09h30-20h LUN A SAM",,,,"9.5",20,"10.5",1,1,1,1,1,1,,,,"permit"
 "AV-JE","\A 07h30-16h LUN. AU VEN.",,,,"7.5",16,"8.5",1,1,1,1,1,,,,,
-"OUT-SPM-05-1","p 15 min 7h30 - 9h30 et 15h - 18h30 lun Ã  ven",,,15,"7.5","9.5",2,1,1,1,1,1,,,,,
-"OUT-SPM-05-1","p 15 min 7h30 - 9h30 et 15h - 18h30 lun Ã  ven",,,15,15,"18.5","3.5",1,1,1,1,1,,,,,
+"OUT-SPM-05-1","p 15 min 7h30 - 9h30 et 15h - 18h30 lun À  ven",,,15,"7.5","9.5",2,1,1,1,1,1,,,,,
+"OUT-SPM-05-1","p 15 min 7h30 - 9h30 et 15h - 18h30 lun À  ven",,,15,15,"18.5","3.5",1,1,1,1,1,,,,,
 "OUT-ADN-20","\A 8h - 9h LUN et MER 1er AVRIL - 30 NOV",04-01,11-30,,8,9,1,1,,1,,,,,,,
 "RD-JK","\P RESERVE HANDICAPES 12h - 19h",,,,12,19,7,,,,,,,,1,,"handicap"
 "OUT-ADN-01","\A 7h - 7h30 LUNDI 1er AVRIL - 30 NOV",04-01,11-30,,7,"7.5","0.5",1,,,,,,,,,
@@ -1816,8 +1813,8 @@
 "LAC-56","\P 9H @ 16H LUN-MAR-MER-JEU",,,,9,16,7,1,1,1,1,,,,,,
 "AV-JC","\A 07h-22h LUN. AU VEN.",,,,7,22,15,1,1,1,1,1,,,,,
 "OUT-ADN-12","\A 7h - 8h JEUDI 1er AVRIL - 30 NOV",04-01,11-30,,7,8,1,,,,1,,,,,,
-"OUT-SC-19","\P 19h DIMANCHE À 19h MERCREDI | P DÉBARCADÃˆRE MAX 15 min.19h MERCREDI À 19h DIMANCHE",,,15,19,,96,,,1,,,,,,,"dropoff"
-"OUT-SC-19","\P 19h DIMANCHE À 19h MERCREDI | P DÉBARCADÃˆRE MAX 15 min.19h MERCREDI À 19h DIMANCHE",,,,19,,72,,,,,,,1,,,
+"OUT-SC-19","\P 19h DIMANCHE À 19h MERCREDI | P DÉBARCADÈRE MAX 15 min.19h MERCREDI À 19h DIMANCHE",,,15,19,,96,,,1,,,,,,,"dropoff"
+"OUT-SC-19","\P 19h DIMANCHE À 19h MERCREDI | P DÉBARCADÈRE MAX 15 min.19h MERCREDI À 19h DIMANCHE",,,,19,,72,,,,,,,1,,,
 "AE-QB","\A 07h30-08h30  ET  14h30-15H30  JOURS D'ECOLE",,,,"7.5","8.5",1,,,,,,,,,"school",
 "AE-QB","\A 07h30-08h30  ET  14h30-15H30  JOURS D'ECOLE",,,,"14.5","15.5",1,,,,,,,,,"school",
 "OUT-ADP-04","\A EN TOUT TEMPS SUR 5m",,,,0,24,24,,,,,,,,1,,"distance_5m"
@@ -1866,8 +1863,8 @@
 "R-BA","\P RESERVE BIBLIOBUS 18h-21h MAR.",,,,18,21,3,,1,,,,,,,,"bibliobus"
 "PT-JK","P 60 min 09h-17h LUN. MER. JEU.",,,60,9,17,8,1,,1,1,,,,,,
 "PB-JE","P 60 min 09h-17h MAR ET VEN",,,60,9,17,8,,1,,,1,,,,,
-"OUT-SPM-07-1","P 15 min 8h15 - 8h45 et 14h45 - 15h15 lun Ã  ven",,,15,"8.25","8.75","0.5",1,1,1,1,1,,,,,
-"OUT-SPM-07-1","P 15 min 8h15 - 8h45 et 14h45 - 15h15 lun Ã  ven",,,15,"14.75","14.25","-0.5",1,1,1,1,1,,,,,
+"OUT-SPM-07-1","P 15 min 8h15 - 8h45 et 14h45 - 15h15 lun À  ven",,,15,"8.25","8.75","0.5",1,1,1,1,1,,,,,
+"OUT-SPM-07-1","P 15 min 8h15 - 8h45 et 14h45 - 15h15 lun À  ven",,,15,"14.75","14.25","-0.5",1,1,1,1,1,,,,,
 "OUT-SPM-02","P 15 MIN 7h30 - 9h et 15h - 18h LUN À VEN",,,15,"7.5",9,"1.5",1,1,1,1,1,,,,,
 "OUT-SPM-02","P 15 MIN 7h30 - 9h et 15h - 18h LUN À VEN",,,15,15,18,3,1,1,1,1,1,,,,,
 "OUT-SDL-02","\P 8h - 18h LUN À SAM EXCEPTE LIVRAISON ",,,,8,18,10,1,1,1,1,1,1,,,,"delivery"
@@ -1899,7 +1896,7 @@
 "RD-JJ","\P RESERVE HANDICAPES DE 10h00 A 16h00, LUN. SAM.",,,,10,16,6,1,,,,,1,,,,"handicap"
 "R-BX","\P STATIONNEMENT INTERDIT 14h - 18h30 MERCREDI EXCEPTE BIBLIOBUS",,,,14,"18.5","4.5",,,1,,,,,,,"bibliobus"
 "PV-DT","P DEBARCADERE 06h-09h LUN A VEN",,,3,6,9,3,1,1,1,1,1,,,,,"dropoff"
-"OUT-SDA-02-A","\P   19h mercredi Ã  19h dimanche   30 nov - 1er avril",11-30,04-01,,19,,96,,,1,,,,,,,
+"OUT-SDA-02-A","\P   19h mercredi À  19h dimanche   30 nov - 1er avril",11-30,04-01,,19,,96,,,1,,,,,,,
 "R-XK","\P EXCEPTE S3R 09h-17h MAR. MER. JEU.",,,,9,17,8,,1,1,1,,,,,,"permit"
 "OUT-SRV-16","\P EXCEPTÉ DETENTEURS DE PERMIS SECTEUR XX",,,,0,24,24,,,,,,,,1,,"permit"
 "OUT-SRV-14","\P EXCEPTÉ DETENTEURS DE PERMIS SECTEUR XX 8h - 19h JEUDI AU DIMANCHE",,,,8,19,11,,,,1,1,1,1,,,"permit"
@@ -1913,8 +1910,8 @@
 "RH-T-97","PANONCEAU 07h30-08h30 LUN A VEN",,,,"7.5","8.5",1,1,1,1,1,1,,,,,
 "PX-EL","PANONCEAU NOIR - EXCEPTE 9h-17h LUNDI ",,,,9,17,8,1,,,,,,,,,
 "PX-JR","PANONCEAU 07h-17h LUN. AU SAM.",,,,7,17,10,1,1,1,1,1,1,,,,
-"OUT-SPM-01-A","P 15 min 7h - 9h et 16h - 18h lun Ã  ven",,,15,7,9,2,1,1,1,1,1,,,,,
-"OUT-SPM-01-A","P 15 min 7h - 9h et 16h - 18h lun Ã  ven",,,15,16,18,2,1,1,1,1,1,,,,,
+"OUT-SPM-01-A","P 15 min 7h - 9h et 16h - 18h lun À  ven",,,15,7,9,2,1,1,1,1,1,,,,,
+"OUT-SPM-01-A","P 15 min 7h - 9h et 16h - 18h lun À  ven",,,15,16,18,2,1,1,1,1,1,,,,,
 "R-XP","\P EXCEPTE S3R 19h-23h LUN AU VEN ET 09h-23h SAM ET DIM",,,,19,23,4,1,1,1,1,1,,,,,"permit"
 "R-XP","\P EXCEPTE S3R 19h-23h LUN AU VEN ET 09h-23h SAM ET DIM",,,,9,23,14,,,,,,1,1,,,"permit"
 "PX-MN","PANONCEAU 1 MAI AU 1 NOV.",05-01,11-01,,,,,,,,,,,,1,,
@@ -1924,7 +1921,7 @@
 "RH-T-70","PANONCEAU 23h-7h",,,,23,,8,,,,,,,,,,
 "PX-EG","PANONCEAU - EXCEPTE 09h-17h VENDREDI",,,,9,17,8,1,1,1,1,1,,,,,
 "SB-SE-A","\P 21h-22h LUN. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,21,22,1,1,1,1,1,,,,,,
-"SLR-RH-T-I-E","Heures variables Lundi Ã  vendredi (6h Ã  9h)",,,,6,9,3,1,1,1,1,1,,,,,
+"SLR-RH-T-I-E","Heures variables Lundi À  vendredi (6h À  9h)",,,,6,9,3,1,1,1,1,1,,,,,
 "PS-DB","P 15 MIN 8h-18h LUN A SAM",,,15,8,18,10,1,1,1,1,1,1,,,,
 "SV-OH","\P 06h-15h LUN. AU VEN.",,,,6,15,9,1,1,1,1,1,,,,,
 "PS-PC","P 15 MIN 14h-19h LUN A SAM",,,15,14,19,5,1,1,1,1,1,1,,,,
@@ -1967,7 +1964,7 @@
 "PX-JE","PANONCEAU ""JOURS D'ECOLE""",,,,,,,,,,,,,,,"school",
 "PP-AQ","STATIONNEMENT TARIFÉ",,,,0,24,24,,,,,,,,1,,"paid"
 "SU-NX-A","\P 01h-02h DIMANCHE 1 AVRIL AU 1 DEC.",04-01,12-01,,1,2,1,,,,,,,1,,,
-"SLR-PR-33","7h Ã  9h LUN À VEN SAUF AUTOBUS SCOLAIRE",,,,7,9,2,1,1,1,1,1,,,,,"schoolbus"
+"SLR-PR-33","7h À  9h LUN À VEN SAUF AUTOBUS SCOLAIRE",,,,7,9,2,1,1,1,1,1,,,,,"schoolbus"
 "SV-AZ","\P 10h-11h LUN A VEN",,,,10,11,1,1,1,1,1,1,,,,,
 "PX-AM","PANONCEAU 15 NOV. AU 15 MARS",11-15,03-15,,,,,,,,,,,,1,,
 "PX-JB","PANONCEAU 09h30-18h LUN. MAR. MERC. SAM. 09h30-21h JEU.",,,,"9.5",18,"8.5",1,1,1,,,1,,,,
@@ -2067,10 +2064,10 @@
 "SB-PF-A","\P 13h30-14h30 LUN. VEN. 1 AVRIL AU 1 DEC.",04-01,12-01,,"13.5","14.5",1,1,1,1,1,1,,,,,
 "OUT-SPM-01-B","P 15 MIN 7h-9h30 15h30-18h LUN À VEN",,,15,7,"9.5","2.5",1,1,1,1,1,,,,,
 "OUT-SPM-01-B","P 15 MIN 7h-9h30 15h30-18h LUN À VEN",,,15,"15.5",18,"2.5",1,1,1,1,1,,,,,
-"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun Ã  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,"8.5","10.5",2,1,1,1,1,,,,,,"schoolbus"
-"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun Ã  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,14,16,2,1,1,1,1,,,,,,"schoolbus"
-"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun Ã  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,"8.5",10,"1.5",,,,,1,,,,,"schoolbus"
-"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun Ã  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,12,13,1,,,,,1,,,,,"schoolbus"
+"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun À  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,"8.5","10.5",2,1,1,1,1,,,,,,"schoolbus"
+"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun À  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,14,16,2,1,1,1,1,,,,,,"schoolbus"
+"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun À  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,"8.5",10,"1.5",,,,,1,,,,,"schoolbus"
+"OUT-SDE-11-A","\P 8h30 - 10h30 et 14h - 16h lun À  jeu 8h30-10h et 12h - 13h vendredi excepté autobus scolaire",,,,12,13,1,,,,,1,,,,,"schoolbus"
 "GR-AA","TERRASSE MAISONNEUVE, \P 09h-20h, LUN. AU VEN.",,,,9,20,11,1,1,1,1,1,,,,,
 "RH-T-46","PANONCEAU 06h30-09h30, 15h30-18h30 LUN. AU VEN.",,,,"6.5","9.5",3,1,1,1,1,1,,,,,
 "RH-T-46","PANONCEAU 06h30-09h30, 15h30-18h30 LUN. AU VEN.",,,,"15.5","18.5",3,1,1,1,1,1,,,,,
@@ -2127,7 +2124,7 @@
 "SD-NI","\P 17h-07h",,,,17,,14,,,,,,,,1,,
 "PX-HD","PANONCEAU DEBARCADERE RESERVE HANDICAPE",,,,,,,,,,,,,,1,,"dropoff, handicap"
 "PX-AX","PANONCEAU 20 AOÛT AU 30 JUIN",08-20,06-30,,,,,,,,,,,,1,,
-"OUT-SDX-14","\P de 8h Ã  12h du lundi au vendredi 1 avril au 30 nov. excepté véhicules municipaux",04-01,11-30,,8,12,4,1,1,1,1,1,,,,,"employees_city"
+"OUT-SDX-14","\P de 8h À  12h du lundi au vendredi 1 avril au 30 nov. excepté véhicules municipaux",04-01,11-30,,8,12,4,1,1,1,1,1,,,,,"employees_city"
 "PX-JA","PANONCEAU 09h00 @ 17h00",,,,9,17,8,,,,,,,,1,,
 "RC-A-E","MAXIMUM 30 07h-17h LUN A VEN SEPT A JUIN",09-01,06-30,30,7,17,10,,,,,,,,1,,
 "PX-EK","EXCEPTE 9h-21h LUN.",,,,9,21,12,1,,,,,,,,,
@@ -2186,7 +2183,7 @@
 "PX-JW","PANONCEAU 15h - 18h",,,,15,18,3,,,,,,,,1,,
 "RH-T-22","18h30-06h30",,,,"18.5",,12,,,,,,,,1,,
 "PV-OL","P 15 min 09h-17h LUN. A VEN.",,,15,9,17,8,1,1,1,1,1,,,,,
-"SLR-P-150-6-HZ","60 min. - 9h00 - 16h00 - LUN. Ã  VEN. (vignette)",,,60,9,16,5,1,1,1,1,1,,,,,"permit"
+"SLR-P-150-6-HZ","60 min. - 9h00 - 16h00 - LUN. À  VEN. (vignette)",,,60,9,16,5,1,1,1,1,1,,,,,"permit"
 "WZ-M","PANONCEAU 06h-10h 15h-19h LUN. AU VEN.",,,,6,10,,1,1,1,1,1,,,,,
 "WZ-M","PANONCEAU 06h-10h 15h-19h LUN. AU VEN.",,,,15,19,,1,1,1,1,1,,,,,
 "PX-JF","PANONCEAU 09h30-20h",,,,"9.5",20,"10.5",,,,,,,,1,,
@@ -2194,7 +2191,7 @@
 "AE-QE","\A 08h-16h LUN A VEN SEPT. A JUIN EXCEPTE AUTOBUS SCOLAIRE",09-01,06-30,,8,16,8,1,1,1,1,1,,,,,"schoolbus"
 "AE-QD","\A 07h-08h ET 13h-15h LUN A VEN SEPT. A JUIN EXCEPTE AUTOBUS SCOLAIRE",09-01,06-30,,7,8,1,1,1,1,1,1,,,,,"schoolbus"
 "AE-QD","\A 07h-08h ET 13h-15h LUN A VEN SEPT. A JUIN EXCEPTE AUTOBUS SCOLAIRE",09-01,06-30,,13,15,2,1,1,1,1,1,,,,,"schoolbus"
-"SLR-ST-202","8h Ã  17h LUNDI JEUDI 3 Mètres",,,,8,17,9,1,,,1,,,,,,"distance_3m"
+"SLR-ST-202","8h À  17h LUNDI JEUDI 3 Mètres",,,,8,17,9,1,,,1,,,,,,"distance_3m"
 "SB-LB","\P 08h30-09h30 LUN. MER. 1 MARS AU 1 DEC.",03-01,12-01,,"8.5","9.5",1,1,,1,,,,,,,
 "SLR-SG-154","EXCEPTÉ AUTOBUS ET VÉHICULES AUTORISÉS",,,,,,,,,,,,,,1,,"bus"
 "RD-JO","\P RESERVE HANDICAPES 07h-18h",,,,7,18,11,,,,,,,,1,,"handicap"
