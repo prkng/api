@@ -54,7 +54,7 @@ class SlotsModel(object):
                 split_part(season_end, '-', 1)::int,
                 day,
                 month::int
-            ) -- test season matching
+            ) -- test date matching
             AND tsrange(
                  date + to_time((agenda->dow->>0)::numeric)::time, --start
                  date + to_time((agenda->dow->>1)::numeric)::time  --end

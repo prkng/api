@@ -1,21 +1,9 @@
 
 
 # st_isLeft(line geometry, point geometry)
-
 # Returns 1 if the given point is on the left side of the line geometry (given the line digit order
 # Returns 0 if the given point is colinear to the line
 # Returns -1 if the given point is on the right side of the line).
-
-# examples :
-
-# select st_isLeft('linestring(0 0, 2 0, 2 2, 5 2, 5 1, 7 1)'::geometry, 'point(1 2)'::geometry);
-
-# select
-#     label, x, y, st_isLeft('linestring(0 0, 2 0, 2 2, 5 2, 5 1, 7 1)'::geometry, st_makepoint(x,y))
-# from (
-#     values ('A', 1, 2), ('B', 3, 4), ('F', 4, -1), ('E', 7, -3), ('D', 8, 2), ('C', -2, 1)
-# ) as pts(label, x, y)
-
 st_isleft_func = """
 DROP FUNCTION IF EXISTS st_isleft(geometry, geometry);
 CREATE OR REPLACE FUNCTION st_isleft(line geometry, porig geometry)
@@ -57,7 +45,10 @@ $BODY$
 # converts a base 10 hour to hour:minutes
 to_time_func = """
 CREATE OR REPLACE FUNCTION to_time(numeric) RETURNS varchar
-    AS 'SELECT trunc($1) || '':'' || trunc(mod($1, 1) *60);'
+    AS 'SELECT
+        trim(to_char(trunc($1), ''00''))
+        || '':'' ||
+        trim(to_char(trunc(mod($1, 1) *60), ''00''));'
     LANGUAGE SQL
     IMMUTABLE
     RETURNS NULL ON NULL INPUT;
@@ -81,6 +72,7 @@ BEGIN
         -- out of range months
         return false; end if;
     if start_month > end_month and (month < start_month and month > end_month) then
+        -- out of range months
         return false; end if;
 
     if month = start_month then
