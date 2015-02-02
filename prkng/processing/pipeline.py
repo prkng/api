@@ -87,10 +87,6 @@ def process_montreal():
     db.create_index('slots_staging', 'id')
     db.vacuum_analyze('public', 'slots')
 
-    res = db.query(mrl.remove_empty_days)
-    if res:
-        Logger.debug("Removed {} slots with empty days".format(len(res)))
-
     db.query(mrl.create_final_slots)
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'id')
@@ -203,26 +199,26 @@ def group_rules(rules):
                     continue
                 # others cases
                 if part.time_end:
-                    day_dict[numday].append(part.time_start)
-                    day_dict[numday].append(part.time_end)
+                    day_dict[numday].append([part.time_start, part.time_end])
 
                 elif part.time_duration:
                     fdl, ndays, ldf = split_time_range(part.time_start, part.time_duration)
                     # first day
-                    day_dict[numday].append(part.time_start)
-                    day_dict[numday].append(part.time_start + fdl)
+                    day_dict[numday].append([part.time_start, part.time_start + fdl])
 
                     for inter_day in xrange(1, ndays + 1):
-                        day_dict[numday + inter_day].append(0)
-                        day_dict[numday + inter_day].append(24)
+                        day_dict[numday + inter_day].append([0, 24])
                     # last day
                     if ldf != 0:
-                        day_dict[numday].append(0)
-                        day_dict[numday].append(ldf)
+                        day_dict[numday].append([0, ldf])
 
                 else:
-                    day_dict[numday].append(0)
-                    day_dict[numday].append(24)
+                    day_dict[numday].append([0, 24])
+
+        # add empty days
+        for numday, day in enumerate(days, start=1):
+            if not day_dict[numday]:
+                day_dict[numday].append(None)
 
         results.append(singles(
             part.id,

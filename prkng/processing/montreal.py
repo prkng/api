@@ -376,12 +376,6 @@ FROM raw r
 JOIN rules p on p.code = r.code
 """
 
-remove_empty_days = """
-DELETE FROM slots_staging
-WHERE agenda = '{}'::jsonb
-RETURNING id
-"""
-
 # final slots aggregates with the same code
 create_final_slots = """
 DROP TABLE IF EXISTS slots;

@@ -42,24 +42,26 @@ class SlotsModel(object):
         select
             rank() over (partition by s.signpost order by elevation DESC) as rank
             , s.*
-        from slots s, tmp t
+        from
+            slots s
+            , tmp t
+            , jsonb_array_elements(s.agenda->t.dow) as elem -- lateral join inside !
         where
             ST_Dwithin(st_transform('SRID=4326;POINT(-73.58 45.548)'::geometry, 3857), geom, 1000)
-            AND agenda ? t.dow -- test day
-            AND restrict_typ is NULL -- eliminate restrictions
-            AND date_equality(
-                split_part(season_start, '-', 2)::int,
-                split_part(season_start, '-', 1)::int,
-                split_part(season_end, '-', 2)::int,
-                split_part(season_end, '-', 1)::int,
-                day,
-                month::int
-            ) -- test date matching
-            AND tsrange(
-                 date + to_time((agenda->dow->>0)::numeric)::time, --start
-                 date + to_time((agenda->dow->>1)::numeric)::time  --end
-              ) && tsrange(ts, ts + (duration || 'hours')::interval)
-            -- check hours overlapping
+            AND NOT (
+                date_equality(
+                    split_part(season_start, '-', 2)::int,
+                    split_part(season_start, '-', 1)::int,
+                    split_part(season_end, '-', 2)::int,
+                    split_part(season_end, '-', 1)::int,
+                    day,
+                    month::int
+                    ) -- test season matching
+                AND tsrange(
+                    date + to_time(coalesce(elem->>0, '0')::numeric)::time,
+                    date + to_time(coalesce(elem->>1, '0')::numeric)::time
+                ) && tsrange(ts, ts + (duration || 'hours')::interval)
+            )
         )
             SELECT {properties}
             FROM result WHERE rank = 1
