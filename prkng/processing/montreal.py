@@ -218,10 +218,7 @@ CREATE TABLE slots_staging (
     , season_start varchar
     , season_end varchar
     , time_max_parking float
-    , time_start float
-    , time_end float
-    , time_duration float
-    , days int[]
+    , agenda jsonb
     , special_days varchar
     , restrict_typ varchar
     , direction smallint
@@ -268,10 +265,7 @@ INSERT INTO slots_staging(
     , season_start
     , season_end
     , time_max_parking
-    , time_start
-    , time_end
-    , time_duration
-    , days
+    , agenda
     , special_days
     , restrict_typ
     , direction
@@ -287,23 +281,7 @@ SELECT
     , p.season_start
     , p.season_end
     , p.time_max_parking
-    , p.time_start
-    , p.time_end
-    , p.time_duration
-    , CASE p.daily
-        WHEN 1 THEN ARRAY[1, 2, 3, 4, 5, 6, 7]
-        ELSE
-            array_remove(
-                ARRAY[lun*1] ||
-                ARRAY[mar*2] ||
-                ARRAY[mer*3] ||
-                ARRAY[jeu*4] ||
-                ARRAY[ven*5] ||
-                ARRAY[sam*6] ||
-                ARRAY[dim*7]
-                ,NULL
-            )
-      END as days
+    , p.agenda
     , p.special_days
     , p.restrict_typ
     , t.direction
@@ -311,7 +289,7 @@ SELECT
     , t.elevation
     , t.geom
 FROM tmp t
-JOIN montreal_rules_translation p on p.code = t.code
+JOIN rules p on p.code = t.code
 
 """
 
@@ -371,10 +349,7 @@ INSERT INTO slots_staging(
     , season_start
     , season_end
     , time_max_parking
-    , time_start
-    , time_end
-    , time_duration
-    , days
+    , agenda
     , special_days
     , restrict_typ
     , direction
@@ -390,23 +365,7 @@ SELECT
     , p.season_start
     , p.season_end
     , p.time_max_parking
-    , p.time_start
-    , p.time_end
-    , p.time_duration
-    , CASE p.daily
-        WHEN 1 THEN ARRAY[1, 2, 3, 4, 5, 6, 7]
-        ELSE
-            array_remove(
-                ARRAY[lun*1] ||
-                ARRAY[mar*2] ||
-                ARRAY[mer*3] ||
-                ARRAY[jeu*4] ||
-                ARRAY[ven*5] ||
-                ARRAY[sam*6] ||
-                ARRAY[dim*7]
-                ,NULL
-            )
-      END as days
+    , p.agenda
     , p.special_days
     , p.restrict_typ
     , r.direction
@@ -414,12 +373,12 @@ SELECT
     , r.elevation
     , r.geom
 FROM raw r
-JOIN montreal_rules_translation p on p.code = r.code
+JOIN rules p on p.code = r.code
 """
 
 remove_empty_days = """
 DELETE FROM slots_staging
-WHERE cardinality(days) = 0
+WHERE agenda = '{}'::jsonb
 RETURNING id
 """
 
@@ -433,10 +392,7 @@ CREATE TABLE slots (
     , season_start varchar
     , season_end varchar
     , time_max_parking float
-    , time_start float
-    , time_end float
-    , time_duration float
-    , days int[]
+    , agenda jsonb
     , special_days varchar
     , restrict_typ varchar
     , direction smallint
@@ -454,10 +410,7 @@ SELECT
     min(season_start) as season_start,
     min(season_end) as season_end,
     min(time_max_parking) as time_max_parking,
-    min(time_start) as time_start,
-    min(time_end) as time_end,
-    min(time_duration) as time_duration,
-    min(days) as days,
+    array_agg(agenda) as agenda,
     min(special_days) as special_days,
     min(restrict_typ) as restrict_typ,
     min(direction) as direction,
@@ -470,17 +423,14 @@ group by signpost, code, rid
 )
 INSERT INTO slots
 SELECT
-    distinct on (geom, restrict_typ)
+    distinct on (geom, code, restrict_typ)
     id
     , code
     , description
     , season_start
     , season_end
     , time_max_parking
-    , time_start
-    , time_end
-    , time_duration
-    , days
+    , agenda[1]
     , special_days
     , restrict_typ
     , direction

@@ -16,7 +16,7 @@
 #     values ('A', 1, 2), ('B', 3, 4), ('F', 4, -1), ('E', 7, -3), ('D', 8, 2), ('C', -2, 1)
 # ) as pts(label, x, y)
 
-st_isleft = """
+st_isleft_func = """
 DROP FUNCTION IF EXISTS st_isleft(geometry, geometry);
 CREATE OR REPLACE FUNCTION st_isleft(line geometry, porig geometry)
   RETURNS integer AS
@@ -61,4 +61,39 @@ CREATE OR REPLACE FUNCTION to_time(numeric) RETURNS varchar
     LANGUAGE SQL
     IMMUTABLE
     RETURNS NULL ON NULL INPUT;
+"""
+
+
+# compare dates
+date_equality_func = """
+CREATE OR REPLACE FUNCTION date_equality(start_day integer,
+                                         start_month integer,
+                                         end_day integer,
+                                         end_month integer,
+                                         day integer,
+                                         month integer)
+RETURNS boolean AS
+$$
+BEGIN
+    if start_month is null
+        then return true; end if;
+    if start_month < end_month and not (month >= start_month and month <= end_month) then
+        -- out of range months
+        return false; end if;
+    if start_month > end_month and (month < start_month and month > end_month) then
+        return false; end if;
+
+    if month = start_month then
+        if day < start_day then
+            return false; end if;
+        end if;
+
+    if month = end_month then
+        if day > end_day then
+            return false; end if;
+        end if;
+    return true;
+END;
+$$ LANGUAGE plpgsql
+IMMUTABLE
 """

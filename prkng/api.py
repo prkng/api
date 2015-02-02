@@ -194,7 +194,7 @@ class SlotsResource(Resource):
 class SlotsOnMap(Resource):
     def get(self, x, y):
         """
-        Backdoor to check results on a map
+        Backdoor to view results on a map
 
         """
         args = slot_parser.parse_args()

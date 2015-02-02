@@ -3,6 +3,8 @@ from __future__ import print_function
 from contextlib import contextmanager
 
 import psycopg2
+from psycopg2.extras import NamedTupleCursor
+
 from flask import _app_ctx_stack as stack, current_app
 
 from logger import Logger
@@ -19,12 +21,16 @@ class PostgresWrapper(object):
         self.db = psycopg2.connect(connect_string)
 
     @contextmanager
-    def _query(self):
+    def _query(self, namedtuple=None):
         """
         Context manager over queries.
         Initialize cursor, yield it and manage afterwards the rollback or commit
         """
-        cur = self.db.cursor()
+        if namedtuple:
+            cur = self.db.cursor(cursor_factory=NamedTupleCursor)
+        else:
+            cur = self.db.cursor()
+
         try:
             yield cur
             self.db.commit()
@@ -35,12 +41,12 @@ class PostgresWrapper(object):
             self.db.rollback()
             raise err
 
-    def query(self, stmt):
+    def query(self, stmt, namedtuple=None):
         """
         Execute query
         """
         res = []
-        with self._query() as cur:
+        with self._query(namedtuple=namedtuple) as cur:
             res = cur.execute(stmt)
 
             if cur.rowcount != -1:
@@ -113,6 +119,21 @@ class PostgresWrapper(object):
         # switch to default isolation level
         self.db.set_session(autocommit=False)
 
+    def copy_from(self, schema, table, columns, values):
+        """
+        Uses the efficient PostgreSQL COPY command to move data from files to tables
+        """
+        from cStringIO import StringIO
+        cur = self.db.cursor()
+        cur.copy_from(
+            StringIO(
+                '\n'.join('\t'.join(str(col) if col else '\\N' for col in line) for line in values)
+            ),
+            '{}.{}'.format(schema, table),
+            columns=columns,
+        )
+        self.db.commit()
+
 
 class Postgres(object):
     """
@@ -135,18 +156,16 @@ class Postgres(object):
         if hasattr(ctx, 'postgres_db'):
             ctx.pgdb.close()
 
-    def connect(self):
-        return PostgresWrapper(
-            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
-            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**current_app.config)
-        )
-
     @property
     def connection(self):
         ctx = stack.top
         if ctx is not None:
             if not hasattr(ctx, 'postgres_db'):
-                ctx.pgdb = self.connect()
+                ctx.pgdb = PostgresWrapper(
+                    "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+                    "user={PG_USERNAME} password={PG_PASSWORD} "
+                    .format(**current_app.config)
+                )
             return ctx.pgdb
 
 

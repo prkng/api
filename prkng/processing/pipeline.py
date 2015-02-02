@@ -1,11 +1,18 @@
 # -*- coding: utf-8 -*-
+from __future__ import unicode_literals
+
+from collections import namedtuple, defaultdict
+from itertools import groupby
+import json
+
 from prkng.logger import Logger
 from prkng import create_app
 from prkng.database import PostgresWrapper
 
 import osm
 import montreal as mrl
-import geofunctions
+import plfunctions
+import common
 
 
 CONFIG = create_app().config
@@ -16,9 +23,12 @@ db = PostgresWrapper(
 
 def process_montreal():
     """
-    process montreal data to generate parking slots
+    process montreal data and generate parking slots
     """
     Logger.info("Processing Montreal DATA")
+
+    Logger.debug('Loadind and translating montreal rules')
+    insert_rules('montreal_rules_translation')
 
     Logger.info("Creating sign table")
     db.query(mrl.create_sign)
@@ -77,17 +87,17 @@ def process_montreal():
     db.create_index('slots_staging', 'id')
     db.vacuum_analyze('public', 'slots')
 
-    db.query(mrl.create_final_slots)
-    db.create_index('slots', 'geom', index_type='gist')
-    db.create_index('slots', 'id')
-    db.create_index('slots', 'days', index_type='gin')
-    db.create_index('slots', 'signpost')
-    db.create_index('slots', 'elevation')
-    db.vacuum_analyze('public', 'slots')
-
     res = db.query(mrl.remove_empty_days)
     if res:
         Logger.debug("Removed {} slots with empty days".format(len(res)))
+
+    db.query(mrl.create_final_slots)
+    db.create_index('slots', 'geom', index_type='gist')
+    db.create_index('slots', 'id')
+    db.create_index('slots', 'agenda', index_type='gin')
+    db.create_index('slots', 'signpost')
+    db.create_index('slots', 'elevation')
+    db.vacuum_analyze('public', 'slots')
 
 
 def cleanup_table():
@@ -103,7 +113,9 @@ def cleanup_table():
 
 
 def run():
-
+    """
+    Run the entire pipeline
+    """
     Logger.debug("Loading extension fuzzystrmatch")
     db.query("create extension if not exists fuzzystrmatch")
 
@@ -131,10 +143,113 @@ def run():
     db.vacuum_analyze('public', 'roads')
 
     # Logger.info("Loading custom functions")
-    db.query(geofunctions.st_isleft)
-    db.query(geofunctions.to_time_func)
+    db.query(plfunctions.st_isleft_func)
+    db.query(plfunctions.to_time_func)
+    db.query(plfunctions.date_equality_func)
+
+    # create rule table
+    db.query(common.create_rules)
+    db.create_index('rules', 'code')
 
     process_montreal()
 
     if not CONFIG['DEBUG']:
         cleanup_table()
+
+
+def insert_rules(from_table):
+    """
+    Get rules from specific location (montreal, quebec),
+    group them, make a simpler model and load them into database
+    """
+    Logger.debug("Get rules and transform them to a more simple model")
+    rules = db.query(
+        common.get_rules_from_source.format(source=from_table),
+        namedtuple=True
+    )
+    rules_grouped = group_rules(rules)
+
+    Logger.debug("Load rules into montreal_rule table")
+
+    db.copy_from('public', 'rules', common.rules_columns, [
+        [
+            json.dumps(val).replace('\\', '\\\\') if isinstance(val, dict) else val
+            for val in rule._asdict().values()]
+        for rule in rules_grouped
+    ])
+
+
+def group_rules(rules):
+    """
+    group rules having the same code and contructs an array of
+    parking time for each day
+    """
+    singles = namedtuple('singles', (
+        'id', 'code', 'description', 'season_start', 'season_end',
+        'time_max_parking', 'agenda', 'special_days', 'restrict_typ'
+    ))
+
+    results = []
+    days = ('lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim')
+
+    for code, group in groupby(rules, lambda x: x.code):
+
+        day_dict = defaultdict(list)
+
+        for part in group:
+            for numday, day in enumerate(days, start=1):
+                isok = getattr(part, day) or part.daily
+                if not isok:
+                    continue
+                # others cases
+                if part.time_end:
+                    day_dict[numday].append(part.time_start)
+                    day_dict[numday].append(part.time_end)
+
+                elif part.time_duration:
+                    fdl, ndays, ldf = split_time_range(part.time_start, part.time_duration)
+                    # first day
+                    day_dict[numday].append(part.time_start)
+                    day_dict[numday].append(part.time_start + fdl)
+
+                    for inter_day in xrange(1, ndays + 1):
+                        day_dict[numday + inter_day].append(0)
+                        day_dict[numday + inter_day].append(24)
+                    # last day
+                    if ldf != 0:
+                        day_dict[numday].append(0)
+                        day_dict[numday].append(ldf)
+
+                else:
+                    day_dict[numday].append(0)
+                    day_dict[numday].append(24)
+
+        results.append(singles(
+            part.id,
+            part.code,
+            part.description,
+            part.season_start,
+            part.season_end,
+            part.time_max_parking,
+            dict(day_dict),
+            part.special_days,
+            part.restrict_typ
+        ))
+
+    return results
+
+
+def split_time_range(start_time, duration):
+    """
+    Given a start time and a duration, returns a 3-tuple containing
+    the time left for the current day, a number of plain day left, a number of hours left
+    for the last day
+    """
+    if start_time + duration <= 24:
+        # end is inside the first day
+        return duration, 0, 0
+
+    time_left_first = 24 - start_time
+    plain_days = (duration - time_left_first) // 24
+    time_left_last = (duration - time_left_first) % 24
+    return time_left_first, int(plain_days), time_left_last

@@ -11,10 +11,7 @@ class SlotsModel(object):
         'season_start',
         'season_end',
         'time_max_parking',
-        'time_start',
-        'time_end',
-        'time_duration',
-        'days',
+        'agenda',
         'special_days',
         'restrict_typ'
     )
@@ -36,7 +33,9 @@ class SlotsModel(object):
             ts
             , duration
             , EXTRACT (year from ts) as year
-            , EXTRACT (isodow from ts) as dow
+            , EXTRACT (month from ts) as month
+            , (EXTRACT (isodow from ts))::varchar as dow
+            , (EXTRACT (day from ts))::int as day
             , ts::date as date
         from param
         ), result as (
@@ -45,27 +44,22 @@ class SlotsModel(object):
             , s.*
         from slots s, tmp t
         where
-            ST_Dwithin(
-                st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                geom,
-                {radius})
-
-            AND ARRAY[t.dow::integer] <@ s.days
-            AND duration <= coalesce(s.time_max_parking / 60, time_duration)
-            AND restrict_typ is NULL
-            -- check season connection
+            ST_Dwithin(st_transform('SRID=4326;POINT(-73.58 45.548)'::geometry, 3857), geom, 1000)
+            AND agenda ? t.dow -- test day
+            AND restrict_typ is NULL -- eliminate restrictions
+            AND date_equality(
+                split_part(season_start, '-', 2)::int,
+                split_part(season_start, '-', 1)::int,
+                split_part(season_end, '-', 2)::int,
+                split_part(season_end, '-', 1)::int,
+                day,
+                month::int
+            ) -- test season matching
             AND tsrange(
-                coalesce((year || '-' || season_start)::timestamp, (year || '-01-01')::timestamp),
-                coalesce((year || '-' || season_end)::timestamp, (year || '-12-31T23:59:59')::timestamp),
-                '[]' -- bounds included
-              ) @> ts
-            -- check hours coverage
-            AND tsrange(
-                date + to_time(s.time_start::numeric)::time,
-                coalesce(date + to_time(s.time_end::numeric)::time,
-                         date + to_time(s.time_start::numeric)::time + (time_duration || 'hours')::interval),
-                '[]' -- bounds included
-              ) @> tsrange(ts, ts + (duration || 'hours')::interval)
+                 date + to_time((agenda->dow->>0)::numeric)::time, --start
+                 date + to_time((agenda->dow->>1)::numeric)::time  --end
+              ) && tsrange(ts, ts + (duration || 'hours')::interval)
+            -- check hours overlapping
         )
             SELECT {properties}
             FROM result WHERE rank = 1
