@@ -22,6 +22,15 @@ def archive():
 
 
 @task
+def test():
+    """
+    create a new source distribution as tarball
+    """
+    with cd(remote_directory), prefix('. venv/bin/activate'):
+        run('py.test')
+
+
+@task
 def deploy():
     """
     upload the source tarball to the temporary folder on the server
