@@ -87,7 +87,10 @@ def process_montreal():
     db.create_index('slots_staging', 'id')
     db.vacuum_analyze('public', 'slots')
 
-    db.query(mrl.create_final_slots)
+    db.query(mrl.create_slots_before_agg)
+    db.create_index('slots_nonagg', 'signpost')
+
+    db.query(mrl.create_slots)
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'id')
     db.create_index('slots', 'agenda', index_type='gin')
@@ -106,6 +109,8 @@ def cleanup_table():
     db.query("DROP TABLE roads_geobase")
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
+    db.query("DROP TABLE slots_staging")
+    db.query("DROP TABLE slots_nonagg")
 
 
 def run():
