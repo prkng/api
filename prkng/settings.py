@@ -16,6 +16,12 @@ class Defaults(object):
     PG_USERNAME = ''
     PG_PASSWORD = ''
 
+    PG_TEST_HOST = 'localhost'
+    PG_TEST_DATABASE = 'prkng_test'
+    PG_TEST_PORT = '5432'
+    PG_TEST_USERNAME = ''
+    PG_TEST_PASSWORD = ''
+
     DOWNLOAD_DIRECTORY = '/tmp'
 
 

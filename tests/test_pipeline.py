@@ -142,37 +142,36 @@ def test_grouping_rules_single(rules):
     res = group_rules(rules)
     days = filter(lambda x: x.code == 'PX-MN', res)[0].agenda
 
-    assert days == {1: [0, 24], 2: [0, 24],
-                    3: [0, 24], 4: [0, 24],
-                    5: [0, 24], 6: [0, 24],
-                    7: [0, 24]}
+    assert days == {1: [[0, 24]], 2: [[0, 24]],
+                    3: [[0, 24]], 4: [[0, 24]],
+                    5: [[0, 24]], 6: [[0, 24]],
+                    7: [[0, 24]]}
 
 
 def test_grouping_rules_multi(rules):
     res = group_rules(rules)
     days = filter(lambda x: x.code == 'SLR-ST-105', res)[0].agenda
 
-    assert days == {1: [13, 17], 2: [8, 12],
-                    3: [13, 17], 4: [8, 12],
-                    5: [13, 17]}
+    assert days == {1: [[13, 17]], 2: [[8, 12]],
+                    3: [[13, 17]], 4: [[8, 12]],
+                    5: [[13, 17]], 6: [None], 7: [None]}
 
 
 def test_grouping_rules_largetime(rules):
     res = group_rules(rules)
     days = filter(lambda x: x.code == 'OUT-SDX-10', res)[0].agenda
 
-    assert days == {1: [12, 24, 0, 8], 2: [0, 24],
-                    3: [0, 24], 4: [0, 24],
-                    5: [0, 24], 6: [0, 24],
-                    7: [0, 24]}
+    assert days == {1: [[12, 24], [0, 8]], 2: [[0, 24]],
+                    3: [[0, 24]], 4: [[0, 24]],
+                    5: [[0, 24]], 6: [[0, 24]],
+                    7: [[0, 24]]}
 
 
 def test_grouping_rules_alltime(rules):
     res = group_rules(rules)
     days = filter(lambda x: x.code == 'SD-TT', res)[0].agenda
 
-    assert days == {1: [0, 24], 2: [0, 24],
-                    3: [0, 24], 4: [0, 24],
-                    5: [0, 24], 6: [0, 24],
-                    7: [0, 24]}
-
+    assert days == {1: [[0, 24]], 2: [[0, 24]],
+                    3: [[0, 24]], 4: [[0, 24]],
+                    5: [[0, 24]], 6: [[0, 24]],
+                    7: [[0, 24]]}
