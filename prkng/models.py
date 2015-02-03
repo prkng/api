@@ -48,7 +48,7 @@ class SlotsModel(object):
             , tmp t
             , jsonb_array_elements(s.agenda->t.dow) as elem -- lateral join inside !
         where
-            ST_Dwithin(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom, 1000)
+            ST_Dwithin(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom, {radius})
             AND (duration || 'hours')::interval <= coalesce((time_max_parking || 'minutes')::interval, ('365days')::interval)
             AND NOT (
                 date_equality(
