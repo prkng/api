@@ -33,9 +33,9 @@
     }).addTo(map);
 
     var myStyle = {
-        "color": "#3F14FF",
-        "weight": 5,
-        "opacity": 0.3
+        "color": "blue",
+        "weight": 4,
+        "opacity": 0.5,
     };
 
     function onEachFeature(feature, layer) {
@@ -47,7 +47,8 @@
     }
 
     var geoj = L.geoJson({{ geojson|tojson|safe }}, {
-        onEachFeature: onEachFeature
+        onEachFeature: onEachFeature,
+        style: myStyle
     });
 
     geoj.addTo(map);
