@@ -2,6 +2,7 @@
 
 from .database import db
 
+from prkng.logger import Logger
 
 class SlotsModel(object):
     properties = (
@@ -47,7 +48,8 @@ class SlotsModel(object):
             , tmp t
             , jsonb_array_elements(s.agenda->t.dow) as elem -- lateral join inside !
         where
-            ST_Dwithin(st_transform('SRID=4326;POINT(-73.58 45.548)'::geometry, 3857), geom, 1000)
+            ST_Dwithin(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom, 1000)
+            AND (duration || 'hours')::interval <= coalesce((time_max_parking || 'minutes')::interval, ('365days')::interval)
             AND NOT (
                 date_equality(
                     split_part(season_start, '-', 2)::int,
@@ -55,8 +57,7 @@ class SlotsModel(object):
                     split_part(season_end, '-', 2)::int,
                     split_part(season_end, '-', 1)::int,
                     day,
-                    month::int
-                    ) -- test season matching
+                    month::int) -- test season matching
                 AND tsrange(
                     date + to_time(coalesce(elem->>0, '0')::numeric)::time,
                     date + to_time(coalesce(elem->>1, '0')::numeric)::time
