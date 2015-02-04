@@ -87,8 +87,8 @@ def process_montreal():
     db.create_index('slots_staging', 'id')
     db.vacuum_analyze('public', 'slots')
 
-    db.query(mrl.create_slots_before_agg)
-    db.create_index('slots_nonagg', 'signpost')
+    # db.query(mrl.create_slots_before_agg)
+    # db.create_index('slots_nonagg', 'signpost')
 
     db.query(mrl.create_slots)
     db.create_index('slots', 'id')
@@ -106,7 +106,7 @@ def cleanup_table():
     Logger.info("Cleanup schema")
     db.query("DROP TABLE bad_intersection")
     db.query("DROP TABLE way_intersection")
-    db.query("DROP TABLE roads_geobase")
+    db.query("DROP TABLE roads")
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE slots_staging")

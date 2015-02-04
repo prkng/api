@@ -387,9 +387,9 @@ JOIN rules p on p.code = r.code
 """
 
 # creates slots and aggregates those that touch with the same code
-create_slots_before_agg = """
-DROP TABLE IF EXISTS slots_nonagg;
-CREATE TABLE slots_nonagg (
+create_slots = """
+DROP TABLE IF EXISTS slots;
+CREATE TABLE slots (
     id integer
     , code varchar
     , description varchar
@@ -425,7 +425,7 @@ FROM slots_staging
 group by signpost, code, rid
 -- for now aggregate only if connected on the same signpost
 )
-INSERT INTO slots_nonagg
+INSERT INTO slots
 SELECT
     distinct on (geom, code, restrict_typ)
     id
@@ -466,83 +466,83 @@ FROM tmp;
 
 # create final slots and aggregate those that overlap
 # use buffers and roads to create new slots
-create_slots = """
-DROP TABLE IF EXISTS slots;
-CREATE TABLE slots (
-    id integer
-    , ids integer[]
-    , code varchar
-    , description varchar
-    , season_start varchar
-    , season_end varchar
-    , time_max_parking float
-    , agenda jsonb
-    , special_days varchar
-    , restrict_typ varchar
-    , direction smallint
-    , signpost integer NOT NULL
-    , elevation smallint
-    , geom geometry(multilinestring, 3857)
-    , geojson jsonb
-);
+# create_slots = """
+# DROP TABLE IF EXISTS slots;
+# CREATE TABLE slots (
+#     id integer
+#     , ids integer[]
+#     , code varchar
+#     , description varchar
+#     , season_start varchar
+#     , season_end varchar
+#     , time_max_parking float
+#     , agenda jsonb
+#     , special_days varchar
+#     , restrict_typ varchar
+#     , direction smallint
+#     , signpost integer NOT NULL
+#     , elevation smallint
+#     , geom geometry(multilinestring, 3857)
+#     , geojson jsonb
+# );
 
-with tmp as (
-    select
-        p.isleft
-        , s.*
-        , r.id as rid
-        , r.geom as rgeom
-    from slots_nonagg s
-    join signpost_onroad p on s.signpost = p.id
-    join roads_geobase r on r.id = p.road_id
-),
-buffers as (
-select
-    min(id) as id
-    , array_agg(id) as ids
-    , min(elevation)
-    , isleft
-    , code
-    , min(description)
-    , min(description) as description
-    , min(season_start) as season_start
-    , min(season_end) as season_end
-    , min(time_max_parking) as time_max_parking
-    , min(rgeom) as rgeom
-    , array_agg(agenda) as agenda
-    , min(special_days) as special_days
-    , min(restrict_typ) as restrict_typ
-    , min(direction) as direction
-    , min(signpost) as signpost
-    , max(elevation) as elevation
-    , (st_dump(st_union(st_buffer(geom, 0.5)))).geom as geom
-from tmp
-group by isleft, code, rid
-), staging as (
-select *,
-    st_multi(st_intersection(
-        geom,
-        CASE WHEN isleft = 1 THEN ST_OffsetCurve(rgeom, 8, 'quad_segs=4 join=round')
-        ELSE ST_OffsetCurve(rgeom, -8, 'quad_segs=4 join=round') END
-    )) as newgeom
-from buffers
-)
-insert into slots
-select
-    id
-    , ids
-    , code
-    , description
-    , season_start
-    , season_end
-    , time_max_parking
-    , agenda[1]
-    , special_days
-    , restrict_typ
-    , direction
-    , signpost
-    , elevation
-    , newgeom as geom
-    , ST_AsGeoJSON(st_transform(newgeom, 4326))::jsonb as geojson
-from staging
-"""
+# with tmp as (
+#     select
+#         p.isleft
+#         , s.*
+#         , r.id as rid
+#         , r.geom as rgeom
+#     from slots_nonagg s
+#     join signpost_onroad p on s.signpost = p.id
+#     join roads_geobase r on r.id = p.road_id
+# ),
+# buffers as (
+# select
+#     min(id) as id
+#     , array_agg(id) as ids
+#     , min(elevation)
+#     , isleft
+#     , code
+#     , min(description)
+#     , min(description) as description
+#     , min(season_start) as season_start
+#     , min(season_end) as season_end
+#     , min(time_max_parking) as time_max_parking
+#     , min(rgeom) as rgeom
+#     , array_agg(agenda) as agenda
+#     , min(special_days) as special_days
+#     , min(restrict_typ) as restrict_typ
+#     , min(direction) as direction
+#     , min(signpost) as signpost
+#     , max(elevation) as elevation
+#     , (st_dump(st_union(st_buffer(geom, 0.5)))).geom as geom
+# from tmp
+# group by isleft, code, rid
+# ), staging as (
+# select *,
+#     st_multi(st_intersection(
+#         geom,
+#         CASE WHEN isleft = 1 THEN ST_OffsetCurve(rgeom, 8, 'quad_segs=4 join=round')
+#         ELSE ST_OffsetCurve(rgeom, -8, 'quad_segs=4 join=round') END
+#     )) as newgeom
+# from buffers
+# )
+# insert into slots
+# select
+#     id
+#     , ids
+#     , code
+#     , description
+#     , season_start
+#     , season_end
+#     , time_max_parking
+#     , agenda[1]
+#     , special_days
+#     , restrict_typ
+#     , direction
+#     , signpost
+#     , elevation
+#     , newgeom as geom
+#     , ST_AsGeoJSON(st_transform(newgeom, 4326))::jsonb as geojson
+# from staging
+# """
