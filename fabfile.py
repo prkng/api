@@ -18,7 +18,7 @@ def archive():
     """
     create a new source distribution as tarball
     """
-    local('pip wheel --wheel-dir={} .'.format(dist))
+    local('pip wheel --wheel-dir={} -r requirements.txt'.format(dist))
 
 
 @task
