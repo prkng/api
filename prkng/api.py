@@ -45,6 +45,14 @@ class Geometry(fields.Raw):
 
 
 @api.model(fields={
+    '%s' % day: fields.List(fields.Raw)
+    for day in range(1, 8)
+})
+class AgendaView(fields.Raw):
+    pass
+
+
+@api.model(fields={
     'description': fields.String(
         description='The description of the parking rule',
         required=True),
@@ -57,23 +65,13 @@ class Geometry(fields.Raw):
     'time_max_parking': fields.String(
         description='restriction on parking time (minutes)',
         required=True),
-    'time_start': fields.Float(
-        description='hour of the day when the permission starts',
+    'agenda': AgendaView(
+        description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
+                       containing a list of time ranges when the restriction apply''',
         required=True),
-    'time_end': fields.Float(
-        description='hour of the day when the permission ends (null if beyond the day) ',
-        required=True),
-    'time_duration': fields.Float(
-        description='permission duration',
-        required=True),
-    'days': fields.List(
-        fields.Integer,
-        description='list of days when the permission apply (1: monday, ..., 7: sunday)',
-        required=True),
-    'special_days': fields.String(
-        description='school days for example', required=True),
+    'special_days': fields.String(required=True),
     'restrict_typ': fields.String(
-        description='special permissions details (may not be used for the v1 i think)',
+        description='special restriction details',
         required=True)
 })
 class SlotsField(fields.Raw):
