@@ -3,7 +3,7 @@ import pytest
 
 from prkng.database import PostgresWrapper
 from prkng import create_app
-from prkng.processing.plfunctions import date_equality_func, st_isleft_func, to_time_func
+from prkng.processing.plfunctions import date_equality_func, st_isleft_func
 
 
 @pytest.fixture(scope="module")
@@ -23,14 +23,6 @@ def test_date_equality_func(db):
     assert db.query('select date_equality(1, 12, 1, 4, 2, 4)')[0][0] == False
     assert db.query('select date_equality(1, 4, 1, 12, 1, 2)')[0][0] == False
     assert db.query('select date_equality(1, 3, 1, 1, 1, 2)')[0][0] == False
-
-
-def test_totime_func(db):
-    db.query(to_time_func)
-    assert db.query('select to_time(12)')[0][0] == '12:00'
-    assert db.query('select to_time(4.5)')[0][0] == '04:30'
-    assert db.query('select to_time(4.25)')[0][0] == '04:15'
-    assert db.query('select to_time(4.75)')[0][0] == '04:45'
 
 
 def test_st_isleft(db):

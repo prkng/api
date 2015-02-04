@@ -110,7 +110,7 @@ def cleanup_table():
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE slots_staging")
-    db.query("DROP TABLE slots_nonagg")
+    # db.query("DROP TABLE slots_nonagg")
 
 
 def run():

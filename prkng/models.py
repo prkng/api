@@ -59,8 +59,8 @@ class SlotsModel(object):
                     day,
                     month::int) -- test season matching
                 AND tsrange(
-                    date + to_time(coalesce(elem->>0, '0')::numeric)::time,
-                    date + to_time(coalesce(elem->>1, '0')::numeric)::time
+                    date + (coalesce(elem->>0, '0') || 'hours')::interval,
+                    date + (coalesce(elem->>1, '0') || 'hours')::interval
                 ) && tsrange(ts, ts + (duration || 'hours')::interval)
             )
         )

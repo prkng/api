@@ -42,19 +42,6 @@ $BODY$
   COST 100;
 """
 
-# converts a base 10 hour to hour:minutes
-to_time_func = """
-CREATE OR REPLACE FUNCTION to_time(numeric) RETURNS varchar
-    AS 'SELECT
-        trim(to_char(trunc($1), ''00''))
-        || '':'' ||
-        trim(to_char(trunc(mod($1, 1) *60), ''00''));'
-    LANGUAGE SQL
-    IMMUTABLE
-    RETURNS NULL ON NULL INPUT;
-"""
-
-
 # compare dates
 date_equality_func = """
 CREATE OR REPLACE FUNCTION date_equality(start_day integer,

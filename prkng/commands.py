@@ -44,7 +44,7 @@ def update():
 @click.command()
 def process():
     """
-    Process source data and create the target model
+    Process data and create the target tables
     """
     from prkng.processing import pipeline
     pipeline.run()
