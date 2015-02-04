@@ -91,8 +91,8 @@ def process_montreal():
     db.create_index('slots_nonagg', 'signpost')
 
     db.query(mrl.create_slots)
-    db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'id')
+    db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'agenda', index_type='gin')
     db.create_index('slots', 'signpost')
     db.create_index('slots', 'elevation')

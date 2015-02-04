@@ -408,19 +408,19 @@ CREATE TABLE slots_nonagg (
 
 with tmp as (
 SELECT
-    min(id) as id,
-    code,
-    min(description) as description,
-    min(season_start) as season_start,
-    min(season_end) as season_end,
-    min(time_max_parking) as time_max_parking,
-    array_agg(agenda) as agenda,
-    min(special_days) as special_days,
-    min(restrict_typ) as restrict_typ,
-    min(direction) as direction,
-    signpost,
-    max(elevation) as elevation,
-    st_multi(st_linemerge(st_union(geom))) as geom
+    min(id) as id
+    , code
+    , min(description) as description
+    , min(season_start) as season_start
+    , min(season_end) as season_end
+    , min(time_max_parking) as time_max_parking
+    , array_agg(agenda) as agenda
+    , min(special_days) as special_days
+    , min(restrict_typ) as restrict_typ
+    , min(direction) as direction
+    , signpost
+    , max(elevation) as elevation
+    , st_multi(st_linemerge(st_union(geom))) as geom
 FROM slots_staging
 group by signpost, code, rid
 -- for now aggregate only if connected on the same signpost
@@ -470,6 +470,7 @@ create_slots = """
 DROP TABLE IF EXISTS slots;
 CREATE TABLE slots (
     id integer
+    , ids integer[]
     , code varchar
     , description varchar
     , season_start varchar
@@ -487,33 +488,34 @@ CREATE TABLE slots (
 
 with tmp as (
     select
-        p.isleft,
-        s.*,
-        r.id as rid,
-        r.geom as rgeom
+        p.isleft
+        , s.*
+        , r.id as rid
+        , r.geom as rgeom
     from slots_nonagg s
     join signpost_onroad p on s.signpost = p.id
     join roads_geobase r on r.id = p.road_id
 ),
 buffers as (
 select
-    min(id) as id,
-    min(elevation),
-    isleft,
-    code,
-    min(description),
-    min(description) as description,
-    min(season_start) as season_start,
-    min(season_end) as season_end,
-    min(time_max_parking) as time_max_parking,
-    min(rgeom) as rgeom,
-    array_agg(agenda) as agenda,
-    min(special_days) as special_days,
-    min(restrict_typ) as restrict_typ,
-    min(direction) as direction,
-    min(signpost) as signpost,
-    max(elevation) as elevation,
-    (st_dump(st_union(st_buffer(geom, 0.5)))).geom as geom
+    min(id) as id
+    , array_agg(id) as ids
+    , min(elevation)
+    , isleft
+    , code
+    , min(description)
+    , min(description) as description
+    , min(season_start) as season_start
+    , min(season_end) as season_end
+    , min(time_max_parking) as time_max_parking
+    , min(rgeom) as rgeom
+    , array_agg(agenda) as agenda
+    , min(special_days) as special_days
+    , min(restrict_typ) as restrict_typ
+    , min(direction) as direction
+    , min(signpost) as signpost
+    , max(elevation) as elevation
+    , (st_dump(st_union(st_buffer(geom, 0.5)))).geom as geom
 from tmp
 group by isleft, code, rid
 ), staging as (
@@ -528,6 +530,7 @@ from buffers
 insert into slots
 select
     id
+    , ids
     , code
     , description
     , season_start

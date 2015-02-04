@@ -2,7 +2,6 @@
 
 from .database import db
 
-from prkng.logger import Logger
 
 class SlotsModel(object):
     properties = (
