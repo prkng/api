@@ -1,80 +1,41 @@
 # -*- coding: utf-8 -*-
-
 from .database import db
-
+from .filters import on_restriction
 
 class SlotsModel(object):
     properties = (
         'id',
         'geojson',
-        'description',
-        'season_start',
-        'season_end',
-        'time_max_parking',
-        'agenda',
-        'special_days',
-        'restrict_typ'
+        'rules'
     )
 
     @staticmethod
     def get_within(x, y, radius, duration, checkin):
         """
         Retrieve the nearest slots within ``radius`` meters of
-        given location (x, y)
+        given location (x, y).
+
+        Restriction reduction before output
         """
-        checkin = "'%s'::timestamp" % checkin if checkin else 'LOCALTIMESTAMP'
+        checkin = checkin or datetime.now()
 
         req = """
-        with param as (
-            select {checkin} as ts,
-            {duration} as duration
-        ), tmp as (
-        select
-            ts
-            , duration
-            , EXTRACT (year from ts) as year
-            , EXTRACT (month from ts) as month
-            , (EXTRACT (isodow from ts))::varchar as dow
-            , (EXTRACT (day from ts))::int as day
-            , ts::date as date
-        from param
-        ), result as (
-        select
-            rank() over (partition by s.signpost order by elevation DESC) as rank
-            , s.*
-        from
-            slots s
-            , tmp t
-            , jsonb_array_elements(s.agenda->t.dow) as elem -- lateral join inside !
-        where
+        SELECT {properties}
+        FROM slots
+        WHERE
             ST_Dwithin(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom, {radius})
-            AND restrict_typ is NULL
-            AND (duration || 'hours')::interval <= coalesce((time_max_parking || 'minutes')::interval, ('365days')::interval)
-            AND NOT (
-                date_equality(
-                    split_part(season_start, '-', 2)::int,
-                    split_part(season_start, '-', 1)::int,
-                    split_part(season_end, '-', 2)::int,
-                    split_part(season_end, '-', 1)::int,
-                    day,
-                    month::int) -- test season matching
-                AND tsrange(
-                    date + (coalesce(elem->>0, '0') || 'hours')::interval,
-                    date + (coalesce(elem->>1, '0') || 'hours')::interval
-                ) && tsrange(ts, ts + (duration || 'hours')::interval)
-            )
-        )
-            SELECT {properties}
-            FROM result WHERE rank = 1
         """.format(
             properties=','.join(SlotsModel.properties),
             x=x,
             y=y,
-            radius=radius,
-            checkin=checkin,
-            duration=duration
+            radius=radius
         )
-        return db.connection.query(req)
+
+        features = db.connection.query(req)
+        return filter(
+            lambda x: not on_restriction(x[2], checkin, duration),
+            features
+        )
 
     @staticmethod
     def get_byid(sid):
@@ -87,3 +48,8 @@ class SlotsModel(object):
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(SlotsModel.properties)))
+
+
+
+
+

@@ -206,6 +206,12 @@ class SlotsOnMap(Resource):
         if not res:
             api.abort(404, "no feature found")
 
+        # remove agenda since it's too big for leaflet popup
+        for re in res:
+            for rule in re[2]:
+                for key, value in rule.items():
+                    rule.pop('agenda', None)
+
         resp = Response(render_template('map.html', geojson=FeatureCollection([
             Feature(
                 id=feat[0],

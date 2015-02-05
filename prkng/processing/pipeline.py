@@ -11,6 +11,7 @@ from prkng.database import PostgresWrapper
 
 import osm
 import montreal as mrl
+import quebec as qbc
 import plfunctions
 import common
 
@@ -29,6 +30,7 @@ def process_montreal():
 
     Logger.debug('Loadind and translating montreal rules')
     insert_rules('montreal_rules_translation')
+    db.vacuum_analyze('public', 'rules')
 
     Logger.info("Creating sign table")
     db.query(mrl.create_sign)
@@ -57,7 +59,7 @@ def process_montreal():
     db.create_index('roads_geobase', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'roads_geobase')
 
-    Logger.info("Creating slots")
+    Logger.info("Projecting signposts on road")
     duplicates = db.query(mrl.project_signposts)
     if duplicates:
         Logger.warning("Duplicates found for projected signposts : {}"
@@ -68,6 +70,7 @@ def process_montreal():
     db.create_index('signpost_onroad', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'signpost_onroad')
 
+    Logger.info("Creating slots between signposts")
     db.query(mrl.create_slots_likely)
     db.query(mrl.insert_slots_likely.format(isleft=1, offset=10))
     db.query(mrl.insert_slots_likely.format(isleft=-1, offset=-10))
@@ -76,27 +79,16 @@ def process_montreal():
     db.create_index('slots_likely', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'slots_likely')
 
-    db.query(mrl.create_slots_staging)
-    db.query(mrl.insert_slots_bothsides)
-    # insert north direction
-    db.query(mrl.insert_slots_north_south.format(direction=1, y_ordering='DESC'))
-    # insert south direction
-    db.query(mrl.insert_slots_north_south.format(direction=2, y_ordering='ASC'))
-
-    db.create_index('slots_staging', 'geom', index_type='gist')
-    db.create_index('slots_staging', 'id')
-    db.vacuum_analyze('public', 'slots')
-
-    # db.query(mrl.create_slots_before_agg)
-    # db.create_index('slots_nonagg', 'signpost')
+    db.query(mrl.create_nextpoints_for_signposts)
+    db.create_index('nextpoints', 'id')
+    db.create_index('nextpoints', 'slot_id')
+    db.create_index('nextpoints', 'direction')
+    db.vacuum_analyze('public', 'nextpoints')
 
     db.query(mrl.create_slots)
     db.create_index('slots', 'id')
     db.create_index('slots', 'geom', index_type='gist')
-    db.create_index('slots', 'agenda', index_type='gin')
-    db.create_index('slots', 'signpost')
-    db.create_index('slots', 'elevation')
-    db.vacuum_analyze('public', 'slots')
+    db.create_index('slots', 'rules', index_type='gin')
 
 
 def cleanup_table():
@@ -109,8 +101,6 @@ def cleanup_table():
     db.query("DROP TABLE roads")
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
-    db.query("DROP TABLE slots_staging")
-    # db.query("DROP TABLE slots_nonagg")
 
 
 def run():
@@ -143,9 +133,8 @@ def run():
     db.create_index('roads', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'roads')
 
-    # Logger.info("Loading custom functions")
+    Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)
-    db.query(plfunctions.to_time_func)
     db.query(plfunctions.date_equality_func)
 
     # create rule table

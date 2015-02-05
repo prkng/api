@@ -4,6 +4,8 @@ from collections import namedtuple
 import pytest
 
 from prkng.processing.pipeline import split_time_range, group_rules
+from prkng.filters import on_restriction
+from prkng.filters import season_matching
 
 
 @pytest.fixture(scope="module")
@@ -175,3 +177,51 @@ def test_grouping_rules_alltime(rules):
                     3: [[0, 24]], 4: [[0, 24]],
                     5: [[0, 24]], 6: [[0, 24]],
                     7: [[0, 24]]}
+
+
+def test_on_restrictions():
+    rule_view = [
+        {
+            "code": "SU-LD-A",
+            "season_end": "12-01",
+            "description": "P 09h30-10h30 LUN. 1 AVRIL AU 1 DEC.",
+            "restrict_typ": None,
+            "season_start": "04-01",
+            "special_days": None,
+            "time_max_parking": None,
+            'agenda': {
+                '1': [[9.5, 10.5]], '3': [None],
+                '2': [None], '5': [None],
+                '4': [None], '7': [None],
+                '6': [None]}
+        },
+        {
+            "code": "R-PF",
+            "season_end": None,
+            "description": "P RESERVE S3R 09h-23h",
+            "restrict_typ": "permit",
+            "season_start": None,
+            "special_days": None,
+            "time_max_parking": None,
+            'agenda': {
+                '1': [[9.0, 23.0]], '3': [[9.0, 23.0]],
+                '2': [[9.0, 23.0]], '5': [[9.0, 23.0]],
+                '4': [[9.0, 23.0]], '7': [[9.0, 23.0]],
+                '6': [[9.0, 23.0]]}
+        }
+    ]
+    assert on_restriction(rule_view, '2015-04-07T09:30', 1) == True
+
+    # add test time_maxparking AND season start
+    # add test duration > 1, 2 days
+
+
+def test_season_matching():
+    print season_matching(1, 1, 1, 4, 1, 4)
+    assert season_matching(1, 1, 1, 4, 1, 4) == True
+    assert season_matching(1, 1, 1, 4, 1, 1) == True
+    assert season_matching(1, 1, 1, 4, 10, 4) == False
+    assert season_matching(1, 12, 1, 4, 1, 4) == True
+    assert season_matching(1, 12, 1, 4, 2, 4) == False
+    assert season_matching(1, 4, 1, 12, 1, 2) == False
+    assert season_matching(1, 3, 1, 1, 1, 2) == False
