@@ -308,27 +308,8 @@ GROUP BY t.id
     , signposts
     , rules
     , rules::text as textualrules
-    , CASE
-        WHEN st_length(geom) > 31 THEN
-        ST_Line_Substring(
-            geom,
-            8 / st_length(geom),
-            least(abs(1 - 8 / st_length(geom)), 1)
-            )
-        ELSE geom
-        END as geom
-    , ST_AsGeoJSON(
-        st_transform(
-            CASE
-            WHEN st_length(geom) > 31 THEN
-            ST_Line_Substring(
-                geom,
-                8 / st_length(geom),
-                least(abs(1 - 8 / st_length(geom)), 1)
-                )
-            ELSE geom
-            END
-        , 4326))::jsonb as geojson
+    , geom
+    , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
 FROM selection
 )
 """
