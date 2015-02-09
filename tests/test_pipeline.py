@@ -179,15 +179,11 @@ def test_grouping_rules_alltime(rules):
                     7: [[0, 24]]}
 
 
-def test_on_restrictions():
+def test_on_restrictions_with_season():
     rule_view = [
         {
-            "code": "SU-LD-A",
-            "season_end": "12-01",
-            "description": "P 09h30-10h30 LUN. 1 AVRIL AU 1 DEC.",
-            "restrict_typ": None,
             "season_start": "04-01",
-            "special_days": None,
+            "season_end": "12-01",
             "time_max_parking": None,
             'agenda': {
                 '1': [[9.5, 10.5]], '3': [None],
@@ -196,12 +192,8 @@ def test_on_restrictions():
                 '6': [None]}
         },
         {
-            "code": "R-PF",
             "season_end": None,
-            "description": "P RESERVE S3R 09h-23h",
-            "restrict_typ": "permit",
             "season_start": None,
-            "special_days": None,
             "time_max_parking": None,
             'agenda': {
                 '1': [[9.0, 23.0]], '3': [[9.0, 23.0]],
@@ -211,13 +203,77 @@ def test_on_restrictions():
         }
     ]
     assert on_restriction(rule_view, '2015-04-07T09:30', 1) == True
+    assert on_restriction(rule_view, '2015-02-09T08:00', 1) == False
 
-    # add test time_maxparking AND season start
-    # add test duration > 1, 2 days
+
+def test_on_restrictions_season_maxparking():
+    rule_view = [
+        {
+            "season_start": "04-01",
+            "season_end": "12-01",
+            "time_max_parking": 120,
+            'agenda': {
+                '1': [None], '3': [None],
+                '2': [None], '5': [None],
+                '4': [None], '7': [None],
+                '6': [None]}
+        }
+    ]
+    assert on_restriction(rule_view, '2015-04-07T09:30', 3) == True
+    assert on_restriction(rule_view, '2015-02-09T08:00', 2) == False
+
+
+def test_on_restrictions_inverted_season():
+    rule_view = [
+        {
+            "season_start": "12-01",
+            "season_end": "04-01",
+            "time_max_parking": None,
+            'agenda': {
+                '1': [[10.0, 18.0]], '3': [[10.0, 18.0]],
+                '2': [None], '5': [None],
+                '4': [None], '7': [None],
+                '6': [None]}
+        }
+    ]
+    assert on_restriction(rule_view, '2015-04-07T09:30', 3) == False
+    assert on_restriction(rule_view, '2015-02-09T08:30', 2) == True
+
+
+def test_on_restrictions_largeparkingtime():
+    rule_view = [
+        {
+            "season_start": None,
+            "season_end": None,
+            "time_max_parking": None,
+            'agenda': {
+                '1': [[18.0, 20.0]], '3': [None],
+                '2': [None], '5': [None],
+                '4': [None], '7': [None],
+                '6': [None]}
+        }
+    ]
+    assert on_restriction(rule_view, '2015-02-09T21:30', 168) == False  # monday
+
+
+def test_on_restrictions_multiplerangeaday():
+    rule_view = [
+        {
+            "season_start": None,
+            "season_end": None,
+            "time_max_parking": None,
+            'agenda': {
+                '1': [[5, 10], [18.0, 20.0]], '3': [None],
+                '2': [None], '5': [None],
+                '4': [None], '7': [None],
+                '6': [None]}
+        }
+    ]
+    assert on_restriction(rule_view, '2015-02-09T06:30', 3) == True  # monday
+    assert on_restriction(rule_view, '2015-02-09T10:00', 3) == False  # monday
 
 
 def test_season_matching():
-    print season_matching(1, 1, 1, 4, 1, 4)
     assert season_matching(1, 1, 1, 4, 1, 4) == True
     assert season_matching(1, 1, 1, 4, 1, 1) == True
     assert season_matching(1, 1, 1, 4, 10, 4) == False

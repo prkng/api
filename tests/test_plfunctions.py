@@ -38,3 +38,10 @@ def test_st_isleft(db):
                 'linestring(0 0, 2 2)'::geometry,
                 'point(2 0)'::geometry)"""
         )[0][0] == -1
+
+    # should be on the left side (horizontal line)
+    assert db.query(
+            """SELECT st_isLeft(
+                'linestring(0 0, 2 0)'::geometry,
+                'point(2 2)'::geometry)"""
+        )[0][0] == 1
