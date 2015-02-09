@@ -70,6 +70,13 @@ def process_montreal():
     db.create_index('signpost_onroad', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'signpost_onroad')
 
+    percent, total = db.query(mrl.count_signpost_projected)[0]
+    Logger.warning("Only {:.0f}% of signposts have been bound to a road. Total is {}"
+                   .format(percent, total))
+    if percent < 100:
+        db.query(mrl.generate_signposts_orphans)
+        Logger.info("Table 'signpost_orphans' has been generated to check for orphans")
+
     Logger.info("Creating slots between signposts")
     db.query(mrl.create_slots_likely)
     db.query(mrl.insert_slots_likely.format(isleft=1, offset=10))
@@ -89,6 +96,12 @@ def process_montreal():
     db.create_index('slots', 'id')
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'slots')
+
+    db.query(mrl.create_slots_for_debug)
+    db.create_index('slots_debug', 'pkid')
+    db.create_index('slots_debug', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'slots_debug')
 
 
 def cleanup_table():
@@ -101,6 +114,7 @@ def cleanup_table():
     db.query("DROP TABLE roads")
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
+    db.query("DROP TABLE nextpoints")
 
 
 def run():
@@ -159,7 +173,7 @@ def insert_rules(from_table):
     )
     rules_grouped = group_rules(rules)
 
-    Logger.debug("Load rules into montreal_rule table")
+    Logger.debug("Load rules into rules table")
 
     db.copy_from('public', 'rules', common.rules_columns, [
         [

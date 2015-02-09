@@ -34,9 +34,10 @@ SELECT
     p.panneau_id_pan
     , pt.geom
     , case p.fleche_pan
-        when 2 then 1
-        when 3 then 2
-        when 0 then 0
+        when 2 then 1 -- Left
+        when 3 then 2 -- Right
+        when 0 then 0 -- both sides
+        when 8 then 0 -- both sides
         else NULL
       end as direction
     , pt.poteau_id_pot
@@ -49,6 +50,7 @@ JOIN rules r on r.code = p.code_rpa -- only keep those existing in rules
 WHERE
     pt.description_rep = 'Réel'
     AND p.description_rpa not ilike '%panonceau%'
+    AND p.fleche_pan in (0, 2, 3, 8)
 """
 
 # create signpost table
@@ -158,6 +160,33 @@ CREATE TABLE signpost_onroad AS
 SELECT id from signpost_onroad group by id having count(*) > 1
 """
 
+# how many signposts have been projected ?
+count_signpost_projected = """
+WITH tmp AS (
+    SELECT
+        (SELECT count(*) FROM signpost_onroad) as a
+        , (SELECT count(*) FROM signpost) as b
+)
+SELECT
+    a::float / b * 100, b
+FROM tmp
+"""
+
+# generate signposts orphans
+generate_signposts_orphans = """
+DROP TABLE IF EXISTS signposts_orphans;
+CREATE TABLE signposts_orphans AS
+(WITH tmp as (
+    SELECT id FROM signpost
+    EXCEPT
+    SELECT id FROM signpost_onroad
+) SELECT
+    s.*
+FROM tmp t
+JOIN signpost s using(id)
+)
+"""
+
 # create potential slots determined with signposts projected as start and end points
 create_slots_likely = """
 DROP TABLE IF EXISTS slots_likely;
@@ -236,22 +265,95 @@ SELECT
             ) then st_pointN(st_reverse(sl.geom), 2)
         else NULL
       end as geom
+    , sp.geom as sgeom
 FROM signpost_onroad spo
+JOIN signpost sp on sp.id = spo.id
 JOIN slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 ) select
     id
     , slot_id
-    , CASE
-        WHEN st_y(geom) > st_y(spgeom) THEN 1 -- north
-        ELSE 2 -- south
+    , CASE  -- compute signed area to find if the nexpoint is on left or right
+        WHEN
+            sign((st_x(sgeom) - st_x(spgeom)) * (st_y(geom) - st_y(spgeom)) -
+            (st_x(geom) - st_x(spgeom)) * (st_y(sgeom) - st_y(spgeom))) = 1 THEN 1 -- on left
+        ELSE 2 -- right
         END as direction
     , geom
 from tmp)
 """
 
 create_slots = """
-drop table if exists slots;
-create table slots as
+DROP TABLE IF EXISTS slots;
+CREATE TABLE slots AS
+(
+    WITH tmp AS (
+    -- select north and south from signpost
+    SELECT
+        sl.*
+        , s.code
+        , s.description
+        , s.direction
+        , spo.isleft
+    FROM slots_likely sl
+    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts
+    JOIN signpost_onroad spo on s.signpost = spo.id
+    JOIN nextpoints np on np.slot_id = sl.id AND
+                          s.signpost = np.id AND
+                          s.direction = np.direction
+
+    UNION ALL
+    -- both direction from signpost
+    SELECT
+        sl.*
+        , s.code
+        , s.description
+        , s.direction
+        , spo.isleft
+    FROM slots_likely sl
+    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
+    JOIN signpost_onroad spo on s.signpost = spo.id
+),
+selection as (
+SELECT
+    t.id
+    , min(signposts) as signposts
+    , min(isleft) as isleft
+    , array_to_json(
+        array_agg(distinct
+        json_build_object(
+            'code', t.code,
+            'description', r.description,
+            'season_start', r.season_start,
+            'season_end', r.season_end,
+            'agenda', r.agenda,
+            'time_max_parking', r.time_max_parking,
+            'special_days', r.special_days,
+            'restrict_typ', r.restrict_typ
+        )::jsonb
+    ))::jsonb as rules
+    , CASE
+        WHEN min(isleft) = 1 then
+            ST_OffsetCurve(min(t.geom), 8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+        ELSE
+            ST_OffsetCurve(min(t.geom), -8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+      END as geom
+FROM tmp t
+JOIN rules r on t.code = r.code
+GROUP BY t.id
+) SELECT
+    id
+    , signposts
+    , rules
+    , rules::text as textualrules
+    , geom
+    , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
+FROM selection
+)
+"""
+
+create_slots_for_debug = """
+DROP TABLE IF EXISTS slots_debug;
+CREATE TABLE slots_debug as
 (
     WITH tmp as (
     -- select north and south from signpost
@@ -271,45 +373,48 @@ create table slots as
     UNION ALL
     -- both direction from signpost
     SELECT
-     sl.*, s.code, s.description, s.direction, spo.isleft
+        sl.*
+        , s.code
+        , s.description
+        , s.direction
+        , spo.isleft
     FROM slots_likely sl
     JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
     JOIN signpost_onroad spo on s.signpost = spo.id
-),
-selection as (
+)
 SELECT
-    t.id,
-    min(signposts) as signposts,
-    min(isleft) as isleft,
-    array_to_json(
-        array_agg(distinct
-        json_build_object(
-            'code', t.code,
-            'description', r.description,
-            'season_start', r.season_start,
-            'season_end', r.season_end,
-            'agenda', r.agenda,
-            'time_max_parking', r.time_max_parking,
-            'special_days', r.special_days,
-            'restrict_typ', r.restrict_typ
-        )::jsonb
-    ))::jsonb as rules,
-    CASE
-        WHEN min(isleft) = 1 then
-            ST_OffsetCurve(min(t.geom), 8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+    distinct on (t.id, t.code)
+    row_number() over () as pkid
+    , t.id
+    , t.code
+    , t.signposts
+    , t.isleft
+    , rt.description
+    , rt.season_start
+    , rt.season_end
+    , rt.time_max_parking
+    , rt.time_start
+    , rt.time_end
+    , rt.time_duration
+    , rt.lun
+    , rt.mar
+    , rt.mer
+    , rt.jeu
+    , rt.ven
+    , rt.sam
+    , rt.dim
+    , rt.daily
+    , rt.special_days
+    , rt.restrict_typ
+    , r.agenda::text as agenda
+    , CASE
+        WHEN isleft = 1 then
+            ST_OffsetCurve(t.geom, 8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
         ELSE
-            ST_OffsetCurve(min(t.geom), -8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+            ST_OffsetCurve(t.geom, -8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code
-GROUP BY t.id
-) SELECT
-    id
-    , signposts
-    , rules
-    , rules::text as textualrules
-    , geom
-    , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
-FROM selection
+JOIN montreal_rules_translation rt on rt.code = r.code
 )
 """

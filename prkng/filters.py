@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 from itertools import chain
-from datetime import timedelta, time, datetime
-from aniso8601 import parse_datetime, parse_time
+from datetime import timedelta, datetime
+from aniso8601 import parse_datetime
 
 
 def on_restriction(rules, checkin, duration):
@@ -49,8 +49,7 @@ def on_restriction(rules, checkin, duration):
         if duration > time_max_parking:
             max_time_ok &= False
 
-        # analyze time ranges
-        # extract range time for each day and test overlapping with checkin + duration
+        # extract time range for each day and test overlapping with checkin + duration
         # start at current day and slice over days
         iterto = chain(range(1, 8)[isodow-1:], range(1, 8)[:isodow-1])
 
@@ -62,10 +61,10 @@ def on_restriction(rules, checkin, duration):
                     year, month, int(day)+absoluteday,
                     hour=int(start), minute=int(start % 1 * 60))
 
+                #  hack to avoid ValueError: hour must be in 0..23
                 stop_time = datetime(
                     year, month, int(day)+absoluteday,
                     hour=int(stop-1), minute=int(stop % 1 * 60)) + timedelta(hours=1)
-                    #  hack to avoid ValueError: hour must be in 0..23
 
                 if max(start_time, checkin) < min(stop_time, checkin_end):
                     # overlapping !
@@ -78,7 +77,8 @@ def on_restriction(rules, checkin, duration):
     return False
 
 
-def season_matching(start_day, start_month, end_day, end_month, day, month):
+def season_matching(start_day, start_month, end_day, end_month,
+                    day, month):
     if not start_month:
         # no season restriction so matching ok
         return True

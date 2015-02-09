@@ -164,6 +164,7 @@ class SlotsResource(Resource):
 
         """
         args = slot_parser.parse_args()
+
         res = SlotsModel.get_within(
             x, y,
             args['radius'],

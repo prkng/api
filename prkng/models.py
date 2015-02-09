@@ -2,6 +2,9 @@
 from .database import db
 from .filters import on_restriction
 
+from datetime import datetime
+
+
 class SlotsModel(object):
     properties = (
         'id',
@@ -32,6 +35,7 @@ class SlotsModel(object):
         )
 
         features = db.connection.query(req)
+
         return filter(
             lambda x: not on_restriction(x[2], checkin, duration),
             features
