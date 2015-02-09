@@ -265,6 +265,8 @@ class OsmLoader(object):
 
     def download(self, name, extent):
         Logger.info("Getting Openstreetmap ways for {}".format(name))
+        Logger.debug("overpass.osm.rambler.ru/cgi/interpreter?data=(way({});>;);out;"
+                     .format(','.join(map(str, extent))))
         osm_file = download_progress(
             "http://overpass.osm.rambler.ru/cgi/interpreter?data=(way({});>;);out;"
             .format(','.join(map(str, extent))),
@@ -278,9 +280,20 @@ class OsmLoader(object):
         """
         Load data using osm2pgsql
         """
+        merged_file = join(CONFIG['DOWNLOAD_DIRECTORY'], 'merged.osm')
+
+        # merge files before loading because osm2pgsql failed to load 2 osm files
+        # at the same time
+        check_call("osmconvert {files} -o={merge}".format(
+            files=' '.join(self.queue),
+            merge=merged_file),
+            shell=True)
+
         check_call(
             "osm2pgsql -E 3857 -d {PG_DATABASE} -H {PG_HOST} -U {PG_USERNAME} "
-            "-P {PG_PORT} {osm_files}".format(osm_files=' '.join(self.queue), **CONFIG),
+            "-P {PG_PORT} merged.osm".format(
+                osm_file=merged_file,
+                **CONFIG),
             shell=True
         )
 
