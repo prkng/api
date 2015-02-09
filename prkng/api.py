@@ -95,7 +95,7 @@ slots_collection_fields = api.model('GeoJSONFeatureCollection', {
 @api.route('/slot/<string:id>')
 @api.doc(
     params={'id': 'slot id'},
-    responses={404: "feature not found"}
+    responses={204: "feature not found"}
 )
 class SlotResource(Resource):
     @api.marshal_list_with(slots_fields)
@@ -105,7 +105,7 @@ class SlotResource(Resource):
         """
         res = SlotsModel.get_byid(id)
         if not res:
-            api.abort(404, "feature not found")
+            api.abort(204, "feature not found")
 
         res = res[0]
         return Feature(
@@ -153,7 +153,7 @@ slot_parser.add_argument(
         'x': 'Longitude location',
         'y': 'Latitude location',
     },
-    responses={404: "no feature found"}
+    responses={204: "no feature found"}
 )
 class SlotsResource(Resource):
     @api.marshal_list_with(slots_collection_fields)
@@ -173,7 +173,7 @@ class SlotsResource(Resource):
         )
 
         if not res:
-            api.abort(404, "no feature found")
+            api.abort(204, "no feature found")
 
         return FeatureCollection([
             Feature(
@@ -205,7 +205,7 @@ class SlotsOnMap(Resource):
         )
 
         if not res:
-            api.abort(404, "no feature found")
+            api.abort(204, "no feature found")
 
         # remove agenda since it's too big for leaflet popup
         for re in res:
