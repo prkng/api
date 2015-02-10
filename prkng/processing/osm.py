@@ -22,6 +22,7 @@ WHERE
     AND tunnel is NULL
     AND (highway not in ('cycleway') or highway is NULL)
     AND st_issimple(way)
+    AND power is NULL -- remove hydro quebec lines for example
 UNION ALL
 SELECT
     osm_id
@@ -38,6 +39,7 @@ WHERE
     AND tunnel is NULL
     AND (highway not in ('cycleway') or highway is NULL)
     AND NOT st_issimple(way)
+    AND power is NULL
 """
 
 

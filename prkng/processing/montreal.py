@@ -8,7 +8,7 @@ DROP TABLE IF EXISTS sign;
 CREATE TABLE sign (
     id integer PRIMARY KEY
     , geom geometry(Point, 3857)
-    , direction smallint -- direction the rule applies (0: both side, 1: north, 2: south)
+    , direction smallint -- direction the rule applies (0: both side, 1: left, 2: right)
     , signpost integer NOT NULL
     , elevation smallint -- higher is prioritary
     , code varchar -- code of rule
@@ -282,11 +282,8 @@ JOIN slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 from tmp)
 """
 
-create_slots = """
-DROP TABLE IF EXISTS slots;
-CREATE TABLE slots AS
-(
-    WITH tmp AS (
+insert_slots = """
+WITH tmp AS (
     -- select north and south from signpost
     SELECT
         sl.*
@@ -340,15 +337,14 @@ SELECT
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) SELECT
+) INSERT INTO slots
+SELECT
     id
     , signposts
     , rules
-    , rules::text as textualrules
     , geom
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
 FROM selection
-)
 """
 
 create_slots_for_debug = """
@@ -418,3 +414,26 @@ JOIN rules r on t.code = r.code
 JOIN montreal_rules_translation rt on rt.code = r.code
 )
 """
+
+
+
+# ;with recursive minelem AS(
+# select arr, MIN(unnest) minel from (select arr, unnest(arr) from test) a group by arr),
+# testwithrn as(
+# select arr, row_number() over (order by minel) rn from minelem
+# ),
+# cte(arr, rn, counter, grp) as(
+#   select arr, rn, 1, 1 from testwithrn where rn = 1
+# union all
+#   select
+#     case when array_length(a.arr & b.arr, 1) > 0 then a.arr | b.arr else b.arr end,
+#     b.rn,
+#     case when array_length(a.arr & b.arr, 1) > 0 then a.counter + 1 else 1 end,
+#     case when array_length(a.arr & b.arr, 1) > 0 then a.grp else a.grp + 1 end
+#     from cte a inner join testwithrn b
+#     on b.rn > a.rn
+# ),
+# grouped as(
+#   SELECT arr, counter, grp,
+#   row_number() over (partition by grp order by counter desc) rn from cte)
+# select distinct arr from grouped where rn = 1

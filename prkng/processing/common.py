@@ -1,8 +1,8 @@
 # -*- coding: utf-8 -*-
 from __future__ import unicode_literals
 
+
 rules_columns = (
-    'id',
     'code',
     'description',
     'season_start',
@@ -16,7 +16,7 @@ rules_columns = (
 create_rules = """
 DROP TABLE IF EXISTS rules;
 CREATE TABLE rules (
-    id integer PRIMARY KEY
+    id serial PRIMARY KEY
     , code varchar UNIQUE
     , description varchar
     , season_start varchar
@@ -29,8 +29,7 @@ CREATE TABLE rules (
 """
 
 get_rules_from_source = """SELECT
-    id
-    , code
+    code
     , description
     , season_start
     , season_end
@@ -49,4 +48,16 @@ get_rules_from_source = """SELECT
     , special_days
     , restrict_typ
 FROM {source}
+"""
+
+create_slots = """
+DROP TABLE IF EXISTS slots;
+CREATE TABLE slots
+(
+  id integer,
+  signposts integer[],
+  rules jsonb,
+  geom geometry(LineString,3857),
+  geojson jsonb
+)
 """

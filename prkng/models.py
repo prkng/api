@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
-from .database import db
-from .filters import on_restriction
+from prkng.database import db
+from prkng.processing.filters import on_restriction
 
 from datetime import datetime
 
@@ -52,8 +52,3 @@ class SlotsModel(object):
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(SlotsModel.properties)))
-
-
-
-
-
