@@ -414,26 +414,3 @@ JOIN rules r on t.code = r.code
 JOIN montreal_rules_translation rt on rt.code = r.code
 )
 """
-
-
-
-# ;with recursive minelem AS(
-# select arr, MIN(unnest) minel from (select arr, unnest(arr) from test) a group by arr),
-# testwithrn as(
-# select arr, row_number() over (order by minel) rn from minelem
-# ),
-# cte(arr, rn, counter, grp) as(
-#   select arr, rn, 1, 1 from testwithrn where rn = 1
-# union all
-#   select
-#     case when array_length(a.arr & b.arr, 1) > 0 then a.arr | b.arr else b.arr end,
-#     b.rn,
-#     case when array_length(a.arr & b.arr, 1) > 0 then a.counter + 1 else 1 end,
-#     case when array_length(a.arr & b.arr, 1) > 0 then a.grp else a.grp + 1 end
-#     from cte a inner join testwithrn b
-#     on b.rn > a.rn
-# ),
-# grouped as(
-#   SELECT arr, counter, grp,
-#   row_number() over (partition by grp order by counter desc) rn from cte)
-# select distinct arr from grouped where rn = 1
