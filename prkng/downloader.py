@@ -231,6 +231,10 @@ class Quebec(DataSource):
             shell=True
         )
 
+        self.db.create_index('quebec_panneau', 'type_desc')
+        self.db.create_index('quebec_panneau', 'nom_topog')
+        self.db.create_index('quebec_panneau', 'id_voie_pu')
+        self.db.create_index('quebec_panneau', 'lect_met')
         self.db.vacuum_analyze("public", "quebec_panneau")
 
     def load_rules(self):
@@ -238,6 +242,16 @@ class Quebec(DataSource):
         load parking rules translation
         """
         Logger.info("Loading parking rules for {}".format(self.name))
+
+        filename = script("rules_quebec.csv")
+
+        Logger.info("Loading parking rules for {}".format(self.name))
+        Logger.debug("loading file '%s' with script '%s'" %
+                     (filename, script('quebec_load_rules.sql')))
+
+        with open(script('quebec_load_rules.sql'), 'rb') as infile:
+            self.db.query(infile.read().format(filename))
+            self.db.vacuum_analyze("public", "quebec_rules_translation")
 
     def get_extent(self):
         """
@@ -291,7 +305,7 @@ class OsmLoader(object):
 
         check_call(
             "osm2pgsql -E 3857 -d {PG_DATABASE} -H {PG_HOST} -U {PG_USERNAME} "
-            "-P {PG_PORT} merged.osm".format(
+            "-P {PG_PORT} {osm_file}".format(
                 osm_file=merged_file,
                 **CONFIG),
             shell=True
