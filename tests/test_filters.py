@@ -3,9 +3,10 @@ from collections import namedtuple
 
 import pytest
 
-from prkng.processing.pipeline import split_time_range, group_rules
-from prkng.filters import on_restriction
-from prkng.filters import season_matching
+from prkng.processing.filters import on_restriction
+from prkng.processing.filters import season_matching
+from prkng.processing.filters import split_time_range
+from prkng.processing.filters import group_rules
 
 
 @pytest.fixture(scope="module")
@@ -271,6 +272,44 @@ def test_on_restrictions_multiplerangeaday():
     ]
     assert on_restriction(rule_view, '2015-02-09T06:30', 3) == True  # monday
     assert on_restriction(rule_view, '2015-02-09T10:00', 3) == False  # monday
+
+
+def test_on_restrictions_flexible():
+    rule_view = [
+        {
+            'restrict_typ': None,
+            'code': 'AV-AB',
+            'description': 'A 08h-09h30 LUN. AU VEN.',
+            'time_max_parking': None,
+            'season_end': None,
+            'agenda': {'1': [[8.0, 9.5]],
+                       '3': [[8.0, 9.5]],
+                       '2': [[8.0, 9.5]],
+                       '5': [[8.0, 9.5]],
+                       '4': [[8.0, 9.5]],
+                       '7': [None], '6': [None]},
+            'special_days': None,
+            'season_start': None
+        },
+        {
+            'restrict_typ': 'maintenance',
+            'code': 'EU-TF+F',
+            'description': 'P ENTRETIEN (ORANGE) 07h-19h ou 19h-07h (flexible)',
+            'time_max_parking': None,
+            'season_end': None,
+            'agenda': {'1': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '3': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '2': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '5': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '4': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '7': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]],
+                       '6': [[7.0, 19.0], [19.0, 24.0], [0, 7.0]]},
+            'special_days': None,
+            'season_start': None
+        }]
+
+    assert on_restriction(rule_view, '2015-04-27T09:30', 1) == True
+    assert on_restriction(rule_view, '2015-04-28T08:30', 1) == True
 
 
 def test_season_matching():

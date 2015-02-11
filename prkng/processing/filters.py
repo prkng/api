@@ -59,14 +59,12 @@ def on_restriction(rules, checkin, duration):
             tsranges = rule['agenda'][str(numday)]
             for start, stop in filter(bool, tsranges):
 
-                start_time = datetime(
-                    year, month, int(day)+absoluteday,
-                    hour=int(start), minute=int(start % 1 * 60))
+                start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
+                    + timedelta(days=absoluteday)
 
                 #  hack to avoid ValueError: hour must be in 0..23
-                stop_time = datetime(
-                    year, month, int(day)+absoluteday,
-                    hour=int(stop-1), minute=int(stop % 1 * 60)) + timedelta(hours=1)
+                stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
+                    + timedelta(days=absoluteday, hours=1)
 
                 if max(start_time, checkin) < min(stop_time, checkin_end):
                     # overlapping !
