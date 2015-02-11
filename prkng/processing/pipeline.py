@@ -20,6 +20,9 @@ db = PostgresWrapper(
     "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
     "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
+# distance from road to slot
+LINE_OFFSET = 5
+
 
 def process_quebec():
     """
@@ -89,13 +92,13 @@ def process_quebec():
     db.create_index('quebec_nextpoints', 'direction')
     db.vacuum_analyze('public', 'quebec_nextpoints')
 
-    db.query(qbc.insert_slots)
+    db.query(qbc.insert_slots.format(offset=LINE_OFFSET))
     db.create_index('slots', 'id')
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'rules', index_type='gin')
     db.vacuum_analyze('public', 'slots')
 
-    db.query(qbc.create_slots_for_debug)
+    db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
     db.create_index('quebec_slots_debug', 'pkid')
     db.create_index('quebec_slots_debug', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'quebec_slots_debug')
@@ -180,13 +183,13 @@ def process_montreal():
     db.create_index('nextpoints', 'direction')
     db.vacuum_analyze('public', 'nextpoints')
 
-    db.query(mrl.insert_slots)
+    db.query(mrl.insert_slots.format(offset=LINE_OFFSET))
     db.create_index('slots', 'id')
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'rules', index_type='gin')
     db.vacuum_analyze('public', 'slots')
 
-    db.query(mrl.create_slots_for_debug)
+    db.query(mrl.create_slots_for_debug.format(offset=LINE_OFFSET))
     db.create_index('slots_debug', 'pkid')
     db.create_index('slots_debug', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'slots_debug')
@@ -254,6 +257,8 @@ def run():
     Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)
     db.query(plfunctions.date_equality_func)
+    db.query(plfunctions.array_sort)
+    db.query(plfunctions.get_max_range)
 
     process_osm()
 
@@ -261,9 +266,13 @@ def run():
     db.query(common.create_rules)
     db.create_index('rules', 'code')
     db.query(common.create_slots)
-
     process_montreal()
     process_quebec()
+
+    Logger.info("Shorten final slots that intersects with slots or roads")
+    db.query(common.cut_slots_crossing_roads)
+    db.query(common.cut_slots_crossing_slots)
+    db.vacuum_analyze('public', 'slots')
 
     if not CONFIG['DEBUG']:
         cleanup_table()

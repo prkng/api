@@ -76,3 +76,41 @@ END;
 $$ LANGUAGE plpgsql
 IMMUTABLE
 """
+
+# general array sorting
+array_sort = """
+CREATE OR REPLACE FUNCTION array_sort (ANYARRAY)
+RETURNS ANYARRAY LANGUAGE SQL
+AS $$
+SELECT array_agg(x ORDER BY x) FROM unnest($1) x;
+$$
+"""
+
+# get max range inside a series
+# 0 is automatically added on the left, 1 is added on the right of the array
+get_max_range = """
+CREATE OR REPLACE FUNCTION get_max_range(float[])
+RETURNS TABLE (start float, stop float) AS $$
+DECLARE
+previous_location float := 0;
+last_location float := 1;
+maxsize float := 0;
+element float;
+BEGIN
+foreach element in array $1
+LOOP
+    if element - previous_location > maxsize then
+        maxsize := element - previous_location;
+        start := previous_location;
+        stop := element;
+    end if;
+    previous_location := element;
+END LOOP;
+if 1 - previous_location > maxsize then
+    start := previous_location;
+    stop := 1;
+end if;
+return next;
+END
+$$ LANGUAGE plpgsql;
+"""

@@ -50,6 +50,7 @@ JOIN rules r on r.code = p.code_rpa -- only keep those existing in rules
 WHERE
     pt.description_rep = 'Réel'
     AND p.description_rpa not ilike '%panonceau%'
+    AND substring(p.description_rpa, '.*\((flexible)\).*') is NULL
     AND p.fleche_pan in (0, 2, 3, 8)
 """
 
@@ -330,17 +331,16 @@ SELECT
     ))::jsonb as rules
     , CASE
         WHEN min(isleft) = 1 then
-            ST_OffsetCurve(min(t.geom), 8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+            ST_OffsetCurve(min(t.geom), {offset}, 'quad_segs=4 join=round')::geometry(linestring, 3857)
         ELSE
-            ST_OffsetCurve(min(t.geom), -8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+            ST_OffsetCurve(min(t.geom), -{offset}, 'quad_segs=4 join=round')::geometry(linestring, 3857)
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots
+) INSERT INTO slots (signposts, rules, geom, geojson)
 SELECT
-    id
-    , signposts
+    signposts
     , rules
     , geom
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
@@ -405,9 +405,9 @@ SELECT
     , r.agenda::text as agenda
     , CASE
         WHEN isleft = 1 then
-            ST_OffsetCurve(t.geom, 8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+            ST_OffsetCurve(t.geom, {offset}, 'quad_segs=4 join=round')::geometry(linestring, 3857)
         ELSE
-            ST_OffsetCurve(t.geom, -8, 'quad_segs=4 join=round')::geometry(linestring, 3857)
+            ST_OffsetCurve(t.geom, -{offset}, 'quad_segs=4 join=round')::geometry(linestring, 3857)
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code

@@ -277,17 +277,16 @@ SELECT
     ))::jsonb as rules
     , CASE
         WHEN min(isleft) = 1 then
-            ST_OffsetCurve(min(t.geom), 8, 'quad_segs=4 join=round')
+            ST_OffsetCurve(min(t.geom), {offset}, 'quad_segs=4 join=round')
         ELSE
-            ST_OffsetCurve(min(t.geom), -8, 'quad_segs=4 join=round')
+            ST_OffsetCurve(min(t.geom), -{offset}, 'quad_segs=4 join=round')
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots
+) INSERT INTO slots (signposts, rules, geom, geojson)
 SELECT
-    id
-    , signposts
+    signposts
     , rules
     , geom::geometry(linestring, 3857)
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
@@ -353,9 +352,9 @@ SELECT
     , r.agenda::text as agenda
     , CASE
         WHEN isleft = 1 then
-            ST_OffsetCurve(t.geom, 8, 'quad_segs=4 join=round')
+            ST_OffsetCurve(t.geom, {offset}, 'quad_segs=4 join=round')
         ELSE
-            ST_OffsetCurve(t.geom, -8, 'quad_segs=4 join=round')
+            ST_OffsetCurve(t.geom, -{offset}, 'quad_segs=4 join=round')
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code

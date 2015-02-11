@@ -54,10 +54,59 @@ create_slots = """
 DROP TABLE IF EXISTS slots;
 CREATE TABLE slots
 (
-  id integer,
+  id serial PRIMARY KEY,
   signposts integer[],
   rules jsonb,
   geom geometry(LineString,3857),
   geojson jsonb
+)
+"""
+
+cut_slots_crossing_slots = """
+UPDATE slots s set geom = (
+with tmp as (
+select
+    array_sort(
+        array_agg(
+            ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
+        )
+    ) as locations
+from slots o
+where st_crosses(s.geom, o.geom) and s.id != o.id
+and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
+)
+select
+    st_linesubstring(s.geom, locs.start, locs.stop)::geometry('linestring', 3857)
+from tmp, get_max_range(tmp.locations) as locs
+)
+where exists (
+    select 1 from slots a
+    where st_crosses(s.geom, a.geom)
+          and s.id != a.id
+          and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
+)
+"""
+
+cut_slots_crossing_roads = """
+UPDATE slots s set geom = (
+with tmp as (
+select
+    array_sort(
+        array_agg(
+            ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
+        )
+    ) as locations
+from roads o
+where st_crosses(s.geom, o.geom)
+and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
+)
+select
+    st_linesubstring(s.geom, locs.start, locs.stop)::geometry('linestring', 3857)
+from tmp, get_max_range(tmp.locations) as locs
+)
+where exists (
+    select 1 from roads a
+    where st_crosses(s.geom, a.geom)
+          and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
 )
 """
