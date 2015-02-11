@@ -272,6 +272,7 @@ def run():
     Logger.info("Shorten final slots that intersects with slots or roads")
     db.query(common.cut_slots_crossing_roads)
     db.query(common.cut_slots_crossing_slots)
+    db.query(common.update_geojson_slots)
     db.vacuum_analyze('public', 'slots')
 
     if not CONFIG['DEBUG']:

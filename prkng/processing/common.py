@@ -110,3 +110,7 @@ where exists (
           and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
 )
 """
+
+update_geojson_slots = """
+UPDATE slots set geojson = ST_AsGeoJSON(st_transform(geom, 4326))::jsonb
+"""
