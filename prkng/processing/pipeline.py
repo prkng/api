@@ -256,7 +256,6 @@ def run():
 
     Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)
-    db.query(plfunctions.date_equality_func)
     db.query(plfunctions.array_sort)
     db.query(plfunctions.get_max_range)
 

@@ -3,7 +3,7 @@ import pytest
 
 from prkng.database import PostgresWrapper
 from prkng import create_app
-from prkng.processing.plfunctions import st_isleft_func
+from prkng.processing.plfunctions import *
 
 
 @pytest.fixture(scope="module")
@@ -45,3 +45,22 @@ def test_st_isleft(db):
                 'linestring(0 0, 2 0)'::geometry,
                 'point(2 2)'::geometry)"""
         )[0][0] == 1
+
+
+def test_get_max_range(db):
+    db.query(get_max_range)
+    assert db.query("select * from get_max_range(ARRAY[0.2, 0.5])")[0] == (0.5, 1)
+    assert db.query("select * from get_max_range(ARRAY[0.05, 0.8])")[0] == (0.05, 0.8)
+    assert db.query("select * from get_max_range(ARRAY[0, 1])")[0] == (0, 1)
+
+
+def test_array_sort(db):
+    db.query(array_sort)
+    req = "select array_sort(ARRAY{}::float[])"
+
+    arrays = (
+        ('[0.5, 0.7, 0.1, 0.2]', [0.1, 0.2, 0.5, 0.7]),
+        ('[0.1, 0.01, 30, -16]', [-16, 0.01, 0.1, 30])
+    )
+    for array, result in arrays:
+        assert db.query(req.format(array))[0][0] == result

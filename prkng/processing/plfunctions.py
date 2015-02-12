@@ -42,41 +42,6 @@ $BODY$
   COST 100;
 """
 
-# compare dates
-date_equality_func = """
-CREATE OR REPLACE FUNCTION date_equality(start_day integer,
-                                         start_month integer,
-                                         end_day integer,
-                                         end_month integer,
-                                         day integer,
-                                         month integer)
-RETURNS boolean AS
-$$
-BEGIN
-    if start_month is null
-        then return true; end if;
-    if start_month < end_month and not (month >= start_month and month <= end_month) then
-        -- out of range months
-        return false; end if;
-    if start_month > end_month and (month < start_month and month > end_month) then
-        -- out of range months
-        return false; end if;
-
-    if month = start_month then
-        if day < start_day then
-            return false; end if;
-        end if;
-
-    if month = end_month then
-        if day > end_day then
-            return false; end if;
-        end if;
-    return true;
-END;
-$$ LANGUAGE plpgsql
-IMMUTABLE
-"""
-
 # general array sorting
 array_sort = """
 CREATE OR REPLACE FUNCTION array_sort (ANYARRAY)
@@ -92,25 +57,25 @@ get_max_range = """
 CREATE OR REPLACE FUNCTION get_max_range(float[])
 RETURNS TABLE (start float, stop float) AS $$
 DECLARE
-previous_location float := 0;
-last_location float := 1;
-maxsize float := 0;
-element float;
+    previous_location float := 0;
+    last_location float := 1;
+    maxsize float := 0;
+    element float;
 BEGIN
-foreach element in array $1
-LOOP
-    if element - previous_location > maxsize then
-        maxsize := element - previous_location;
+    FOREACH element IN ARRAY $1
+    LOOP
+        if element - previous_location > maxsize then
+            maxsize := element - previous_location;
+            start := previous_location;
+            stop := element;
+        end if;
+        previous_location := element;
+    END LOOP;
+    if 1 - previous_location > maxsize then
         start := previous_location;
-        stop := element;
+        stop := 1;
     end if;
-    previous_location := element;
-END LOOP;
-if 1 - previous_location > maxsize then
-    start := previous_location;
-    stop := 1;
-end if;
-return next;
+    return next;
 END
 $$ LANGUAGE plpgsql;
 """
