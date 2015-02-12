@@ -50,6 +50,7 @@ JOIN rules r on r.code = p.code_rpa -- only keep those existing in rules
 WHERE
     pt.description_rep = 'Réel'
     AND p.description_rpa not ilike '%panonceau%'
+    AND p.code_rpa !~ '^R[a-zA-Z].*' -- don't match rules starting with 'R*'
     AND substring(p.description_rpa, '.*\((flexible)\).*') is NULL
     AND p.fleche_pan in (0, 2, 3, 8)
 """
