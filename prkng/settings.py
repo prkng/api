@@ -24,6 +24,17 @@ class Defaults(object):
 
     DOWNLOAD_DIRECTORY = '/tmp'
 
+    OAUTH_CREDENTIALS = {
+        'facebook': {
+            'id': '1043720578978201',
+            'secret': '21221bccfc052c95cb37a40d200bad35'
+        },
+        'google': {
+            'id': '809052690526-8r6c2frl23212mlnkvf18094a278kld5.apps.googleusercontent.com',
+            'secret': 'poPuwF4CdjJr7IM89Z3JjjT7'
+        }
+    }
+
 
 class Testing(Defaults):
     TESTING = True

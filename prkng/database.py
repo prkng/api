@@ -4,6 +4,7 @@ from contextlib import contextmanager
 
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
+from sqlalchemy import create_engine
 
 from flask import _app_ctx_stack as stack, current_app
 
@@ -135,14 +136,11 @@ class PostgresWrapper(object):
         self.db.commit()
 
 
-class Postgres(object):
+class Engine(object):
     """
     Postgres connection for flask application.
     """
     def __init__(self, app=None):
-        """
-        :connection_string: "host=localhost dbname=prkng user=user password=***"
-        """
         self.app = app
         if app is not None:
             self.init_app(app)
@@ -157,24 +155,36 @@ class Postgres(object):
             ctx.pgdb.close()
 
     @property
-    def connection(self):
+    def engine(self):
         ctx = stack.top
         if ctx is not None:
             if not hasattr(ctx, 'postgres_db'):
-                ctx.pgdb = PostgresWrapper(
-                    "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
-                    "user={PG_USERNAME} password={PG_PASSWORD} "
-                    .format(**current_app.config)
+                # ctx.pgdb = PostgresWrapper(
+                #     "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+                #     "user={PG_USERNAME} password={PG_PASSWORD} "
+                #     .format(**current_app.config)
+                # )
+                ctx.pgdb = create_engine(
+                    '{SQLALCHEMY_DATABASE_URI}'.format(**current_app.config),
+                    strategy='threadlocal'
                 )
             return ctx.pgdb
 
 
-# instance of postgresql
-db = Postgres()
-
-
 def init_db(app):
     """
-    Initialize DB into flask application
+    Initialize DB engine and create tables
     """
-    db.init_app(app)
+    DATABASE_URI = 'postgresql://{user}:{password}@{host}:{port}/{database}'.format(
+            user=app.config['PG_USERNAME'],
+            password=app.config['PG_PASSWORD'],
+            host=app.config['PG_HOST'],
+            port=app.config['PG_PORT'],
+            database=app.config['PG_DATABASE'],
+        )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
+
+
+# instance of Engine
+db = Engine()

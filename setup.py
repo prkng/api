@@ -9,11 +9,14 @@ here = os.path.abspath(os.path.dirname(__file__))
 requirements = (
     'flask==0.10.1',
     'flask-restplus==0.4.0',
+    'flask-login==0.2.11',
+    'SQLAlchemy==0.9.8',
     'psycopg2==2.5.4',
     'click==3.3',
     'requests==2.5.1',
     'geojson==1.0.9',
-    'aniso8601==0.92'
+    'aniso8601==0.92',
+    'rauth==0.7.1'
 )
 
 
