@@ -1,15 +1,10 @@
-.. prkng documentation master file, created by
-   sphinx-quickstart on Mon Dec 22 15:48:57 2014.
-   You can adapt this file completely to your liking, but it should at least
-   contain the root `toctree` directive.
-
-Welcome to prkng's documentation!
-=================================
+Welcome to prkng documentation!
+===============================
 
 Contents:
 
 .. toctree::
-   :maxdepth: 2
+   :maxdepth: 1
 
    CHANGELOG
    API
@@ -17,79 +12,107 @@ Contents:
 System requirements
 ===================
 
-- postgresql 9.4
-- postgis 2.1
+- postgresql >= 9.4
+- postgis >= 2.1 (with shp2pgsql command line)
 - ogr2ogr >= 1.9.0
 - osm2pgsql >= 0.87
-- python 2.7
+- osmconvert (osmctools package)
+- python >= 2.7 <3
+- pip package installer >= 1.5
 - virtualenv
 - uwsgi >= 2.0.8 (installed globally, not in virtualenv, for production only)
 
-Installation (for developpement)
-================================
 
-Creating a virtualenv
+Developping on prkng
+====================
+
+Checkout the code
+-----------------
+
+::
+
+    git clone https://github.com/ArnaudA/prkng-api prkng
+    cd prkng
+    # create an isolated python environment
+    virtualenv venv
+    source venv/bin/activate
+
+Install the project and its dependencies in editable mode ::
+
+    pip install -r requirements-dev.txt
+
+
+Minimal Configuration
 ---------------------
 
-
-
-
-Configuration
-=============
-
 A configuration file is needed to launch the application.
-If not provided, prkng will be launched with defaults settings which are probably too
-minimalist for a functionnal working environment.
 
-Example of configuration file::
+You can simply create the file in the root directory of the target with this name ``prkng.cfg``.
+It will be used automatically.
 
-    DEBUG = False
-    LOG_LEVEL = 'info'
+Or you can create a file pointed with an environment variable named ``PRKNG_SETTINGS``
+
+On Linux, you can export it via ::
+
+    export PRKNG_SETTINGS=/path/to/prkng.cfg
+
+Example of content ::
+
+    DEBUG = True
+    LOG_LEVEL = 'debug'
     PG_DATABASE = 'prkng'
-    PG_USERNAME = 'admin'
-    PG_PASSWORD = 'admin'
-    PG_PORT = '5433'
+    PG_USERNAME = 'user'
+    PG_PASSWORD = '***'
     DOWNLOAD_DIRECTORY = '/tmp'
 
-Launch the application::
-
-    prkng serve
-
-Go to your browser and check `<http://localhost:5000>_`
-
-Deployement
-===========
-
-Fabric is used to:
-
-    - bundle the whole application and its dependencies::
-
-        fab dist
-
-    - deploy bundle generated to remote servers
-
-        fab arizaro deploy
-
-To serve application with UWSGI (production usecase), it's necessary to have a
-uwsgi.ini file which look like::
-
-    [uwsgi]
-    virtualenv=/home/user/prkng_venv/
-    master=true
-    socket=localhost:5001
-    module=prkng.wsgi:app
-    processes=8
-    #lazy-apps=true
-    daemonize=/home/user/prkng_uwsgi.log
-    need-app=true
-    protocol=http
-    touch-reload=/home/user/prkng-uwsgi.reload
-
+    PG_TEST_HOST = 'localhost'
+    PG_TEST_DATABASE = 'prkng_test'
+    PG_TEST_PORT = '5432'
+    PG_TEST_USERNAME = 'user'
+    PG_TEST_PASSWORD = '***'
 
 Command Line ``prkng``
 ======================
 
+::
 
+    prkng update
+
+This command will :
+
+    - download the most recent parking informations for:
+
+        - Montréal
+        - Québec
+
+    - download associated OpenStreetMap areas
+    - load the previous things in the postgresql database (overwrite older data)
+
+
+::
+
+    prkng process
+
+This command will process all data and generate parking slots (will erase any older data)
+
+
+::
+
+    prkng serve
+
+Launch a developpement server.
+Go to your browser and check `<http://localhost:5000>_`
+
+
+Build this documentation
+========================
+
+::
+
+    cd doc/
+    sphinx-build . _build/
+
+Go to <file:///home/user/path/to/prkng/doc/_build/>_
 
 Indices and tables
 ==================

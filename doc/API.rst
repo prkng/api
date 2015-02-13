@@ -1,7 +1,7 @@
 API
 ===
 
-API documentation generated with Swagger
+API documentation automatically generated with Swagger
 
-`<http://>`_
+`<http://api.prk.ng>`_
 
