@@ -15,10 +15,10 @@ class SlotsModel(object):
     @staticmethod
     def get_within(x, y, radius, duration, checkin):
         """
-        Retrieve the nearest slots within ``radius`` meters of
+        Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
 
-        Restriction reduction before output
+        Apply restrictions before sending the response
         """
         checkin = checkin or datetime.now()
 
@@ -44,7 +44,7 @@ class SlotsModel(object):
     @staticmethod
     def get_byid(sid):
         """
-        Retrieve the nearest slots within ``radius`` meters of
+        Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y)
         """
         return db.connection.query("""

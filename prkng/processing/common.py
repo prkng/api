@@ -28,7 +28,8 @@ CREATE TABLE rules (
 )
 """
 
-get_rules_from_source = """SELECT
+get_rules_from_source = """
+SELECT
     code
     , description
     , season_start
