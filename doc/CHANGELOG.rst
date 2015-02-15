@@ -1,9 +1,12 @@
 Changelog
 =========
 
-current
--------
+v0.2
+----
 
+- Add check-in endpoint to the API
+- many bug fixes
+- improve tests
 - Add Authentication using Flask-Login and rauth
     - Google OAuth2
     - Facebook OAuth2
