@@ -27,13 +27,14 @@ def test():
     create a new source distribution as tarball
     """
     with cd(remote_directory), prefix('. venv/bin/activate'):
-        run('py.test')
+        run('py.test venv/lib/python2.7/site-packages/prkng/')
 
 
 @task
 def deploy():
     """
-    upload the source tarball to the temporary folder on the server
+    upload the archive and install the application and its dependencies
+    the application
     """
     with cd(remote_directory):
         put(dist, '.')
