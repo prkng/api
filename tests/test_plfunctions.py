@@ -8,10 +8,10 @@ from prkng.processing.plfunctions import *
 
 @pytest.fixture(scope="module")
 def db(scope="module"):
-    CONFIG = create_app().config
+    CONFIG = create_app(env='Testing').config
     return PostgresWrapper(
-        "host='{PG_TEST_HOST}' port={PG_TEST_PORT} dbname={PG_TEST_DATABASE} "
-        "user={PG_TEST_USERNAME} password={PG_TEST_PASSWORD} ".format(**CONFIG))
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
 
 def test_st_isleft(db):

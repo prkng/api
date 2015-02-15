@@ -1,4 +1,7 @@
 # -*- coding: utf-8 -*-
+"""
+:author: ludovic.delaune@oslandia.com
+"""
 from __future__ import unicode_literals
 import os
 
@@ -23,6 +26,20 @@ class Defaults(object):
     PG_TEST_PASSWORD = ''
 
     DOWNLOAD_DIRECTORY = '/tmp'
+
+    OAUTH_CREDENTIALS = {
+        'facebook': {
+            'id': '1043720578978201',
+            'secret': '21221bccfc052c95cb37a40d200bad35'
+        },
+        'google': {
+            'id': '809052690526-8r6c2frl23212mlnkvf18094a278kld5.apps.googleusercontent.com',
+            'secret': 'poPuwF4CdjJr7IM89Z3JjjT7'
+        }
+    }
+
+    # usefull to catch exceptions in uwsgi
+    PROPAGATE_EXCEPTIONS = True
 
 
 class Testing(Defaults):

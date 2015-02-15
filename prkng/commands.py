@@ -1,7 +1,8 @@
 # -*- coding: utf-8 -*-
 """
-Command line utilities
+:author: ludovic.delaune@oslandia.com
 
+Command line utilities
 """
 from __future__ import print_function
 

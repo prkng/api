@@ -1,23 +1,49 @@
 # -*- coding: utf-8 -*-
 """
 :author: ludovic.delaune@oslandia.com
-
 """
+from __future__ import unicode_literals
+from functools import wraps
 from time import strftime
 from aniso8601 import parse_datetime
 
-from flask import render_template, Response
+from flask import render_template, Response, current_app
 from flask.ext.restplus import Api, Resource, fields
+from flask.ext.login import current_user, login_user, logout_user, make_secure_token
 from geojson import FeatureCollection, Feature
 
-from .models import SlotsModel
+from .models import SlotsModel, UserAuth, User, Checkins
+from .login import OAuthSignIn
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
               'MultiPoint', 'MultiLineString', 'MultiPolygon')
 
 
-# api instance
-api = Api(
+class PrkngApi(Api):
+    """
+    Subclass Api and add a syntaxic sugar decorator
+    """
+    def __init__(self, **kwargs):
+        super(PrkngApi, self).__init__(**kwargs)
+
+    def secure(self, func):
+        '''Enforce authentication'''
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            if current_user.is_authenticated():
+                return func(*args, **kwargs)
+            if current_app.login_manager._login_disabled:
+                return func(*args, **kwargs)
+
+            return self.abort(403, 'Not Authenticated')
+
+            return func(*args, **kwargs)
+
+        return wrapper
+
+
+# api instance (Blueprint)
+api = PrkngApi(
     version='1.0',
     title='Prkng API',
     description='An API to access free parking slots in some cities of Canada',
@@ -26,13 +52,12 @@ api = Api(
 
 def init_api(app):
     """
-    Initialize API into flask application
+    Initialize extensions into flask application
     """
     api.init_app(app)
 
 
 # define response models
-
 @api.model(fields={
     'type': fields.String(description='The GeoJSON Type', required=True, enum=GEOM_TYPES),
     'coordinates': fields.List(
@@ -90,8 +115,6 @@ slots_collection_fields = api.model('GeoJSONFeatureCollection', {
 })
 
 
-# endpoints
-
 @api.route('/slot/<string:id>')
 @api.doc(
     params={'id': 'slot id'},
@@ -120,7 +143,7 @@ class SlotResource(Resource):
 
 # validate timestamp and returns it
 def timestamp(x):
-    return parse_datetime(x).isoformat('T')
+    return parse_datetime(x).isoformat(str('T'))
 
 
 slot_parser = api.parser()
@@ -161,7 +184,6 @@ class SlotsResource(Resource):
     def get(self, x, y):
         """
         Returns slots around the point defined by (x, y)
-
         """
         args = slot_parser.parse_args()
 
@@ -194,7 +216,6 @@ class SlotsOnMap(Resource):
     def get(self, x, y):
         """
         Backdoor to view results on a map
-
         """
         args = slot_parser.parse_args()
         res = SlotsModel.get_within(
@@ -225,3 +246,103 @@ class SlotsOnMap(Resource):
             for feat in res
         ])), mimetype='text/html')
         return resp
+
+
+@api.route('/login/facebook')
+class LoginFacebook(Resource):
+    def get(self):
+        """
+        Login with a facebook account
+        """
+        if not current_user.is_anonymous():
+            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+        oauth = OAuthSignIn.get_provider('facebook')
+        return oauth.authorize()
+
+
+@api.route('/login/google')
+class LoginGoogle(Resource):
+    def get(self):
+        """
+        Login with a google account
+        """
+        if not current_user.is_anonymous():
+            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+        oauth = OAuthSignIn.get_provider('google')
+        return oauth.authorize()
+
+
+# define the slot id parser
+slot_id_parser = api.parser()
+slot_id_parser.add_argument('slot_id', type=int, required=True, help='The slot id', location='form')
+
+
+@api.route('/checkin')
+class Checkin(Resource):
+    @api.secure
+    def get(self):
+        """
+        Get the list of last checkins. Default to 10 last checkins.
+        """
+        res = Checkins.get(current_user.id, 10)
+        return res, 200
+
+    @api.doc(
+        parser=slot_id_parser,
+        responses={404: "No slot existing with this id",
+                   201: "Resource created"}
+    )
+    @api.secure
+    def post(self):
+        """
+        Add a new checkin for the current user
+        """
+        args = slot_id_parser.parse_args()
+        ok = Checkins.add(current_user.id, args['slot_id'])
+        if not ok:
+            api.abort(404, "No slot existing with this id")
+        return "Resource created", 201
+
+
+@api.route('/logout')
+class Logout(Resource):
+    @api.secure
+    def get(self):
+        """Logout current user"""
+        logout_user()
+        return 'User logged out', 200
+
+
+@api.route('/me')
+class Profile(Resource):
+    @api.secure
+    def get(self):
+        """Get informations about current user"""
+        return User.get_profile(current_user.id), 200
+
+
+@api.route('/callback/<provider>', endpoint='oauth_callback')
+@api.hide
+class OauthCallback(Resource):
+    def get(self, provider):
+        if not current_user.is_anonymous():
+            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+        oauth = OAuthSignIn.get_provider(provider)
+        auth_id, name, email, gender, fullprofile = oauth.callback()
+        if auth_id is None:
+            return api.abort(401, "Authentication failed.")
+        user = UserAuth.get_user(auth_id)
+        if not user:
+            # add user auth informations and get the User associated
+            user = UserAuth.add_userauth(
+                name=name,
+                auth_id=auth_id,
+                email=email,
+                auth_type=oauth.provider_name,
+                fullprofile=fullprofile
+            )
+
+        # login user (powered by flask-login)
+        login_user(user, True)
+        # make_secure_token(name, email, auth_id)
+        return "Authorization OK", 200

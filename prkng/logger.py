@@ -1,4 +1,9 @@
 # -*- coding: utf-8 -*-
+"""
+:author: ludovic.delaune@oslandia.com
+
+Custom Logger inspired by the kivy Logger module
+"""
 import logging
 
 Logger = logging.getLogger('prkng')

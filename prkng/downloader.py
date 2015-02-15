@@ -1,5 +1,7 @@
 # -*- coding: utf-8 -*-
 """
+:author: ludovic.delaune@oslandia.com
+
 Download helper for parking areas
 
 Each downloader will :
