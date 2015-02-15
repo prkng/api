@@ -16,7 +16,8 @@ requirements = (
     'requests==2.5.1',
     'geojson==1.0.9',
     'aniso8601==0.92',
-    'rauth==0.7.1'
+    'rauth==0.7.1',
+    'pytest==2.6.4'
 )
 
 
