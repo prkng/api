@@ -255,7 +255,7 @@ class LoginFacebook(Resource):
         Login with a facebook account
         """
         if not current_user.is_anonymous():
-            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+            return "Already authenticated as {}".format(current_user.name), 403
         oauth = OAuthSignIn.get_provider('facebook')
         return oauth.authorize()
 
@@ -267,7 +267,7 @@ class LoginGoogle(Resource):
         Login with a google account
         """
         if not current_user.is_anonymous():
-            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+            return "Already authenticated as {}".format(current_user.name), 403
         oauth = OAuthSignIn.get_provider('google')
         return oauth.authorize()
 
@@ -326,7 +326,7 @@ class Profile(Resource):
 class OauthCallback(Resource):
     def get(self, provider):
         if not current_user.is_anonymous():
-            return api.abort(403, "Already authenticated as {}".format(current_user.name))
+            return "Already authenticated as {}".format(current_user.name), 403
         oauth = OAuthSignIn.get_provider(provider)
         auth_id, name, email, gender, fullprofile = oauth.callback()
         if auth_id is None:
