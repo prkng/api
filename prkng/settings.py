@@ -33,8 +33,8 @@ class Defaults(object):
             'secret': '21221bccfc052c95cb37a40d200bad35'
         },
         'google': {
-            'id': '809052690526-8r6c2frl23212mlnkvf18094a278kld5.apps.googleusercontent.com',
-            'secret': 'poPuwF4CdjJr7IM89Z3JjjT7'
+            'id': '632562278503-5phd5kj62jnc1qeli9n1rvdeeppujdlu.apps.googleusercontent.com',
+            'secret': '8aI5F1EfSGwi625e7olJprVR'
         }
     }
 
