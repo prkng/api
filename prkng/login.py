@@ -2,13 +2,12 @@
 """
 :author: ludovic.delaune@oslandia.com
 """
-import json
+import requests
 
-from flask.ext.login import LoginManager
-from flask import current_app, url_for, request, redirect
-from rauth import OAuth2Service
-
-from .models import User
+from flask.ext.login import LoginManager, login_user
+from flask import current_app
+from passlib.hash import pbkdf2_sha256
+from .models import User, UserAuth
 
 # login Manager
 lm = LoginManager()
@@ -26,106 +25,208 @@ def load_user(id):
     return User.get(int(id))
 
 
-class OAuthSignIn(object):
-    providers = None
+def email_register(email=None, password=None, name=None, gender=None, birthyear=None):
+    """
+    Signup with an email and a password
+    """
+    user = User.get_byemail(email)
+    if user:
+        return "User already exists", 404
 
-    def __init__(self, provider_name):
-        self.provider_name = provider_name
-        credentials = current_app.config['OAUTH_CREDENTIALS'][provider_name]
-        self.consumer_id = credentials['id']
-        self.consumer_secret = credentials['secret']
+    # primary user doesn't exists, creating it
+    user = User.add_user(
+        name=name,
+        email=email,
+        gender=gender
+    )
 
-    def authorize(self):
-        pass
+    # add an authentification method
+    auth_id = 'email${}'.format(user.id)
+    UserAuth.add_userauth(
+        user_id=user.id,
+        name=name,
+        auth_id=auth_id,
+        email=email,
+        auth_type='email',
+        password=pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16),
+        fullprofile={'birthyear': birthyear}
+    )
 
-    def callback(self):
-        pass
+    # login user in the current session
+    login_user(user, True)
 
-    def get_callback_url(self):
-        return url_for('oauth_callback', provider=self.provider_name,
-                       _external=True)
+    resp = {
+        'auth_id': auth_id,
+    }
+    resp.update(user.json)
 
-    @classmethod
-    def get_provider(self, provider_name):
-        if self.providers is None:
-            self.providers = {}
-            for provider_class in self.__subclasses__():
-                provider = provider_class()
-                self.providers[provider.provider_name] = provider
-        return self.providers[provider_name]
+    return resp, 201
 
 
-class FacebookSignIn(OAuthSignIn):
-    def __init__(self):
-        super(FacebookSignIn, self).__init__('facebook')
-        self.service = OAuth2Service(
-            name='facebook',
-            client_id=self.consumer_id,
-            client_secret=self.consumer_secret,
-            authorize_url='https://graph.facebook.com/oauth/authorize',
-            access_token_url='https://graph.facebook.com/oauth/access_token',
-            base_url='https://graph.facebook.com/'
+def email_signin(email, password):
+    """
+    Signin with an email and a password
+    """
+    user = User.get_byemail(email)
+
+    if not user:
+        return "Account doesn't exists, please register", 401
+
+    # check if authentication method by email exists for this user
+    auth_id = 'email${}'.format(user.id)
+    user_auth = UserAuth.exists(auth_id)
+    if not user_auth:
+        return "Existing user with google or facebook account, not email", 401
+
+    # check password validity
+    if not pbkdf2_sha256.verify(password, user_auth.password):
+        return "Incorrect password", 401
+
+    user.update_apikey(User.generate_apikey(user.email))
+
+    resp = {
+        'auth_id': auth_id,
+    }
+    resp.update(user.json)
+
+    return resp, 200
+
+
+def facebook_signin(access_token):
+    """
+    Authorize user given its access_token.
+    Add it to the db if not already present
+
+    """
+    # verify access token has been requested with the correct app id
+    resp = requests.get(
+        "https://graph.facebook.com/app/",
+        params={'access_token': access_token}
+    )
+    data = resp.json()
+
+    if resp.status_code != 200:
+        return data, resp.status_code
+
+    if data['id'] != current_app.config['OAUTH_CREDENTIALS']['facebook']['id']:
+        return "Authentication failed.", 401
+
+    # get user profile
+    resp = requests.get(
+        "https://graph.facebook.com/me",
+        params={'access_token': access_token}
+    )
+    me = resp.json()
+
+    if resp.status_code != 200:
+        return me, resp.status_code
+
+    if 'email' not in me:
+        return 'Email information not provided, cannot register user', 401
+
+    # check if user exists with its email as unique identifier
+    user = User.get_byemail(me['email'])
+    if not user:
+        # primary user doesn't exists, creating it
+        user = User.add_user(
+            name=me['name'],
+            email=me['email'],
+            gender=me.get('gender', None))
+    else:
+        # if already exists just update with a new apikey
+        user.update_apikey(User.generate_apikey(user.email))
+    # known facebook account ?
+    auth_id = 'facebook${}'.format(me['id'])
+    user_auth = UserAuth.exists(auth_id)
+
+    if not user_auth:
+        # add user auth informations
+        UserAuth.add_userauth(
+            user_id=user.id,
+            name=user.name,
+            auth_id=auth_id,
+            email=user.email,
+            auth_type='facebook',
+            fullprofile=me
         )
 
-    def authorize(self):
-        return redirect(self.service.get_authorize_url(
-            scope='email',
-            response_type='code',
-            redirect_uri=self.get_callback_url())
-        )
+    # login user (powered by flask-login)
+    login_user(user, True)
 
-    def callback(self):
-        if 'code' not in request.args:
-            return None, None, None
-        oauth_session = self.service.get_auth_session(
-            data={'code': request.args['code'],
-                  'grant_type': 'authorization_code',
-                  'redirect_uri': self.get_callback_url()}
-        )
-        me = oauth_session.get('me').json()
+    resp = {
+        'auth_id': auth_id,
+    }
+    resp.update(user.json)
 
-        return (
-            'facebook${}'.format(me['id']),
-            me.get('name'),
-            me.get('email', me.get('name')),  # name if email doesn't exists
-            me.get('gender'),
-            me
-        )
+    return resp, 200
 
 
-class GoogleSignIn(OAuthSignIn):
-    def __init__(self):
-        super(GoogleSignIn, self).__init__('google')
-        self.service = OAuth2Service(
-            name='google',
-            authorize_url='https://accounts.google.com/o/oauth2/auth',
-            access_token_url='https://accounts.google.com/o/oauth2/token',
-            base_url='https://accounts.google.com/o/oauth2/auth',
-            client_id=self.consumer_id,
-            client_secret=self.consumer_secret,
-        )
+def google_signin(access_token):
+    """
+    Authorize user given its access_token.
+    Add it to the db if not already present
 
-    def authorize(self):
-        return redirect(self.service.get_authorize_url(
-            scope='email profile',
-            response_type='code',
-            redirect_uri=self.get_callback_url())
-        )
+    """
+    # verify access token has been requested with the correct app id
+    resp = requests.get(
+        "https://www.googleapis.com/oauth2/v1/tokeninfo",
+        params={'access_token': access_token}
+    )
+    data = resp.json()
 
-    def callback(self):
-        if 'code' not in request.args:
-            return None, None, None
-        oauth_session = self.service.get_auth_session(
-            data={'code': request.args['code'],
-                  'grant_type': 'authorization_code',
-                  'redirect_uri': self.get_callback_url()},
-            decoder=json.loads
+    if resp.status_code != 200:
+        return data, resp.status_code
+
+    if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
+        return "Authentication failed.", 401
+
+    # get user profile
+    resp = requests.get(
+        "https://www.googleapis.com/oauth2/v1/userinfo",
+        params={'access_token': access_token}
+    )
+    me = resp.json()
+
+    if resp.status_code != 200:
+        return me, resp.status_code
+
+    if 'email' not in me:
+        return 'Email information not provided, cannot register user', 401
+
+    auth_id = 'google${}'.format(me['id'])
+
+    # known google account ?
+    user_auth = UserAuth.exists(auth_id)
+
+    # check if user exists with its email as unique identifier
+    user = User.get_byemail(me['email'])
+    if not user:
+        # primary user doesn't exists, creating it
+        user = User.add_user(
+            name=me['name'],
+            email=me['email'],
+            gender=me.get('gender', None))
+
+    if not user_auth:
+        # add user auth informations
+        UserAuth.add_userauth(
+            user_id=user.id,
+            name=user.name,
+            auth_id=auth_id,
+            email=user.email,
+            auth_type='facebook',
+            fullprofile=me
         )
-        resp = oauth_session.get('https://www.googleapis.com/oauth2/v1/userinfo').json()
-        return (
-            'google${}'.format(resp['id']),
-            resp['name'],
-            resp['email'],
-            None,  # no gender in google profile
-            resp
-        )
+    else:
+        # if already exists just update with a new apikey
+        user.update_apikey(User.generate_apikey(user.email))
+
+    # login user (powered by flask-login)
+    login_user(user, True)
+
+    resp = {
+        'auth_id': auth_id,
+    }
+    resp.update(user.json)
+
+    return resp, 200

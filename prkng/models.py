@@ -4,10 +4,14 @@
 """
 from __future__ import unicode_literals
 from datetime import datetime
+from time import time
 
+from flask import current_app
 from flask.ext.login import UserMixin
-from sqlalchemy import Table, MetaData, Integer, String, Float, Column, ForeignKey, DateTime, text
+from sqlalchemy import Table, MetaData, Integer, String, func, \
+                       Float, Column, ForeignKey, DateTime, text, Index
 from sqlalchemy.dialects.postgresql import JSONB, ENUM
+from itsdangerous import JSONWebSignatureSerializer
 
 from prkng.processing.filters import on_restriction
 from .database import db
@@ -33,24 +37,30 @@ user_table = Table(
     'users',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('name', String(16), nullable=False),
+    Column('name', String, nullable=False),
     Column('gender', String(10)),
     Column('email', String(60), index=True, unique=True, nullable=False),
-    Column('token', String(60)),
-    Column('password', String),  # in case of email provider (local auth)
+    Column('created', DateTime, server_default=text('NOW()'), index=True),
+    Column('apikey', String)
 )
 
+# creating a functional index on apikey field
+user_api_index = Index(
+    'idx_users_apikey',
+    func.substr(user_table.c.apikey, 0, 6)
+)
 
 checkin_table = Table(
     'checkins',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('user_id', Integer, ForeignKey("users.id"), index=True),
+    Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
     Column('slot_id', Integer),
     Column('way_name', String),
     Column('long', Float),
     Column('lat', Float),
-    Column('created_time', DateTime, server_default=text('NOW()'), index=True),  # The time the check-in was created.
+    Column('created', DateTime, server_default=text('NOW()'), index=True),
+    # The time the check-in was created.
 )
 
 
@@ -58,10 +68,11 @@ userauth_table = Table(
     'users_auth',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('user_id', Integer, ForeignKey("users.id"), index=True),
-    Column('auth_id', String(1024), index=True, unique=True),
-    Column('auth_type', ENUM(*AUTH_PROVIDERS, name='auth_provider')),
-    Column('fullprofile', JSONB)
+    Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
+    Column('auth_id', String(1024), index=True, unique=True),  # id given by oauth provider
+    Column('auth_type', ENUM(*AUTH_PROVIDERS, name='auth_provider')),  # oauth_type
+    Column('password', String),  # for the email accounts
+    Column('fullprofile', JSONB),
 )
 
 
@@ -69,13 +80,43 @@ class User(UserMixin):
     """
     Subclassed UserMixin for the methods that Flask-Login expects user objects to have
     """
-    def __init__(self, id, name):
+    def __init__(self, kwargs):
         super(UserMixin, self).__init__()
-        self.id = id
-        self.name = name
+        for key, value in kwargs.items():
+            setattr(self, key, value)
 
     def __repr__(self):
         return u"<User {} : {}>".format(self.id, self.name)
+
+    def update_apikey(self, newkey):
+        """
+        Update key in the database
+        """
+        db.engine.execute("""
+            update users set apikey = '{key}'
+            where id = {user_id}
+            """.format(key=newkey, user_id=self.id))
+        self.apikey = newkey
+
+    @property
+    def json(self):
+        vals = {
+            key: value for key, value in self.__dict__.items()
+        }
+        # since datetime is not JSON serializable
+        vals['created'] = self.created.strftime("%Y-%m-%d %H:%M:%S")
+        return vals
+
+    @staticmethod
+    def generate_apikey(email):
+        """
+        Generate a user API key
+        """
+        serial = JSONWebSignatureSerializer(current_app.config['SECRET_KEY'])
+        return serial.dumps({
+            'email': email,
+            'time': time()
+        })
 
     @staticmethod
     def get(id):
@@ -87,7 +128,35 @@ class User(UserMixin):
         res = user_table.select(user_table.c.id == id).execute().first()
         if not res:
             return None
-        return User(res.id, res.name)
+        return User(res)
+
+    @staticmethod
+    def get_byemail(email):
+        """
+        Static method to search the database and see if user with ``id`` exists.  If it
+        does exist then return a User Object.  If not then return None as
+        required by Flask-Login.
+        """
+        res = user_table.select(user_table.c.email == email).execute().first()
+        if not res:
+            return None
+        return User(res)
+
+    @staticmethod
+    def get_byapikey(apikey):
+        """
+        Static method to search the database and see if user with ``apikey`` exists.  If it
+        does exist then return a User Object.  If not then return None as
+        required by Flask-Login.
+        """
+        res = db.engine.execute("""
+            select * from users where
+            substr(apikey::text, 0, 6) = substr('{0}', 0, 6)
+            AND apikey = '{0}'
+            """.format(apikey)).first()
+        if not res:
+            return None
+        return User(res)
 
     @staticmethod
     def get_profile(id):
@@ -98,24 +167,21 @@ class User(UserMixin):
         res = user_table.select(user_table.c.id == id).execute().first()
         if not res:
             return None
-        return {
-            key: value
-            for key, value in res.items()
-            if key in ('name', 'gender', 'email')
-        }
+        return res
 
     @staticmethod
-    def add_user(email=None, name=None):
+    def add_user(name=None, email=None, gender=None):
         """
-        Add a new user. If already exists returns himself
+        Add a new user.
+        Raise an exception in case of already exists.
         """
+        apikey = User.generate_apikey(email)
+        # insert data
+        db.engine.execute(user_table.insert().values(
+            name=name, email=email, apikey=apikey, gender=gender))
+        # retrieve new user informations
         res = user_table.select(user_table.c.email == email).execute().first()
-        if not res:
-            # add the user
-            db.engine.execute(user_table.insert().values(name=name, email=email))
-            res = user_table.select(user_table.c.email == email).execute().first()
-
-        return User(res.id, res.name)
+        return User(res)
 
 
 class UserAuth(object):
@@ -124,39 +190,30 @@ class UserAuth(object):
     On user can have several authentication methods (google + facebook for example).
     """
     @staticmethod
-    def get_user(auth_id):
-        res = db.engine.execute("""
-            SELECT user_id from users_auth where auth_id = '{}'
-            """.format(auth_id)).first()
-
-        if not res:
-            return None
-        return User.get(res[0])
+    def exists(auth_id):
+        res = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().first()
+        return res
 
     @staticmethod
-    def add_userauth(name=None, auth_id=None, auth_type=None,
-                     email=None, fullprofile=None):
-        # check if exists in the users table
-        # if not, create first the unique user
-        # then add a auth method for this user
-        user = User.add_user(email=email, name=name)
+    def add_userauth(user_id=None, name=None, auth_id=None, auth_type=None,
+                     email=None, fullprofile=None, password=None):
         db.engine.execute(userauth_table.insert().values(
-            user_id=user.id,
+            user_id=user_id,
             auth_id=auth_id,
             auth_type=auth_type,
+            password=password,
             fullprofile=fullprofile
         ))
-        return user
 
 
 class Checkins(object):
     @staticmethod
     def get(user_id, limit):
         res = db.engine.execute("""
-            SELECT slot_id, way_name, long, lat, created_time::text as created_time
+            SELECT slot_id, way_name, long, lat, created::text as created
             FROM checkins
             WHERE user_id = {uid}
-            ORDER BY created_time DESC
+            ORDER BY created DESC
             LIMIT {limit}
             """.format(uid=user_id, limit=limit)).fetchall()
         return [dict(row) for row in res]

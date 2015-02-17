@@ -38,7 +38,7 @@ def app(request):
     # hack to cause a new request context to be pushed and have a current user logged in
     @app.route('/test_auto_login')
     def auto_login():
-        login_user(User.add_user(email='test@test', name='test_user'), True)
+        login_user(User.get(1))
         return "ok"
 
     # create slots table
@@ -46,6 +46,7 @@ def app(request):
 
     with app.test_client() as client:
         # add a user in order to honor foreign key of checkins
+        User.add_user(email='test@test', name='test_user')
         client.get("/test_auto_login")
 
     # add some checkins
@@ -70,9 +71,12 @@ def client(app):
 
 
 def test_api_me(client):
-    resp = client.get('/me')
+    resp = client.get('/user/profile')
     data = json.loads(resp.data)
-    assert data == {'email': 'test@test', 'gender': None, 'name': 'test_user'}
+    assert data['email'] == 'test@test'
+    assert data['gender'] == None
+    assert data['name'] == 'test_user'
+    assert data['apikey']  # apikey must be non empty
     assert not current_user.is_anonymous()
 
 
@@ -82,18 +86,18 @@ def test_api_logout(client):
 
 
 def test_api_checkin_count(client):
-    resp = client.get('/checkin')
+    resp = client.get('/slot/checkin')
     data = json.loads(resp.data)
     assert len(data) == 3
 
 
 def test_api_getcheckin(client):
-    resp = client.post('/checkin', data={'slot_id': '20'})
+    resp = client.post('/slot/checkin', data={'slot_id': '20'})
     assert resp.status_code == 404
 
 
 def test_api_postcheckin(client):
-    resp = client.post('/checkin', data={'slot_id': '2'})
+    resp = client.post('/slot/checkin', data={'slot_id': '2'})
     assert resp.status_code == 201
 
 
@@ -107,3 +111,44 @@ def test_api_getslot(client):
 def test_api_getbadslot(client):
     resp = client.get('/slot/20')
     assert resp.status_code == 404
+
+
+def test_api_register(client):
+    resp = client.post('/register', data=dict(
+        email='test@prkng.com',
+        password='incrediblepass',
+        name='john doe',
+        gender='male',
+        birthyear=1900,
+    ))
+    assert resp.status_code == 201
+
+
+def test_api_register_already_registered(client):
+    resp = client.post('/register', data=dict(
+        email='test@prkng.com',
+        password='incrediblepass',
+        name='john doe',
+        gender='male',
+        birthyear=1900,
+    ))
+    assert json.loads(resp.data) == "User already exists"
+    assert resp.status_code == 404
+
+
+def test_api_loginemail_ok(client):
+    resp = client.post('/login/email', data=dict(
+        email='test@prkng.com',
+        password='incrediblepass',
+    ))
+    assert json.loads(resp.data)['name'] == 'john doe'
+    assert resp.status_code == 200
+
+
+def test_api_loginemail_badpass(client):
+    resp = client.post('/login/email', data=dict(
+        email='test@prkng.com',
+        password='incrediblep',
+    ))
+    assert json.loads(resp.data) == 'Incorrect password'
+    assert resp.status_code == 401

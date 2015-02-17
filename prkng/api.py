@@ -3,25 +3,33 @@
 :author: ludovic.delaune@oslandia.com
 """
 from __future__ import unicode_literals
+from copy import deepcopy
 from functools import wraps
 from time import strftime
 from aniso8601 import parse_datetime
 
-from flask import render_template, Response, current_app
+from flask import render_template, Response, current_app, request
 from flask.ext.restplus import Api, Resource, fields
-from flask.ext.login import current_user, login_user, logout_user, make_secure_token
+from flask.ext.login import current_user, logout_user, login_user
 from geojson import FeatureCollection, Feature
 
-from .models import SlotsModel, UserAuth, User, Checkins
-from .login import OAuthSignIn
+from .models import SlotsModel, User, Checkins
+from .login import facebook_signin, google_signin, email_register, email_signin
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
               'MultiPoint', 'MultiLineString', 'MultiPolygon')
 
+HEADER_API_KEY = 'X-API-KEY'
+
+
+# helper to validate timestamp and returns it
+def timestamp(x):
+    return parse_datetime(x).isoformat(str('T'))
+
 
 class PrkngApi(Api):
     """
-    Subclass Api and add a syntaxic sugar decorator
+    Subclass Api and adds a ``secure`` decorator
     """
     def __init__(self, **kwargs):
         super(PrkngApi, self).__init__(**kwargs)
@@ -35,7 +43,16 @@ class PrkngApi(Api):
             if current_app.login_manager._login_disabled:
                 return func(*args, **kwargs)
 
-            return self.abort(403, 'Not Authenticated')
+            apikey = request.headers.get(HEADER_API_KEY)
+
+            if not apikey:
+                return 'Invalid API Key', 401
+            user = User.get_byapikey(apikey)
+            if not user:
+                return 'Invalid API Key', 401
+
+            if not login_user(user, False):
+                return 'Inactive user', 401
 
             return func(*args, **kwargs)
 
@@ -59,7 +76,7 @@ def init_api(app):
 
 # define response models
 @api.model(fields={
-    'type': fields.String(description='The GeoJSON Type', required=True, enum=GEOM_TYPES),
+    'type': fields.String(description='GeoJSON Type', required=True, enum=GEOM_TYPES),
     'coordinates': fields.List(
         fields.Raw,
         description='The geometry as coordinates lists',
@@ -79,7 +96,7 @@ class AgendaView(fields.Raw):
 
 @api.model(fields={
     'description': fields.String(
-        description='The description of the parking rule',
+        description='description of the parking rule',
         required=True),
     'season_start': fields.String(
         description='when the permission begins in the year (ex: 12-01 for december 1)',
@@ -116,12 +133,12 @@ slots_collection_fields = api.model('GeoJSONFeatureCollection', {
 
 
 @api.route('/slot/<string:id>')
-@api.doc(
-    params={'id': 'slot id'},
-    responses={404: "feature not found"}
-)
 class SlotResource(Resource):
     @api.marshal_list_with(slots_fields)
+    @api.doc(
+        params={'id': 'slot id'},
+        responses={404: "feature not found"}
+    )
     def get(self, id):
         """
         Returns the parking slot corresponding to the id
@@ -139,11 +156,6 @@ class SlotResource(Resource):
                 for num, field in enumerate(SlotsModel.properties[2:], start=2)
             }
         ), 200
-
-
-# validate timestamp and returns it
-def timestamp(x):
-    return parse_datetime(x).isoformat(str('T'))
 
 
 slot_parser = api.parser()
@@ -171,15 +183,12 @@ slot_parser.add_argument(
 
 
 @api.route('/slots/<x>/<y>')
-@api.doc(
-    params={
-        'x': 'Longitude location',
-        'y': 'Latitude location',
-    },
-    responses={404: "no feature found"}
-)
 class SlotsResource(Resource):
     @api.marshal_list_with(slots_collection_fields)
+    @api.doc(
+        params={'x': 'Longitude location', 'y': 'Latitude location'},
+        responses={404: "no feature found"}
+    )
     @api.doc(parser=slot_parser)
     def get(self, x, y):
         """
@@ -248,56 +257,137 @@ class SlotsOnMap(Resource):
         return resp
 
 
+token_parser = api.parser()
+token_parser.add_argument(
+    'access_token',
+    type=str,
+    location='form',
+    help='Oauth2 user access token'
+)
+
+user_model = api.model('User', {
+    'name': fields.String(),
+    'email': fields.String(),
+    'apikey': fields.String(),
+    'created': fields.String(),
+    'auth_id': fields.String(),
+    'id': fields.String(),
+    'gender': fields.String(),
+})
+
+
 @api.route('/login/facebook')
 class LoginFacebook(Resource):
-    def get(self):
+    @api.doc(parser=token_parser, model=user_model)
+    def post(self):
         """
-        Login with a facebook account
+        Login with a facebook account.
+
+        Existing user will automatically have a new API key generated
         """
+        args = token_parser.parse_args()
+
         if not current_user.is_anonymous():
             return "Already authenticated as {}".format(current_user.name), 403
-        oauth = OAuthSignIn.get_provider('facebook')
-        return oauth.authorize()
+
+        return facebook_signin(args['access_token'])
 
 
 @api.route('/login/google')
 class LoginGoogle(Resource):
-    def get(self):
+    @api.doc(parser=token_parser, model=user_model)
+    def post(self):
         """
-        Login with a google account
+        Login with a google account.fields
+
+        Existing user will automatically have a new API key generated
         """
+        args = token_parser.parse_args()
+
         if not current_user.is_anonymous():
             return "Already authenticated as {}".format(current_user.name), 403
-        oauth = OAuthSignIn.get_provider('google')
-        return oauth.authorize()
 
+        return google_signin(args['access_token'])
+
+
+register_parser = api.parser()
+register_parser.add_argument('email', required=True, type=str, location='form', help='user email')
+register_parser.add_argument('password', required=True, type=str, location='form', help='user password')
+register_parser.add_argument('name', required=True, type=unicode, location='form', help='user name')
+register_parser.add_argument('gender', required=True, type=str, location='form', help='gender')
+register_parser.add_argument('birthyear', required=True, type=int, location='form', help='birth year')
+
+
+@api.route('/register')
+class Register(Resource):
+    @api.doc(parser=register_parser, model=user_model)
+    def post(self):
+        """
+        Register a new account.
+        """
+        args = register_parser.parse_args()
+        return email_register(**args)
+
+
+email_parser = api.parser()
+email_parser.add_argument('email', type=str, location='form', help='user email')
+email_parser.add_argument('password', type=str, location='form', help='user password')
+
+
+@api.route('/login/email')
+class LoginEmail(Resource):
+    @api.doc(parser=email_parser, model=user_model)
+    def post(self):
+        """
+        Login with en email account.
+        """
+        args = email_parser.parse_args()
+        return email_signin(**args)
+
+
+# define header parser for the API key
+api_key_parser = api.parser()
+api_key_parser.add_argument(
+    'X-API-KEY',
+    type=str,
+    location='headers',
+    help='Prkng API Key'
+)
 
 # define the slot id parser
-slot_id_parser = api.parser()
-slot_id_parser.add_argument('slot_id', type=int, required=True, help='The slot id', location='form')
+post_checkin_parser = deepcopy(api_key_parser)
+post_checkin_parser.add_argument(
+    'slot_id', type=int, required=True, help='Slot identifier', location='form')
+
+get_checkin_parser = deepcopy(api_key_parser)
+get_checkin_parser.add_argument(
+    'limit', type=int, default=10, help='Slot identifier', location='query')
 
 
-@api.route('/checkin')
+@api.route('/slot/checkin')
 class Checkin(Resource):
+    @api.doc(parser=get_checkin_parser,
+             responses={401: "Invalid API key"})
     @api.secure
     def get(self):
         """
-        Get the list of last checkins. Default to 10 last checkins.
+        Get the list of last checkins.
+
+        List has a max length of 10 checkins.
         """
-        res = Checkins.get(current_user.id, 10)
+        args = get_checkin_parser.parse_args()
+        limit = min(args['limit'], 10)
+        res = Checkins.get(current_user.id, limit)
         return res, 200
 
-    @api.doc(
-        parser=slot_id_parser,
-        responses={404: "No slot existing with this id",
-                   201: "Resource created"}
-    )
+    @api.doc(parser=post_checkin_parser,
+             responses={404: "No slot existing with this id", 201: "Resource created"})
     @api.secure
     def post(self):
         """
-        Add a new checkin for the current user
+        Add a new checkin
         """
-        args = slot_id_parser.parse_args()
+        args = post_checkin_parser.parse_args()
         ok = Checkins.add(current_user.id, args['slot_id'])
         if not ok:
             api.abort(404, "No slot existing with this id")
@@ -307,42 +397,17 @@ class Checkin(Resource):
 @api.route('/logout')
 class Logout(Resource):
     @api.secure
+    @api.doc(parser=api_key_parser)
     def get(self):
-        """Logout current user"""
+        """Logout"""
         logout_user()
         return 'User logged out', 200
 
 
-@api.route('/me')
+@api.route('/user/profile')
 class Profile(Resource):
     @api.secure
+    @api.doc(parser=api_key_parser, model=user_model)
     def get(self):
-        """Get informations about current user"""
-        return User.get_profile(current_user.id), 200
-
-
-@api.route('/callback/<provider>', endpoint='oauth_callback')
-@api.hide
-class OauthCallback(Resource):
-    def get(self, provider):
-        if not current_user.is_anonymous():
-            return "Already authenticated as {}".format(current_user.name), 403
-        oauth = OAuthSignIn.get_provider(provider)
-        auth_id, name, email, gender, fullprofile = oauth.callback()
-        if auth_id is None:
-            return api.abort(401, "Authentication failed.")
-        user = UserAuth.get_user(auth_id)
-        if not user:
-            # add user auth informations and get the User associated
-            user = UserAuth.add_userauth(
-                name=name,
-                auth_id=auth_id,
-                email=email,
-                auth_type=oauth.provider_name,
-                fullprofile=fullprofile
-            )
-
-        # login user (powered by flask-login)
-        login_user(user, True)
-        # make_secure_token(name, email, auth_id)
-        return "Authorization OK", 200
+        """Get informations about a user"""
+        return current_user.json, 200
