@@ -157,8 +157,20 @@ class Montreal(DataSource):
             .format(filename=self.road_shapefile, **CONFIG),
             shell=True
         )
-
         self.db.vacuum_analyze("public", "montreal_geobase")
+
+        Logger.debug("Loading Montreal districts")
+        check_call(
+            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I "
+            "{filename} montreal_district | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('montreal_district.shp'), **CONFIG),
+            shell=True
+        )
+        self.db.query("""update montreal_district
+            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
+        self.db.create_index('montreal_district', 'geom', index_type='gist')
+        self.db.vacuum_analyze("public", "montreal_district")
 
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %
@@ -238,6 +250,20 @@ class Quebec(DataSource):
         self.db.create_index('quebec_panneau', 'id_voie_pu')
         self.db.create_index('quebec_panneau', 'lect_met')
         self.db.vacuum_analyze("public", "quebec_panneau")
+
+        Logger.debug("Loading Québec districts")
+
+        check_call(
+            "shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I "
+            "{filename} quebec_district | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('quebec_district.shp'), **CONFIG),
+            shell=True
+        )
+        self.db.query("""update quebec_district
+            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
+        self.db.create_index('quebec_district', 'geom', index_type='gist')
+        self.db.vacuum_analyze("public", "quebec_district")
 
     def load_rules(self):
         """

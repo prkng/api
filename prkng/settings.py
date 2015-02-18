@@ -40,6 +40,9 @@ class Defaults(object):
 
     # usefull to catch exceptions in uwsgi
     PROPAGATE_EXCEPTIONS = True
+    # web admin view
+    ADMIN_USER = 'admin'
+    ADMIN_PASS = ''
 
 
 class Testing(Defaults):

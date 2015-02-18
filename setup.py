@@ -11,6 +11,7 @@ requirements = (
     'flask-restplus==0.4.0',
     'itsdangerous==0.24',
     'flask-login==0.2.11',
+    'flask-wtf==0.9.5',
     'SQLAlchemy==0.9.8',
     'psycopg2==2.5.4',
     'click==3.3',

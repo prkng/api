@@ -230,7 +230,8 @@ class Checkins(object):
             INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
             SELECT
                 {user_id}, {slot_id}, way_name,
-                ST_X(st_centroid(geom)), ST_Y(st_centroid(geom))
+                ST_X(st_transform(st_centroid(geom), 4326)),
+                ST_Y(st_transform(st_centroid(geom), 4326))
             FROM slots WHERE id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name
         return True
@@ -287,3 +288,58 @@ class SlotsModel(object):
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(SlotsModel.properties))).fetchall()
+
+
+# associate fields for each city provider
+district_field = {
+    'montreal': (
+        'gid as id',
+        'nom_qr as name',
+        'ST_AsGeoJSON(st_transform(st_simplify(geom, 10), 4326)) as geom'
+    ),
+    'quebec': (
+        'gid as id',
+        'nom as name',
+        'ST_AsGeoJSON(st_transform(st_simplify(geom, 10), 4326)) as geom'
+    ),
+}
+
+
+class District(object):
+    @staticmethod
+    def get(city):
+        res = db.engine.execute("""
+            SELECT {0}
+            FROM {1}_district d
+            WHERE exists(select 1 from slots where ST_intersects(slots.geom, d.geom))
+            """.format(','.join(district_field[city]), city)).fetchall()
+        return res
+
+    @staticmethod
+    def get_checkins(city, district_id, startdate, enddate):
+        res = db.engine.execute("""
+            SELECT
+                c.way_name,
+                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                u.name,
+                u.email,
+                u.gender
+            FROM {1}_district d
+            JOIN slots s ON ST_intersects(s.geom, d.geom)
+            JOIN checkins c ON s.id = c.slot_id
+            JOIN users u ON c.user_id = u.id
+            WHERE d.gid = {2}
+            AND c.created >= '{3}'::timestamp
+            AND c.created <= '{4}'::timestamp
+            """.format(
+                ','.join(district_field[city]),
+                city,
+                district_id,
+                startdate,
+                enddate
+            )).fetchall()
+
+        return [
+            {key: unicode(value) for key, value in row.items()}
+            for row in res
+        ]
