@@ -229,7 +229,7 @@ class Checkins(object):
         db.engine.execute("""
             INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
             SELECT
-                {user_id}, {slot_id}, 'way_name',
+                {user_id}, {slot_id}, way_name,
                 ST_X(st_centroid(geom)), ST_Y(st_centroid(geom))
             FROM slots WHERE id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name

@@ -238,12 +238,15 @@ WITH tmp AS (
         , s.description
         , s.direction
         , spo.isleft
+        , rb.name
     FROM quebec_slots_likely sl
     JOIN quebec_sign s on ARRAY[s.signpost] <@ sl.signposts
     JOIN quebec_signpost_onroad spo on s.signpost = spo.id
     JOIN quebec_nextpoints np on np.slot_id = sl.id AND
                           s.signpost = np.id AND
                           s.direction = np.direction
+    JOIN roads rb on spo.road_id = rb.id
+
 
     UNION ALL
     -- both direction from signpost
@@ -253,15 +256,19 @@ WITH tmp AS (
         , s.description
         , s.direction
         , spo.isleft
+        , rb.name
     FROM quebec_slots_likely sl
     JOIN quebec_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
     JOIN quebec_signpost_onroad spo on s.signpost = spo.id
+    JOIN roads rb on spo.road_id = rb.id
+
 ),
 selection as (
 SELECT
     t.id
     , min(signposts) as signposts
     , min(isleft) as isleft
+    , min(name) as way_name
     , array_to_json(
         array_agg(distinct
         json_build_object(
@@ -284,12 +291,13 @@ SELECT
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots (signposts, rules, geom, geojson)
+) INSERT INTO slots (signposts, rules, geom, geojson, way_name)
 SELECT
     signposts
     , rules
     , geom::geometry(linestring, 3857)
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
+    , way_name
 FROM selection
 WHERE st_geometrytype(geom) = 'ST_LineString' -- skip curious rings
 """
@@ -306,12 +314,14 @@ CREATE TABLE quebec_slots_debug as
         , s.description
         , s.direction
         , spo.isleft
+        , rb.name
     FROM quebec_slots_likely sl
     JOIN quebec_sign s on ARRAY[s.signpost] <@ sl.signposts
     JOIN quebec_signpost_onroad spo on s.signpost = spo.id
     JOIN quebec_nextpoints np on np.slot_id = sl.id AND
                           s.signpost = np.id AND
                           s.direction = np.direction
+    JOIN roads rb on spo.road_id = rb.id
 
     UNION ALL
     -- both direction from signpost
@@ -321,9 +331,11 @@ CREATE TABLE quebec_slots_debug as
         , s.description
         , s.direction
         , spo.isleft
+        , rb.name
     FROM quebec_slots_likely sl
     JOIN quebec_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
     JOIN quebec_signpost_onroad spo on s.signpost = spo.id
+    JOIN roads rb on spo.road_id = rb.id
 ), staging as (
 SELECT
     distinct on (t.id, t.code)
@@ -332,6 +344,7 @@ SELECT
     , t.code
     , t.signposts
     , t.isleft
+    , t.name as way_name
     , rt.description
     , rt.season_start
     , rt.season_end

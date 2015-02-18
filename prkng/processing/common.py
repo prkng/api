@@ -58,6 +58,7 @@ CREATE TABLE slots
   id serial PRIMARY KEY,
   signposts integer[],
   rules jsonb,
+  way_name varchar,
   geom geometry(LineString,3857),
   geojson jsonb
 )
