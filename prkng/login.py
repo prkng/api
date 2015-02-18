@@ -96,7 +96,6 @@ def facebook_signin(access_token):
     """
     Authorize user given its access_token.
     Add it to the db if not already present
-
     """
     # verify access token has been requested with the correct app id
     resp = requests.get(

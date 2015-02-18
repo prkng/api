@@ -51,6 +51,7 @@ WHERE
     pt.description_rep = 'Réel'
     AND p.description_rpa not ilike '%panonceau%'
     AND p.code_rpa !~ '^R[BCGHK].*' -- don't match rules starting with 'R*'
+    AND p.code_rpa <> 'RD-TT' -- don't match 'debarcaderes'
     AND substring(p.description_rpa, '.*\((flexible)\).*') is NULL
     AND p.fleche_pan in (0, 2, 3, 8)
 """
