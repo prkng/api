@@ -1,9 +1,16 @@
 Changelog
 =========
 
-current
--------
+v1.0.0
+------
 
+- first production release
+
+v0.3
+----
+
+- refactor Authentication system
+- add admin site
 
 v0.2
 ----
