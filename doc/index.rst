@@ -153,7 +153,7 @@ Prepare a virtual python environnement::
     mkdir prkng && cd prkng
     virtualenv venv
 
-Install prkng from the wheel directory (if pushed by the devvelopper)::
+Install prkng from the wheel directory (prepared on the previous section)::
 
     pip install --force-reinstall --ignore-installed \
                 --upgrade --no-index \
