@@ -71,8 +71,11 @@ Example of content ::
     PG_TEST_USERNAME = 'user'
     PG_TEST_PASSWORD = '***'
 
+    ADMIN_USER = 'admin'
+    ADMIN_PASS = '***'
+
 Command Line ``prkng``
-======================
+----------------------
 
 ::
 
@@ -87,7 +90,7 @@ This command will :
 
     - download associated OpenStreetMap areas
     - load the previous things in the postgresql database (overwrite older data)
-
+    - load districts (shapefiles provided in the repo)
 
 ::
 
