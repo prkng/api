@@ -1,3 +1,3 @@
 # Prkng API
 
-[Read more on doc!](prkng/doc/index.rst)
+[Read more on doc!](doc/index.rst)
