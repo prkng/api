@@ -114,6 +114,15 @@ Build this documentation
 
 Go to <file:///home/user/path/to/prkng/doc/_build/>_
 
+
+Launch tests
+============
+
+::
+
+    py.test -v
+
+
 Indices and tables
 ==================
 
