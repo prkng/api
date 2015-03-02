@@ -6,7 +6,7 @@ from flask import Flask
 from logger import Logger, set_level
 
 
-__version__ = '1.0.0'
+__version__ = '1.0.1.dev'
 
 
 def create_app(env='Defaults'):

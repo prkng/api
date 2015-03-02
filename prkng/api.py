@@ -167,6 +167,20 @@ slot_parser.add_argument(
     help='Radius search in meters; default is 300'
 )
 slot_parser.add_argument(
+    'latitude',
+    type=float,
+    location='args',
+    required=True,
+    help='Latitude in degrees (WGS84)'
+)
+slot_parser.add_argument(
+    'longitude',
+    type=float,
+    location='args',
+    required=True,
+    help='Longitude in degrees (WGS84)'
+)
+slot_parser.add_argument(
     'checkin',
     type=timestamp,
     location='args',
@@ -182,22 +196,22 @@ slot_parser.add_argument(
 )
 
 
-@api.route('/slots/<x>/<y>')
+@api.route('/slots')
 class SlotsResource(Resource):
     @api.marshal_list_with(slots_collection_fields)
     @api.doc(
-        params={'x': 'Longitude location', 'y': 'Latitude location'},
         responses={404: "no feature found"}
     )
     @api.doc(parser=slot_parser)
-    def get(self, x, y):
+    def get(self):
         """
         Returns slots around the point defined by (x, y)
         """
         args = slot_parser.parse_args()
 
         res = SlotsModel.get_within(
-            x, y,
+            args['longitude'],
+            args['latitude'],
             args['radius'],
             args['duration'],
             args['checkin']
@@ -219,16 +233,17 @@ class SlotsResource(Resource):
         ]), 200
 
 
-@api.route('/map/slots/<x>/<y>')
+@api.route('/map/slots')
 @api.hide
 class SlotsOnMap(Resource):
-    def get(self, x, y):
+    def get(self):
         """
         Backdoor to view results on a map
         """
         args = slot_parser.parse_args()
         res = SlotsModel.get_within(
-            x, y,
+            args['longitude'],
+            args['latitude'],
             args['radius'],
             args['duration'],
             args['checkin']

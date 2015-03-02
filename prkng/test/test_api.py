@@ -113,6 +113,14 @@ def test_api_getbadslot(client):
     assert resp.status_code == 404
 
 
+def test_api_getslots(client):
+    resp = client.get('/slots?latitude=4.5&longitude=-7.5'
+                      '&radius=1000&checkin=2015-03-27T09:30&duration=1')
+    data = json.loads(resp.data)
+    assert data['message'] == 'no feature found'
+    assert resp.status_code == 404
+
+
 def test_api_register(client):
     resp = client.post('/register', data=dict(
         email='test@prkng.com',

@@ -1,6 +1,11 @@
 Changelog
 =========
 
+Current
+-------
+
+- Change API endpoint for slots, coordinates are now handled in query parameters
+
 v1.0.0
 ------
 
