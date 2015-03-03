@@ -9,8 +9,7 @@ from flask.ext.login import login_user, current_user
 
 from prkng import create_app
 from prkng.api import init_api
-from prkng.database import init_db, db
-from prkng.models import init_model, User, metadata
+from prkng.models import db, init_model, User, metadata
 from prkng.processing.common import create_slots
 from prkng.login import init_login
 
@@ -19,7 +18,6 @@ from prkng.login import init_login
 def app(request):
     app = create_app(env='Testing')
 
-    init_db(app)
     init_model(app)
     init_api(app)
     init_login(app)

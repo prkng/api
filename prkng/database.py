@@ -7,9 +7,6 @@ from contextlib import contextmanager
 
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
-from sqlalchemy import create_engine
-
-from flask import _app_ctx_stack as stack, current_app
 
 from logger import Logger
 
@@ -137,61 +134,3 @@ class PostgresWrapper(object):
             columns=columns,
         )
         self.db.commit()
-
-
-class Engine(object):
-    """
-    Postgres connection for flask application.
-    """
-    def __init__(self, app=None):
-        self.app = app
-        if app is not None:
-            self.init_app(app)
-
-    def init_app(self, app):
-        # Use the newstyle teardown_appcontext
-        app.teardown_appcontext(self.teardown)
-
-    def teardown(self, exception):
-        ctx = stack.top
-        if hasattr(ctx, 'postgres_db'):
-            ctx.pgdb.close()
-
-    @property
-    def engine(self):
-        ctx = stack.top
-        if ctx is not None:
-            if not hasattr(ctx, 'postgres_db'):
-                ctx.pgdb = create_engine(
-                    '{SQLALCHEMY_DATABASE_URI}'.format(**current_app.config),
-                    strategy='threadlocal'
-                )
-            return ctx.pgdb
-
-
-def init_db(app):
-    """
-    Initialize DB engine and create tables
-    """
-    if app.config['TESTING']:
-        DATABASE_URI = 'postgresql://{user}:{password}@{host}:{port}/{database}'.format(
-            user=app.config['PG_TEST_USERNAME'],
-            password=app.config['PG_TEST_PASSWORD'],
-            host=app.config['PG_TEST_HOST'],
-            port=app.config['PG_TEST_PORT'],
-            database=app.config['PG_TEST_DATABASE'],
-        )
-    else:
-        DATABASE_URI = 'postgresql://{user}:{password}@{host}:{port}/{database}'.format(
-            user=app.config['PG_USERNAME'],
-            password=app.config['PG_PASSWORD'],
-            host=app.config['PG_HOST'],
-            port=app.config['PG_PORT'],
-            database=app.config['PG_DATABASE'],
-        )
-
-    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
-
-
-# instance of Engine
-db = Engine()

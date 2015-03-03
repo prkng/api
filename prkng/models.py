@@ -11,10 +11,11 @@ from flask.ext.login import UserMixin
 from sqlalchemy import Table, MetaData, Integer, String, func, \
                        Float, Column, ForeignKey, DateTime, text, Index
 from sqlalchemy.dialects.postgresql import JSONB, ENUM
+from sqlalchemy import create_engine
+
 from itsdangerous import JSONWebSignatureSerializer
 
 from prkng.processing.filters import on_restriction
-from .database import db
 
 AUTH_PROVIDERS = (
     'facebook',
@@ -25,13 +26,45 @@ AUTH_PROVIDERS = (
 metadata = MetaData()
 
 
-def init_model(app):
-    # lazy bind to the engine
-    with app.app_context():
-        metadata.bind = db.engine
-    # # reflect changes in db
-    metadata.create_all()
+class db(object):
+    """lazy loading of db"""
+    engine = None
 
+
+def init_model(app):
+    """
+    Initialize DB engine and create tables
+    """
+    if app.config['TESTING']:
+        DATABASE_URI = 'postgresql://{user}:{password}@{host}:{port}/{database}'.format(
+            user=app.config['PG_TEST_USERNAME'],
+            password=app.config['PG_TEST_PASSWORD'],
+            host=app.config['PG_TEST_HOST'],
+            port=app.config['PG_TEST_PORT'],
+            database=app.config['PG_TEST_DATABASE'],
+        )
+    else:
+        DATABASE_URI = 'postgresql://{user}:{password}@{host}:{port}/{database}'.format(
+            user=app.config['PG_USERNAME'],
+            password=app.config['PG_PASSWORD'],
+            host=app.config['PG_HOST'],
+            port=app.config['PG_PORT'],
+            database=app.config['PG_DATABASE'],
+        )
+
+    app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URI
+
+    # lazy bind the sqlalchemy engine
+    with app.app_context():
+        db.engine = create_engine(
+            '{SQLALCHEMY_DATABASE_URI}'.format(**app.config),
+            strategy='threadlocal',
+            pool_size=10
+        )
+
+    metadata.bind = db.engine
+    # create model
+    metadata.create_all()
 
 user_table = Table(
     'users',
