@@ -95,6 +95,14 @@ class AgendaView(fields.Raw):
 
 
 @api.model(fields={
+    'long': fields.Float(),
+    'lat': fields.Float()
+})
+class ButtonLocation(fields.Raw):
+    pass
+
+
+@api.model(fields={
     'description': fields.String(
         description='description of the parking rule',
         required=True),
@@ -114,7 +122,8 @@ class AgendaView(fields.Raw):
     'special_days': fields.String(required=True),
     'restrict_typ': fields.String(
         description='special restriction details',
-        required=True)
+        required=True),
+    'button_location': ButtonLocation(required=True)
 })
 class SlotsField(fields.Raw):
     pass

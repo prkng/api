@@ -291,14 +291,16 @@ SELECT
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots (signposts, rules, geom, geojson, way_name)
+) INSERT INTO slots (signposts, rules, geom, geojson, button_location, way_name)
 SELECT
     signposts
     , rules
     , geom::geometry(linestring, 3857)
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
+    , hstore('long'::text, st_x(center)::text) || hstore('lat'::text, st_y(center)::text)
     , way_name
-FROM selection
+FROM selection,
+LATERAL st_transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) as center
 WHERE st_geometrytype(geom) = 'ST_LineString' -- skip curious rings
 """
 

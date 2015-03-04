@@ -40,6 +40,7 @@ def app(request):
         return "ok"
 
     # create slots table
+    db.engine.execute("create extension if not exists hstore")
     db.engine.execute(create_slots)
 
     with app.test_client() as client:

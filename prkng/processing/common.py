@@ -60,7 +60,8 @@ CREATE TABLE slots
   rules jsonb,
   way_name varchar,
   geom geometry(LineString,3857),
-  geojson jsonb
+  geojson jsonb,
+  button_location hstore
 )
 """
 

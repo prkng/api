@@ -274,7 +274,8 @@ class SlotsModel(object):
     properties = (
         'id',
         'geojson',
-        'rules'
+        'rules',
+        'button_location'
     )
 
     @staticmethod
@@ -306,7 +307,7 @@ class SlotsModel(object):
         features = db.engine.execute(req).fetchall()
 
         return filter(
-            lambda x: not on_restriction(x[2], checkin, duration),
+            lambda x: not on_restriction(x.rules, checkin, duration),
             features
         )
 

@@ -256,6 +256,7 @@ def run():
     """
     Logger.debug("Loading extension fuzzystrmatch")
     db.query("create extension if not exists fuzzystrmatch")
+    db.query("create extension if not exists hstore")
 
     Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)

@@ -4,6 +4,7 @@ Changelog
 Current
 -------
 
+- add a button_location property with the center of parking slot
 - Improve database connection handler
 - Change API endpoint for slots, coordinates are now handled in query parameters
 
