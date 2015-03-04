@@ -1,8 +1,8 @@
 Changelog
 =========
 
-Current
--------
+v1.0.1
+------
 
 - add a button_location property with the center of parking slot
 - Improve database connection handler
