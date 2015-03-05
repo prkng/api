@@ -4,6 +4,8 @@ Changelog
 WIP
 ---
 
+- remove flask-login for the API
+
 v1.0.1
 ------
 

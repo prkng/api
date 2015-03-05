@@ -5,7 +5,7 @@
 import json
 import pytest
 
-from flask.ext.login import login_user, current_user
+from flask import g
 
 from prkng import create_app
 from prkng.api import init_api
@@ -36,7 +36,7 @@ def app(request):
     # hack to cause a new request context to be pushed and have a current user logged in
     @app.route('/test_auto_login')
     def auto_login():
-        login_user(User.get(1))
+        User.get(1)
         return "ok"
 
     # create slots table
@@ -45,7 +45,7 @@ def app(request):
 
     with app.test_client() as client:
         # add a user in order to honor foreign key of checkins
-        User.add_user(email='test@test', name='test_user')
+        g.user = User.add_user(email='test@test', name='test_user')
         client.get("/test_auto_login")
 
     # add some checkins
@@ -70,51 +70,52 @@ def client(app):
 
 
 def test_api_me(client):
-    resp = client.get('/user/profile')
+    resp = client.get('/user/profile', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert data['email'] == 'test@test'
     assert data['gender'] == None
     assert data['name'] == 'test_user'
     assert data['apikey']  # apikey must be non empty
-    assert not current_user.is_anonymous()
-
-
-def test_api_logout(client):
-    client.get('/logout')
-    assert current_user.is_anonymous()
 
 
 def test_api_checkin_count(client):
-    resp = client.get('/slot/checkin')
+    resp = client.get('/slot/checkin', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert len(data) == 3
 
 
 def test_api_getcheckin(client):
-    resp = client.post('/slot/checkin', data={'slot_id': '20'})
+    resp = client.post(
+        '/slot/checkin',
+        data={'slot_id': '20'},
+        headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 404
 
 
 def test_api_postcheckin(client):
-    resp = client.post('/slot/checkin', data={'slot_id': '2'})
+    resp = client.post(
+        '/slot/checkin',
+        data={'slot_id': '2'},
+        headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 201
 
 
 def test_api_getslot(client):
-    resp = client.get('/slot/2')
+    resp = client.get('/slot/2', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert data['id'] == '2'
     assert resp.status_code == 200
 
 
 def test_api_getbadslot(client):
-    resp = client.get('/slot/20')
+    resp = client.get('/slot/20', headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 404
 
 
 def test_api_getslots(client):
     resp = client.get('/slots?latitude=4.5&longitude=-7.5'
-                      '&radius=1000&checkin=2015-03-27T09:30&duration=1')
+                      '&radius=1000&checkin=2015-03-27T09:30&duration=1',
+                      headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert data['message'] == 'no feature found'
     assert resp.status_code == 404
@@ -126,8 +127,8 @@ def test_api_register(client):
         password='incrediblepass',
         name='john doe',
         gender='male',
-        birthyear=1900,
-    ))
+        birthyear=1900),
+    headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 201
 
 
@@ -137,8 +138,9 @@ def test_api_register_already_registered(client):
         password='incrediblepass',
         name='john doe',
         gender='male',
-        birthyear=1900,
-    ))
+        birthyear=1900),
+    headers={'X-API-KEY': g.user.apikey}
+    )
     assert json.loads(resp.data) == "User already exists"
     assert resp.status_code == 404
 
@@ -146,8 +148,9 @@ def test_api_register_already_registered(client):
 def test_api_loginemail_ok(client):
     resp = client.post('/login/email', data=dict(
         email='test@prkng.com',
-        password='incrediblepass',
-    ))
+        password='incrediblepass'),
+    headers={'X-API-KEY': g.user.apikey}
+    )
     assert json.loads(resp.data)['name'] == 'john doe'
     assert resp.status_code == 200
 
@@ -155,7 +158,7 @@ def test_api_loginemail_ok(client):
 def test_api_loginemail_badpass(client):
     resp = client.post('/login/email', data=dict(
         email='test@prkng.com',
-        password='incrediblep',
-    ))
+        password='incrediblep'),
+    headers={'X-API-KEY': g.user.apikey})
     assert json.loads(resp.data) == 'Incorrect password'
     assert resp.status_code == 401

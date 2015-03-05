@@ -8,9 +8,8 @@ from functools import wraps
 from time import strftime
 from aniso8601 import parse_datetime
 
-from flask import render_template, Response, current_app, request
+from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
-from flask.ext.login import current_user, logout_user, login_user
 from geojson import FeatureCollection, Feature
 
 from .models import SlotsModel, User, Checkins
@@ -38,21 +37,15 @@ class PrkngApi(Api):
         '''Enforce authentication'''
         @wraps(func)
         def wrapper(*args, **kwargs):
-            if current_user.is_authenticated():
-                return func(*args, **kwargs)
-            if current_app.login_manager._login_disabled:
-                return func(*args, **kwargs)
 
             apikey = request.headers.get(HEADER_API_KEY)
 
             if not apikey:
                 return 'Invalid API Key', 401
-            user = User.get_byapikey(apikey)
-            if not user:
-                return 'Invalid API Key', 401
 
-            if not login_user(user, False):
-                return 'Inactive user', 401
+            g.user = User.get_byapikey(apikey)
+            if not g.user:
+                return 'Invalid API Key', 401
 
             return func(*args, **kwargs)
 
@@ -311,9 +304,6 @@ class LoginFacebook(Resource):
         """
         args = token_parser.parse_args()
 
-        if not current_user.is_anonymous():
-            return "Already authenticated as {}".format(current_user.name), 403
-
         return facebook_signin(args['access_token'])
 
 
@@ -327,9 +317,6 @@ class LoginGoogle(Resource):
         Existing user will automatically have a new API key generated
         """
         args = token_parser.parse_args()
-
-        if not current_user.is_anonymous():
-            return "Already authenticated as {}".format(current_user.name), 403
 
         return google_signin(args['access_token'])
 
@@ -401,7 +388,7 @@ class Checkin(Resource):
         """
         args = get_checkin_parser.parse_args()
         limit = min(args['limit'], 10)
-        res = Checkins.get(current_user.id, limit)
+        res = Checkins.get(g.user.id, limit)
         return res, 200
 
     @api.doc(parser=post_checkin_parser,
@@ -412,21 +399,10 @@ class Checkin(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        ok = Checkins.add(current_user.id, args['slot_id'])
+        ok = Checkins.add(g.user.id, args['slot_id'])
         if not ok:
             api.abort(404, "No slot existing with this id")
         return "Resource created", 201
-
-
-@api.route('/logout')
-class Logout(Resource):
-    @api.secure
-    @api.doc(parser=api_key_parser)
-    def get(self):
-        """Logout"""
-        logout_user()
-        return 'User logged out', 200
-
 
 @api.route('/user/profile')
 class Profile(Resource):
@@ -434,4 +410,4 @@ class Profile(Resource):
     @api.doc(parser=api_key_parser, model=user_model)
     def get(self):
         """Get informations about a user"""
-        return current_user.json, 200
+        return g.user.json, 200
