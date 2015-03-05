@@ -4,6 +4,7 @@ Changelog
 WIP
 ---
 
+- use button_location coordinates for checkins
 - remove flask-login for the API
 
 v1.0.1

@@ -263,8 +263,8 @@ class Checkins(object):
             INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
             SELECT
                 {user_id}, {slot_id}, way_name,
-                ST_X(st_transform(st_centroid(geom), 4326)),
-                ST_Y(st_transform(st_centroid(geom), 4326))
+                (button_location->'long')::float,
+                (button_location->'lat')::float
             FROM slots WHERE id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name
         return True
