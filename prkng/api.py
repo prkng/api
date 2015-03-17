@@ -404,6 +404,7 @@ class Checkin(Resource):
             api.abort(404, "No slot existing with this id")
         return "Resource created", 201
 
+
 @api.route('/user/profile')
 class Profile(Resource):
     @api.secure

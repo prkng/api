@@ -263,8 +263,8 @@ class Checkins(object):
             INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
             SELECT
                 {user_id}, {slot_id}, way_name,
-                (button_location->'long')::float,
-                (button_location->'lat')::float
+                (button_location->>'long')::float,
+                (button_location->>'lat')::float
             FROM slots WHERE id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name
         return True

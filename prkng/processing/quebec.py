@@ -297,7 +297,7 @@ SELECT
     , rules
     , geom::geometry(linestring, 3857)
     , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
-    , hstore('long'::text, st_x(center)::text) || hstore('lat'::text, st_y(center)::text)
+    , json_build_object('long', st_x(center), 'lat', st_y(center))::jsonb
     , way_name
 FROM selection,
 LATERAL st_transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) as center

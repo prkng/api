@@ -40,7 +40,6 @@ def app(request):
         return "ok"
 
     # create slots table
-    db.engine.execute("create extension if not exists hstore")
     db.engine.execute(create_slots)
 
     with app.test_client() as client:
@@ -128,7 +127,7 @@ def test_api_register(client):
         name='john doe',
         gender='male',
         birthyear=1900),
-    headers={'X-API-KEY': g.user.apikey})
+        headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 201
 
 
@@ -139,7 +138,7 @@ def test_api_register_already_registered(client):
         name='john doe',
         gender='male',
         birthyear=1900),
-    headers={'X-API-KEY': g.user.apikey}
+        headers={'X-API-KEY': g.user.apikey}
     )
     assert json.loads(resp.data) == "User already exists"
     assert resp.status_code == 404
@@ -149,7 +148,7 @@ def test_api_loginemail_ok(client):
     resp = client.post('/login/email', data=dict(
         email='test@prkng.com',
         password='incrediblepass'),
-    headers={'X-API-KEY': g.user.apikey}
+        headers={'X-API-KEY': g.user.apikey}
     )
     assert json.loads(resp.data)['name'] == 'john doe'
     assert resp.status_code == 200
@@ -159,6 +158,6 @@ def test_api_loginemail_badpass(client):
     resp = client.post('/login/email', data=dict(
         email='test@prkng.com',
         password='incrediblep'),
-    headers={'X-API-KEY': g.user.apikey})
+        headers={'X-API-KEY': g.user.apikey})
     assert json.loads(resp.data) == 'Incorrect password'
     assert resp.status_code == 401

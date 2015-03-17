@@ -122,7 +122,8 @@ class PostgresWrapper(object):
 
     def copy_from(self, schema, table, columns, values):
         """
-        Uses the efficient PostgreSQL COPY command to move data from files to tables
+        Uses the efficient PostgreSQL COPY command to move data
+        from file-like object to tables
         """
         from cStringIO import StringIO
         cur = self.db.cursor()
