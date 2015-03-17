@@ -4,6 +4,9 @@ Changelog
 WIP
 ---
 
+v1.0.2
+------
+
 - use float type instead of string for button_location
 - use button_location coordinates for checkins
 - remove flask-login for the API
