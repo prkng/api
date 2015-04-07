@@ -357,7 +357,9 @@ class District(object):
                 to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
                 u.name,
                 u.email,
-                u.gender
+                u.gender,
+                c.long,
+                c.lat
             FROM {1}_district d
             JOIN slots s ON ST_intersects(s.geom, d.geom)
             JOIN checkins c ON s.id = c.slot_id

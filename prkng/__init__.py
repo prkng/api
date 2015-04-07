@@ -3,7 +3,7 @@ from os.path import join, abspath, exists, dirname
 
 from flask import Flask
 
-from logger import Logger, set_level
+from .logger import Logger, set_level
 
 
 __version__ = '1.0.2'

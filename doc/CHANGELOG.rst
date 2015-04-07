@@ -4,6 +4,7 @@ Changelog
 WIP
 ---
 
+- add long/lat coordinates in the checkin reports (admin site)
 - remove null values from the agenda view
 
 v1.0.2

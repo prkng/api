@@ -61,11 +61,13 @@
       <th>gender</th>
       <th>email</th>
       <th>way</th>
+      <th>long</th>
+      <th>lat</th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <th colspan="5"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
+        <th colspan="7"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
     </tr>
     <tr ng-repeat="row in displayedusers">
       <td>{% raw %}{{row.created}}{% endraw %}</td>
@@ -73,11 +75,13 @@
       <td>{% raw %}{{row.gender}}{% endraw %}</td>
       <td>{% raw %}{{row.email}}{% endraw %}</td>
       <td>{% raw %}{{row.way_name}}{% endraw %}</td>
+      <td>{% raw %}{{row.long}}{% endraw %}</td>
+      <td>{% raw %}{{row.lat}}{% endraw %}</td>
     </tr>
     </tbody>
     <tfoot>
       <tr>
-        <td colspan="5" class="text-center">
+        <td colspan="7" class="text-center">
           <div st-pagination="" st-items-by-page="itemsByPage" st-displayed-pages="7"></div>
         </td>
       </tr>
