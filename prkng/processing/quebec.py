@@ -91,7 +91,7 @@ project_signposts = """
 DROP TABLE IF EXISTS quebec_signpost_onroad;
 CREATE TABLE quebec_signpost_onroad AS
     SELECT
-        distinct on (sp.id) sp.id  -- hack to prevent duplicata, FIXME
+        distinct on (sp.id) sp.id
         , s.id as road_id
         , st_closestpoint(s.geom, sp.geom)::geometry(point, 3857) as geom
         , st_isleft(s.geom, sp.geom) as isleft

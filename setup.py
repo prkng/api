@@ -43,7 +43,7 @@ setup(
     name=PROJECT_NAME,
     version=find_version('prkng', '__init__.py'),
     description="prkng API",
-    url='http://prkng.com/api',
+    url='http://api.prk.ng/',
     author='Oslandia',
     author_email='infos@oslandia.com',
     license='',

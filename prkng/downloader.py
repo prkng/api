@@ -345,4 +345,3 @@ class OsmLoader(object):
         self.db.create_index('planet_osm_line', 'name')
         self.db.create_index('planet_osm_line', 'highway')
         self.db.create_index('planet_osm_line', 'boundary')
-        self.db.vacuum_analyze("public", "montreal_rules_translation")

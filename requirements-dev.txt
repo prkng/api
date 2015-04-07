@@ -3,7 +3,7 @@ git+https://github.com/flask-restful/flask-restful.git@231da4bec647a20edd10888d9
 sphinx==1.2.3
 pygments==2.0.1
 docutils==0.12
-sphinx_rtd_theme==0.1.6
+alabaster==0.7.3
 wheel==0.24.0
 Fabric==1.10.1
 
