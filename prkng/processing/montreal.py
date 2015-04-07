@@ -328,6 +328,7 @@ SELECT
         json_build_object(
             'code', t.code,
             'description', r.description,
+            'address', name,
             'season_start', r.season_start,
             'season_end', r.season_end,
             'agenda', r.agenda,

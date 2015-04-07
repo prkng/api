@@ -4,6 +4,8 @@ Changelog
 WIP
 ---
 
+- remove null values from the agenda view
+
 v1.0.2
 ------
 

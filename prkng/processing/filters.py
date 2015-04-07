@@ -132,7 +132,7 @@ def group_rules(rules):
                     # first day
                     day_dict[numday].append([part.time_start, part.time_start + fdl])
 
-                    for inter_day in xrange(1, ndays + 1):
+                    for inter_day in range(1, ndays + 1):
                         day_dict[numday + inter_day].append([0, 24])
                     # last day
                     if ldf != 0:
@@ -141,10 +141,10 @@ def group_rules(rules):
                 else:
                     day_dict[numday].append([0, 24])
 
-        # add empty days
+        # add an empty list for empty days
         for numday, day in enumerate(days, start=1):
             if not day_dict[numday]:
-                day_dict[numday].append(None)
+                day_dict[numday] = []
 
         results.append(singles(
             part.code,

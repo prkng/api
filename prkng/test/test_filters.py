@@ -157,7 +157,7 @@ def test_grouping_rules_multi(rules):
 
     assert days == {1: [[13, 17]], 2: [[8, 12]],
                     3: [[13, 17]], 4: [[8, 12]],
-                    5: [[13, 17]], 6: [None], 7: [None]}
+                    5: [[13, 17]], 6: [], 7: []}
 
 
 def test_grouping_rules_largetime(rules):
@@ -187,10 +187,10 @@ def test_on_restrictions_with_season():
             "season_end": "12-01",
             "time_max_parking": None,
             'agenda': {
-                '1': [[9.5, 10.5]], '3': [None],
-                '2': [None], '5': [None],
-                '4': [None], '7': [None],
-                '6': [None]}
+                '1': [[9.5, 10.5]], '3': [],
+                '2': [], '5': [],
+                '4': [], '7': [],
+                '6': []}
         },
         {
             "season_end": None,
@@ -214,10 +214,10 @@ def test_on_restrictions_season_maxparking():
             "season_end": "12-01",
             "time_max_parking": 120,
             'agenda': {
-                '1': [None], '3': [None],
-                '2': [None], '5': [None],
-                '4': [None], '7': [None],
-                '6': [None]}
+                '1': [], '3': [],
+                '2': [], '5': [],
+                '4': [], '7': [],
+                '6': []}
         }
     ]
     assert on_restriction(rule_view, '2015-04-07T09:30', 3) == True
@@ -232,9 +232,9 @@ def test_on_restrictions_inverted_season():
             "time_max_parking": None,
             'agenda': {
                 '1': [[10.0, 18.0]], '3': [[10.0, 18.0]],
-                '2': [None], '5': [None],
-                '4': [None], '7': [None],
-                '6': [None]}
+                '2': [], '5': [],
+                '4': [], '7': [],
+                '6': []}
         }
     ]
     assert on_restriction(rule_view, '2015-04-07T09:30', 3) == False
@@ -248,10 +248,10 @@ def test_on_restrictions_largeparkingtime():
             "season_end": None,
             "time_max_parking": None,
             'agenda': {
-                '1': [[18.0, 20.0]], '3': [None],
-                '2': [None], '5': [None],
-                '4': [None], '7': [None],
-                '6': [None]}
+                '1': [[18.0, 20.0]], '3': [],
+                '2': [], '5': [],
+                '4': [], '7': [],
+                '6': []}
         }
     ]
     assert on_restriction(rule_view, '2015-02-09T21:30', 168) == False  # monday
@@ -264,10 +264,10 @@ def test_on_restrictions_multiplerangeaday():
             "season_end": None,
             "time_max_parking": None,
             'agenda': {
-                '1': [[5, 10], [18.0, 20.0]], '3': [None],
-                '2': [None], '5': [None],
-                '4': [None], '7': [None],
-                '6': [None]}
+                '1': [[5, 10], [18.0, 20.0]], '3': [],
+                '2': [], '5': [],
+                '4': [], '7': [],
+                '6': []}
         }
     ]
     assert on_restriction(rule_view, '2015-02-09T06:30', 3) == True  # monday
@@ -287,7 +287,7 @@ def test_on_restrictions_flexible():
                        '2': [[8.0, 9.5]],
                        '5': [[8.0, 9.5]],
                        '4': [[8.0, 9.5]],
-                       '7': [None], '6': [None]},
+                       '7': [], '6': []},
             'special_days': None,
             'season_start': None
         },
