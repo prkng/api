@@ -173,7 +173,7 @@ def google_signin(access_token):
         params={'access_token': access_token}
     )
     data = resp.json()
-    print "resp.status_code of first api request = " + resp.status_code
+    print "resp.status_code of first api request = " + str(resp.status_code)
     if resp.status_code != 200:
         return data, resp.status_code
 
@@ -189,7 +189,7 @@ def google_signin(access_token):
         params={'access_token': access_token}
     )
     me = resp.json()
-    print "resp.status_code of second api request = " + resp.status_code
+    print "resp.status_code of second api request = " + str(resp.status_code)
     if resp.status_code != 200:
         return me, resp.status_code
 
