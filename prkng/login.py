@@ -167,15 +167,19 @@ def google_signin(access_token):
 
     """
     # verify access token has been requested with the correct app id
+    print "access_token=" + access_token
     resp = requests.get(
         "https://www.googleapis.com/oauth2/v1/tokeninfo",
         params={'access_token': access_token}
     )
     data = resp.json()
-
+    print "resp.status_code of first api request = " + resp.status_code
     if resp.status_code != 200:
         return data, resp.status_code
 
+    print "data[audience]:" + data['audience']
+    print " should be equal to "
+    print current_app.config['OAUTH_CREDENTIALS']
     if data['audience'] != current_app.config['OAUTH_CREDENTIALS']:
         return "Authentication failed.", 401
 
@@ -185,7 +189,7 @@ def google_signin(access_token):
         params={'access_token': access_token}
     )
     me = resp.json()
-
+    print "resp.status_code of second api request = " + resp.status_code
     if resp.status_code != 200:
         return me, resp.status_code
 
