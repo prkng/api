@@ -176,7 +176,7 @@ def google_signin(access_token):
     if resp.status_code != 200:
         return data, resp.status_code
 
-    if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
+    if data['audience'] != current_app.config['OAUTH_CREDENTIALS']:
         return "Authentication failed.", 401
 
     # get user profile
