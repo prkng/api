@@ -8,13 +8,15 @@ System requirements
 - postgresql-server-dev-9.4
 - postgresql-contrib-9.4
 - postgis >= 2.1 (with shp2pgsql command line)
-- ogr2ogr >= 1.9.0
+- ogr2ogr >= 1.9.0 (gdal-bin package)
 - osm2pgsql >= 0.87
 - osmconvert (osmctools package)
 - python >= 2.7 <3
+- python-dev >= 2.7 <3
 - pip package installer >= 1.5
 - virtualenv
 - uwsgi >= 2.0.8 (installed globally, not in a virtualenv, for production only)
+- git
 
 
 Database configuration
@@ -35,14 +37,15 @@ Quick summary to create a new database
     $ psql
     postgres=# create user prkng with password 'prkng' superuser;
     postgres=# create database prkng owner prkng encoding 'utf-8';
-    postgres=# create user prkng with password 'prkng';
     postgres=# \c prkng prkng
     Password for user prkng: ****
     You are now connected to database "prkng" as user "prkng"
     prkng=> create extension postgis;
 
+Remember to change the database name if you are running a test instance (i.e. `prkng_test`).
 
-Developpement mode
+
+Development mode
 ==================
 
 Checkout the code
@@ -109,20 +112,20 @@ Build the documentation
     $ cd doc/
     $ make html
 
-Go to <file:///home/user/path/to/prkng/doc/_build/html>_
+Go to ``<file:///home/user/path/to/prkng/doc/_build/html>`_
 
 
 Launch the tests
 ----------------
 
-In order to launch the tests, you will have to create a test database in postgresql
+In order to launch the tests, you will have to create a test database in PostgreSQL
 and fill the connection parameters in the ``prkng.cfg`` file
 
 Then launching the test from the root directory
 
 .. code-block:: bash
 
-    $ py.test -v
+    $ py.test -v prkng
 
 
 Command line ``prkng``
@@ -140,7 +143,7 @@ This command will:
         - Québec
 
     - download associated OpenStreetMap areas
-    - load the previous data in the postgresql database (overwrite older data)
+    - load the previous data in the PostgreSQL database (overwrite older data)
     - load districts (shapefiles provided in the repo for each city)
 
 .. code-block:: bash
@@ -153,14 +156,14 @@ This command will process all data and generate parking slots (will erase any ol
 
     $ prkng serve
 
-Launch a developpement server.
-Go to your browser and check `<http://localhost:5000>_`
+Launch a development server.
+Go to your browser and check `<http://localhost:5000>`_
 
 
 Production mode
 ===============
 
-The recommended stack to serve the application is ``prkng -> uwsgi -> nginx``
+The recommended stack to serve the application is ``prkng -> uWSGI -> Nginx``
 
 1. Get the code
 
@@ -175,7 +178,7 @@ The recommended stack to serve the application is ``prkng -> uwsgi -> nginx``
     $ virtualenv venv
     $ source venv/bin/activate
 
-Install the project and its dependencies inside the virtual environnement
+Install the project and its dependencies inside the virtual environment
 
 .. code-block:: bash
 
@@ -186,13 +189,13 @@ Install the project and its dependencies inside the virtual environnement
 
 Be aware to set ``DEBUG=False`` and ``LOG_LEVEL='info'``
 
-3. Configure uwsgi
+3. Configure uWSGI
 
 Create an empty file that just need to be touched to restart the application
 
     $ touch /home/parkng/prkng-uwsgi.reload
 
-Add a uwsgi configuration file /home/parkng/prkng.uwsgi ::
+Add a uWSGI configuration file /home/parkng/prkng.uwsgi ::
 
     [uwsgi]
     virtualenv=/home/parkng/parkng
@@ -208,7 +211,7 @@ Launch the application ::
 
     $ uwsgi --ini prkng.uwsgi
 
-4. Nginx (which has a native support of the uwsgi protocol)
+4. Nginx (which has a native support of the uWSGI protocol)
 
 .. code-block:: bash
 
@@ -242,6 +245,3 @@ Launch the application ::
 
     $ sudo ln -s /etc/nginx/sites-available/prkng /etc/nginx/sites-enabled/
     $ sudo service nginx restart
-
-
-

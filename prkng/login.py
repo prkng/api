@@ -172,10 +172,9 @@ def google_signin(access_token):
         params={'access_token': access_token}
     )
     data = resp.json()
-
     if resp.status_code != 200:
         return data, resp.status_code
-
+        
     if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
         return "Authentication failed.", 401
 
@@ -185,7 +184,6 @@ def google_signin(access_token):
         params={'access_token': access_token}
     )
     me = resp.json()
-
     if resp.status_code != 200:
         return me, resp.status_code
 

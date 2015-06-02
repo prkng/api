@@ -48,8 +48,6 @@ def on_restriction(rules, checkin, duration):
 
         # analyze time_max_parking
         time_max_parking = timedelta(minutes=rule['time_max_parking'] or 3679200)
-        if duration > time_max_parking:
-            max_time_ok &= False
 
         # extract time range for each day and test overlapping with checkin + duration
         # start at current day and slice over days
@@ -59,16 +57,38 @@ def on_restriction(rules, checkin, duration):
             tsranges = rule['agenda'][str(numday)]
             for start, stop in filter(bool, tsranges):
 
-                start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
-                    + timedelta(days=absoluteday)
+                try:
+                    start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
+                        + timedelta(days=absoluteday)
+                    #  hack to avoid ValueError: hour must be in 0..23
+                    stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
+                        + timedelta(days=absoluteday, hours=1)
+                except TypeError:
+                    raise Exception("Data integrity error on {}, please review rules".format(rule['code']))
 
-                #  hack to avoid ValueError: hour must be in 0..23
-                stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
-                    + timedelta(days=absoluteday, hours=1)
-
-                if max(start_time, checkin) < min(stop_time, checkin_end):
+                if (max(start_time, checkin) < min(stop_time, checkin_end) and rule['time_max_parking'] == None):
                     # overlapping !
                     time_range_ok &= False
+
+                if (max(start_time, checkin) < min(stop_time, checkin_end) and rule['time_max_parking'] <> None):
+                    # overlapping BUT a time_max_parking is allowed!
+                    #if checkin_end time is after the stop time
+                    if duration > time_max_parking and (checkin_end > stop_time):
+                        #extract duration inside
+                        duration_in_checkin_range = (stop_time - checkin)
+                        if (duration_in_checkin_range > time_max_parking):
+                            max_time_ok &= False
+
+                    #if checkin time is before the start time
+                    if duration > time_max_parking and (checkin < start_time):
+                        #extract duration inside
+                        duration_in_checkin_range = (checkin_end - start_time)
+                        if (duration_in_checkin_range > time_max_parking):
+                            max_time_ok &= False
+
+                    if (checkin >= start_time and checkin_end <= stop_time and duration > time_max_parking):
+                        # parking time is totally inside range BUT duration too long
+                        max_time_ok &= False
 
             if not max_time_ok or not time_range_ok:
                 # max_time exceed or time range overlapping or both
