@@ -13,7 +13,7 @@ from flask.ext.restplus import Api, Resource, fields
 from geojson import FeatureCollection, Feature
 
 from .models import SlotsModel, User, Checkins
-from .login import facebook_signin, google_signin, email_register, email_signin
+from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
               'MultiPoint', 'MultiLineString', 'MultiPolygon')
@@ -290,6 +290,7 @@ user_model = api.model('User', {
     'auth_id': fields.String(),
     'id': fields.String(),
     'gender': fields.String(),
+    'picture': fields.String()
 })
 
 
@@ -327,6 +328,7 @@ register_parser.add_argument('password', required=True, type=str, location='form
 register_parser.add_argument('name', required=True, type=unicode, location='form', help='user name')
 register_parser.add_argument('gender', required=True, type=str, location='form', help='gender')
 register_parser.add_argument('birthyear', required=True, type=int, location='form', help='birth year')
+register_parser.add_argument('picture', type=str, location='form', help='profile picture URL')
 
 
 @api.route('/register')
@@ -405,6 +407,15 @@ class Checkin(Resource):
         return "Resource created", 201
 
 
+update_profile_parser = deepcopy(api_key_parser)
+update_profile_parser.add_argument('email', type=str, location='form', help='user email')
+update_profile_parser.add_argument('password', type=str, location='form', help='user password')
+update_profile_parser.add_argument('name', type=unicode, location='form', help='user name')
+update_profile_parser.add_argument('gender', type=str, location='form', help='gender')
+update_profile_parser.add_argument('birthyear', type=int, location='form', help='birth year')
+update_profile_parser.add_argument('picture', type=str, location='form', help='profile picture URL')
+
+
 @api.route('/user/profile')
 class Profile(Resource):
     @api.secure
@@ -412,3 +423,11 @@ class Profile(Resource):
     def get(self):
         """Get informations about a user"""
         return g.user.json, 200
+
+    @api.doc(parser=update_profile_parser, model=user_model)
+    @api.secure
+    def put(self):
+        """Update user profile information"""
+        args = update_profile_parser.parse_args()
+        del args['X-API-KEY']
+        return email_update(g.user, **args)

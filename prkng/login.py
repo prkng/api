@@ -25,7 +25,9 @@ def load_user(id):
     return User.get(int(id))
 
 
-def email_register(email=None, password=None, name=None, gender=None, birthyear=None):
+def email_register(
+        email=None, password=None, name=None, gender=None, birthyear=None,
+        picture=None):
     """
     Signup with an email and a password
     """
@@ -37,7 +39,8 @@ def email_register(email=None, password=None, name=None, gender=None, birthyear=
     user = User.add_user(
         name=name,
         email=email,
-        gender=gender
+        gender=gender,
+        picture=picture
     )
 
     # add an authentification method
@@ -61,6 +64,28 @@ def email_register(email=None, password=None, name=None, gender=None, birthyear=
     resp.update(user.json)
 
     return resp, 201
+
+
+def email_update(
+        user, email=None, password=None, name=None, gender=None, birthyear=None,
+        picture=None):
+    """
+    Update user profile with new information
+    """
+    user.update_profile(name, email, gender, picture)
+    auth_id = 'email${}'.format(user.id)
+    ua = UserAuth.exists(auth_id)
+    if ua and password:
+        UserAuth.change_password(auth_id, password)
+    if ua:
+        UserAuth.update(auth_id, birthyear)
+
+    resp = {
+        'auth_id': auth_id,
+    }
+    resp.update(user.json)
+
+    return resp, 200
 
 
 def email_signin(email, password):
@@ -123,6 +148,13 @@ def facebook_signin(access_token):
     if 'email' not in me:
         return 'Email information not provided, cannot register user', 401
 
+    # fetch current profile pic
+    resp = requests.get(
+        "https://graph.facebook.com/me/picture",
+        params={'access_token': access_token, 'redirect': False, 'type': 'normal'}
+    )
+    pic = resp.json().get('url', '')
+
     # check if user exists with its email as unique identifier
     user = User.get_byemail(me['email'])
     if not user:
@@ -130,10 +162,12 @@ def facebook_signin(access_token):
         user = User.add_user(
             name=me['name'],
             email=me['email'],
-            gender=me.get('gender', None))
+            gender=me.get('gender', None),
+            picture=pic)
     else:
-        # if already exists just update with a new apikey
+        # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
+        user.update_profile_pic(pic)
     # known facebook account ?
     auth_id = 'facebook${}'.format(me['id'])
     user_auth = UserAuth.exists(auth_id)
@@ -174,7 +208,7 @@ def google_signin(access_token):
     data = resp.json()
     if resp.status_code != 200:
         return data, resp.status_code
-        
+
     if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
         return "Authentication failed.", 401
 
@@ -202,7 +236,8 @@ def google_signin(access_token):
         user = User.add_user(
             name=me['name'],
             email=me['email'],
-            gender=me.get('gender', None))
+            gender=me.get('gender', None),
+            picture=me.get('picture', ''))
 
     if not user_auth:
         # add user auth informations
@@ -215,8 +250,9 @@ def google_signin(access_token):
             fullprofile=me
         )
     else:
-        # if already exists just update with a new apikey
+        # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
+        user.update_profile_pic(me.get('picture', ''))
 
     # login user (powered by flask-login)
     login_user(user, True)

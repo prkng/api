@@ -13,6 +13,8 @@ from sqlalchemy import Table, MetaData, Integer, String, func, \
 from sqlalchemy.dialects.postgresql import JSONB, ENUM
 from sqlalchemy import create_engine
 
+from passlib.hash import pbkdf2_sha256
+
 from itsdangerous import JSONWebSignatureSerializer
 
 from prkng.processing.filters import on_restriction
@@ -74,7 +76,8 @@ user_table = Table(
     Column('gender', String(10)),
     Column('email', String(60), index=True, unique=True, nullable=False),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
-    Column('apikey', String)
+    Column('apikey', String),
+    Column('picture', String)
 )
 
 # creating a functional index on apikey field
@@ -130,6 +133,27 @@ class User(UserMixin):
             where id = {user_id}
             """.format(key=newkey, user_id=self.id))
         self.apikey = newkey
+
+    def update_profile(self, name, email, gender, picture):
+        """
+        Update profile information
+        """
+        db.engine.execute("""
+            UPDATE users
+            SET
+                name = '{name}',
+                email = '{email}',
+                picture = '{picture}'
+            WHERE id = {user_id}
+            """.format(email=email or self.email,
+                name=name or self.name,
+                gender=gender or self.gender,
+                picture=picture or self.picture,
+                user_id=self.id))
+        self.name = name or self.name
+        self.email = email or self.email
+        self.gender = gender or self.gender
+        self.picture = picture or self.picture
 
     @property
     def json(self):
@@ -203,7 +227,7 @@ class User(UserMixin):
         return res
 
     @staticmethod
-    def add_user(name=None, email=None, gender=None):
+    def add_user(name=None, email=None, gender=None, picture=None):
         """
         Add a new user.
         Raise an exception in case of already exists.
@@ -211,7 +235,7 @@ class User(UserMixin):
         apikey = User.generate_apikey(email)
         # insert data
         db.engine.execute(user_table.insert().values(
-            name=name, email=email, apikey=apikey, gender=gender))
+            name=name, email=email, apikey=apikey, gender=gender, picture=picture))
         # retrieve new user informations
         res = user_table.select(user_table.c.email == email).execute().first()
         return User(res)
@@ -226,6 +250,15 @@ class UserAuth(object):
     def exists(auth_id):
         res = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().first()
         return res
+
+    @staticmethod
+    def update(auth_id, birthyear):
+        userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(fullprofile={'birthyear': birthyear})
+
+    @staticmethod
+    def update_password(auth_id, password):
+        crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)
+        userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass)
 
     @staticmethod
     def add_userauth(user_id=None, name=None, auth_id=None, auth_type=None,
