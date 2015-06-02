@@ -20,7 +20,7 @@ def serve():
     Run a local server and serves the application
     """
     from wsgi import app
-    app.run()
+    app.run(host="0.0.0.0")
 
 
 @click.command()
