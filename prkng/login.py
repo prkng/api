@@ -167,7 +167,7 @@ def facebook_signin(access_token):
     else:
         # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile_pic(pic)
+        user.update_profile(picture=pic)
     # known facebook account ?
     auth_id = 'facebook${}'.format(me['id'])
     user_auth = UserAuth.exists(auth_id)
@@ -252,7 +252,7 @@ def google_signin(access_token):
     else:
         # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile_pic(me.get('picture', ''))
+        user.update_profile(picture=me.get('picture', ''))
 
     # login user (powered by flask-login)
     login_user(user, True)

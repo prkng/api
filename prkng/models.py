@@ -134,7 +134,7 @@ class User(UserMixin):
             """.format(key=newkey, user_id=self.id))
         self.apikey = newkey
 
-    def update_profile(self, name, email, gender, picture):
+    def update_profile(self, name=None, email=None, gender=None, picture=None):
         """
         Update profile information
         """
