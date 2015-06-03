@@ -12,7 +12,7 @@ from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
 from geojson import FeatureCollection, Feature
 
-from .models import SlotsModel, User, Checkins
+from .models import SlotsModel, User, Checkins, Images, Reports
 from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
@@ -431,3 +431,54 @@ class Profile(Resource):
         args = update_profile_parser.parse_args()
         del args['X-API-KEY']
         return email_update(g.user, **args)
+
+
+image_parser = deepcopy(api_key_parser)
+image_parser.add_argument(
+    'file_type', type=str, required=True, help='Mimetype of the file to be uploaded',
+    location='form')
+s3_url_model = api.model('S3 URL', {
+    'url': fields.String()
+})
+
+@api.route('/image')
+class Image(Resource):
+    @api.secure
+    @api.doc(parser=image_parser, model=s3_url_model)
+    def post(self):
+        """
+        Generate an S3 URL for image submission
+        """
+        args = image_parser.parse_args()
+        url = Images.generate_s3_url(args["file_type"])
+        return {"url": url}, 200
+
+
+report_parser = deepcopy(api_key_parser)
+report_parser.add_argument(
+    'slot_id', type=int, required=True, help='Slot identifier', location='form')
+report_parser.add_argument(
+    'file_type', type=str, required=True, help='Mimetype of the file to be uploaded',
+    location='form')
+
+report_model = api.model('Report', {
+    'lat': fields.String(),
+    'long': fields.String(),
+    'way_name': fields.String(),
+    'slot_id': fields.String(),
+    'user_id': fields.String(),
+    'id': fields.String(),
+    'created': fields.String(),
+    'image_url': fields.String()
+})
+
+
+@api.route('/user/report')
+class Report(Resource):
+    @api.secure
+    @api.doc(parser=report_parser, model=report_model)
+    def post(self):
+        """Submit a report about incorrect data"""
+        args = report_parser.parse_args()
+        Reports.add(g.user.id, args["slot_id"], args["file_type"])
+        return report.json, 200

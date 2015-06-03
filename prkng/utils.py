@@ -4,8 +4,10 @@
 """
 from __future__ import print_function
 
+import hashlib
 import sys
 import os
+import random
 import requests
 
 
@@ -45,3 +47,17 @@ def download_progress(url, filename, directory):
 
         print("] Download complete...")
     return full_path
+
+def can_be_int(data):
+    """
+    Simply tells you if an item (string, etc) could potentially be an integer.
+    """
+    try:
+        int(data)
+        return True
+    except ValueError:
+        return False
+
+def random_string(length=40):
+    """Create a random alphanumeric string."""
+    return hashlib.sha1(str(random.random())).hexdigest()[0:length]

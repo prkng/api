@@ -3,8 +3,10 @@
 :author: ludovic.delaune@oslandia.com
 """
 from __future__ import unicode_literals
+from base64 import encodestring
 from datetime import datetime
 from time import time
+from hmac import new as hmac_new
 
 from flask import current_app
 from flask.ext.login import UserMixin
@@ -14,10 +16,14 @@ from sqlalchemy.dialects.postgresql import JSONB, ENUM
 from sqlalchemy import create_engine
 
 from passlib.hash import pbkdf2_sha256
+from hashlib import sha1
 
 from itsdangerous import JSONWebSignatureSerializer
 
+from urllib import quote_plus
+
 from prkng.processing.filters import on_restriction
+from prkng.utils import random_string
 
 AUTH_PROVIDERS = (
     'facebook',
@@ -97,6 +103,19 @@ checkin_table = Table(
     Column('lat', Float),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
     # The time the check-in was created.
+)
+
+report_table = Table(
+    'reports',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
+    Column('slot_id', Integer),
+    Column('way_name', String),
+    Column('long', Float),
+    Column('lat', Float),
+    Column('created', DateTime, server_default=text('NOW()'), index=True),
+    Column('image_url', String)
 )
 
 
@@ -412,3 +431,81 @@ class District(object):
             {key: unicode(value) for key, value in row.items()}
             for row in res
         ]
+
+    @staticmethod
+    def get_reports(city, district_id):
+        res = db.engine.execute("""
+            SELECT
+                r.id,
+                r.way_name,
+                to_char(r.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                r.slot_id,
+                u.name,
+                u.email,
+                u.gender,
+                r.long,
+                r.lat,
+                r.image_url
+            FROM reports r
+            JOIN {}_district d ON ST_intersects(ST_MakePoint(r.long, r.lat), d.geom)
+            JOIN users u ON d.user_id = u.id
+            WHERE d.gid = {}
+            """.format(city, district_id)).fetchall()
+
+        return [
+            {key: unicode(value) for key, value in row.items()}
+            for row in res
+        ]
+
+
+class Images(object):
+    @staticmethod
+    def generate_s3_url(file_type):
+        """
+        Generate S3 submission URL valid for 24h, with which the user can upload an
+        avatar or a report image.
+        """
+        expires = int(time()+86400)
+        file_name = quote_plus(random_string(16))
+        amz_headers = "x-amz-acl:public-read"
+
+        to_sign = "PUT\n\n%s\n%d\n%s\n/%s/%s" % (file_type, expires, amz_headers,
+            current_app.config["AWS_S3_BUCKET"], file_name)
+        sig = hmac_new(current_app.config["AWS_SECRET_KEY"], to_sign.encode('utf-8'), sha1)
+        sig = encodestring(sig.digest())
+        sig = quote_plus(sig.strip())
+
+        url = "https://%s.s3.amazonaws.com/%s" % (current_app.config["AWS_S3_BUCKET"], file_name)
+        request_url = '%s?AWSAccessKeyId=%s&Expires=%s&Signature=%s' % (url,
+            current_app.config["AWS_ACCESS_KEY"], expires, sig)
+        return request_url
+
+
+class Reports(object):
+    @staticmethod
+    def add(user_id, slot_id, file_type):
+        exists = db.engine.execute("""
+            select 1 from slots where id = {slot_id}
+            """.format(slot_id=slot_id)).first()
+        if not exists:
+            return False
+
+        db.engine.execute("""
+            INSERT INTO reports (user_id, slot_id, way_name, long, lat, image_url)
+            SELECT
+                {user_id}, {slot_id}, way_name,
+                (button_location->>'long')::float,
+                (button_location->>'lat')::float,
+                {image_url}
+            FROM slots WHERE id = {slot_id}
+        """.format(user_id=user_id, slot_id=slot_id, image_url=url))
+        return True
+
+    @property
+    def json(self):
+        vals = {
+            key: value for key, value in self.__dict__.items()
+        }
+        # since datetime is not JSON serializable
+        vals['created'] = self.created.strftime("%Y-%m-%d %H:%M:%S")
+        return vals
