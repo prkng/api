@@ -6,7 +6,8 @@ from __future__ import unicode_literals
 from base64 import encodestring
 from datetime import datetime
 from time import time
-from hmac import new as hmac_new
+
+from boto.s3.connection import S3Connection
 
 from flask import current_app
 from flask.ext.login import UserMixin
@@ -16,11 +17,8 @@ from sqlalchemy.dialects.postgresql import JSONB, ENUM
 from sqlalchemy import create_engine
 
 from passlib.hash import pbkdf2_sha256
-from hashlib import sha1
 
 from itsdangerous import JSONWebSignatureSerializer
-
-from urllib import quote_plus
 
 from prkng.processing.filters import on_restriction
 from prkng.utils import random_string
@@ -460,25 +458,19 @@ class District(object):
 
 class Images(object):
     @staticmethod
-    def generate_s3_url(file_type):
+    def generate_s3_url(image_type, file_name):
         """
         Generate S3 submission URL valid for 24h, with which the user can upload an
         avatar or a report image.
         """
-        expires = int(time()+86400)
-        file_name = quote_plus(random_string(16))
-        amz_headers = "x-amz-acl:public-read"
+        file_name = random_string(16) + file_name.rsplit(".")[1]
 
-        to_sign = "PUT\n\n%s\n%d\n%s\n/%s/%s" % (file_type, expires, amz_headers,
-            current_app.config["AWS_S3_BUCKET"], file_name)
-        sig = hmac_new(current_app.config["AWS_SECRET_KEY"], to_sign.encode('utf-8'), sha1)
-        sig = encodestring(sig.digest())
-        sig = quote_plus(sig.strip())
+        c = S3Conncetion(current_app.config["AWS_ACCESS_KEY"],
+            current_app.config["AWS_SECRET_KEY"])
+        url = c.generate_url(86400, "PUT", current_app.config["AWS_S3_BUCKET"],
+            image_type+"/"+file_name, headers={"x-amz-acl": "public-read"})
 
-        url = "https://%s.s3.amazonaws.com/%s" % (current_app.config["AWS_S3_BUCKET"], file_name)
-        request_url = '%s?AWSAccessKeyId=%s&Expires=%s&Signature=%s' % (url,
-            current_app.config["AWS_ACCESS_KEY"], expires, sig)
-        return request_url
+        return {"request_url": url, "access_url": url.split("?")[0]}
 
 
 class Reports(object):

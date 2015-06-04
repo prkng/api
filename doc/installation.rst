@@ -101,6 +101,21 @@ Example of content ::
     # for the admin site
     ADMIN_USER = 'admin'
     ADMIN_PASS = '***'
+    
+    AWS_ACCESS_KEY = '***'
+    AWS_SECRET_KEY = '***'
+    AWS_S3_BUCKET = 'prkng-pictures'
+
+    OAUTH_CREDENTIALS = {
+        "google": {
+            "id": "***",
+            "secret": "***"
+        },
+        "facebook": {
+            "id": "***",
+            "secret": "***"
+        }
+    }
 
 
 

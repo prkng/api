@@ -435,10 +435,14 @@ class Profile(Resource):
 
 image_parser = deepcopy(api_key_parser)
 image_parser.add_argument(
-    'file_type', type=str, required=True, help='Mimetype of the file to be uploaded',
+    'image_type', type=str, required=True, help='Either "avatar" or "report"',
+    location='form')
+image_parser.add_argument(
+    'file_name', type=str, required=True, help='File name of the image to be uploaded',
     location='form')
 s3_url_model = api.model('S3 URL', {
-    'url': fields.String()
+    'request_url': fields.String(),
+    'access_url': fields.String()
 })
 
 @api.route('/image')
@@ -450,16 +454,13 @@ class Image(Resource):
         Generate an S3 URL for image submission
         """
         args = image_parser.parse_args()
-        url = Images.generate_s3_url(args["file_type"])
-        return {"url": url}, 200
+        data = Images.generate_s3_url(args["file_type"])
+        return data, 200
 
 
 report_parser = deepcopy(api_key_parser)
 report_parser.add_argument(
     'slot_id', type=int, required=True, help='Slot identifier', location='form')
-report_parser.add_argument(
-    'file_type', type=str, required=True, help='Mimetype of the file to be uploaded',
-    location='form')
 
 report_model = api.model('Report', {
     'lat': fields.String(),
@@ -473,7 +474,7 @@ report_model = api.model('Report', {
 })
 
 
-@api.route('/user/report')
+@api.route('/report')
 class Report(Resource):
     @api.secure
     @api.doc(parser=report_parser, model=report_model)
