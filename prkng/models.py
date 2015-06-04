@@ -435,18 +435,18 @@ class District(object):
         res = db.engine.execute("""
             SELECT
                 r.id,
-                r.way_name,
                 to_char(r.created, 'YYYY-Mon-D HH24:MI:SS') as created,
                 r.slot_id,
                 u.name,
                 u.email,
-                u.gender,
+                s.way_name,
                 r.long,
                 r.lat,
                 r.image_url
-            FROM reports r
-            JOIN {}_district d ON ST_intersects(ST_MakePoint(r.long, r.lat), d.geom)
-            JOIN users u ON d.user_id = u.id
+            FROM {}_district d
+            JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN slots s ON r.slot_id = s.id
             WHERE d.gid = {}
             """.format(city, district_id)).fetchall()
 
@@ -463,12 +463,13 @@ class Images(object):
         Generate S3 submission URL valid for 24h, with which the user can upload an
         avatar or a report image.
         """
-        file_name = random_string(16) + file_name.rsplit(".")[1]
+        file_name = random_string(16) + "." + file_name.rsplit(".")[1]
 
         c = S3Connection(current_app.config["AWS_ACCESS_KEY"],
             current_app.config["AWS_SECRET_KEY"])
         url = c.generate_url(86400, "PUT", current_app.config["AWS_S3_BUCKET"],
-            image_type+"/"+file_name, headers={"x-amz-acl": "public-read"})
+            image_type+"/"+file_name, headers={"x-amz-acl": "public-read",
+                "Content-Type": "image/jpeg"})
 
         return {"request_url": url, "access_url": url.split("?")[0]}
 
@@ -478,3 +479,27 @@ class Reports(object):
     def add(user_id, slot_id, lng, lat, url):
         db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
             long=lng, lat=lat, image_url=url))
+
+    @staticmethod
+    def get(city):
+        res = db.engine.execute("""
+            SELECT
+                r.id,
+                to_char(r.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                r.slot_id,
+                u.name,
+                u.email,
+                s.way_name,
+                r.long,
+                r.lat,
+                r.image_url
+            FROM {}_district d
+            JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN slots s ON r.slot_id = s.id
+            """.format(city)).fetchall()
+
+        return [
+            {key: unicode(value) for key, value in row.items()}
+            for row in res
+        ]

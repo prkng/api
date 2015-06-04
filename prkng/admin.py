@@ -9,7 +9,7 @@ from flask.ext.login import LoginManager, login_user, logout_user, login_require
 from jinja2 import TemplateNotFound
 from geojson import FeatureCollection, Feature
 
-from prkng.models import District
+from prkng.models import District, Checkins, Reports
 
 
 # admin blueprint
@@ -102,7 +102,7 @@ def district(city):
 
 
 @admin.route(
-    '/district/<string:city>/<int:district_id>',
+    '/checkins/<string:city>/<int:district_id>',
     methods=['GET'],
     endpoint='checkins')
 @login_required
@@ -115,3 +115,27 @@ def district_checkins(city, district_id):
 
     checkins = District.get_checkins(city, district_id, startdate, enddate)
     return jsonify(results=checkins), 200
+
+@admin.route(
+    '/reports/<string:city>/<int:district_id>',
+    methods=['GET'],
+    endpoint='reports')
+@login_required
+def reports(city, district_id):
+    """
+    Get a list of reports inside this district
+    """
+    reports = District.get_reports(city, district_id)
+    return jsonify(results=reports), 200
+
+@admin.route(
+    '/reports/<string:city>',
+    methods=['GET'],
+    endpoint='all_reports')
+@login_required
+def all_reports(city):
+    """
+    Get a list of all reports in this city
+    """
+    reports = Reports.get(city)
+    return jsonify(results=reports), 200

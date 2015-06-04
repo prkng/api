@@ -14,6 +14,10 @@
 
         </div>
         <div id="navbar" class="navbar-collapse collapse">
+          <ul class="nav navbar-nav">
+            <li id="checkins-btn" class="active"><a href="#" ng-click="showTable('checkins');">Check-Ins</a></li>
+            <li id="reports-btn"><a href="#" ng-click="showTable('reports');">Reports</a></li>
+          </ul>
           <ul class="nav navbar-nav navbar-right">
             <li class="dropdown">
               <a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Sélectionner une ville<span class="caret"></span></a>
@@ -45,7 +49,7 @@
       </div>
       <div class="modal-footer">
         <button type="button" class="btn btn-default" data-dismiss="modal">Close</button>
-        <button type="button" class="btn btn-primary" ng-click="loadInfos();">Load Checkins !</button>
+        <button type="button" class="btn btn-primary" ng-click="loadCheckins();">Load Checkins!</button>
       </div>
     </div>
   </div>
@@ -53,9 +57,9 @@
 
 <div class="container">
   <div id="map" style="height: 500px"></div>
-  <table st-table="displayedusers" st-safe-src="users" class="table table-striped">
+  <table st-table="displayedresults" st-safe-src="results" class="table table-striped">
     <thead>
-    <tr>
+    <tr ng-if="displaying == 'checkins'">
       <th>checkin-date</th>
       <th>name</th>
       <th>gender</th>
@@ -64,12 +68,22 @@
       <th>long</th>
       <th>lat</th>
     </tr>
+    <tr ng-if="displaying == 'reports'">
+      <th>report-date</th>
+      <th>name</th>
+      <th>email</th>
+      <th>long</th>
+      <th>lat</th>
+      <th>way</th>
+      <th>image</th>
+    </tr>
     </thead>
     <tbody>
     <tr>
-        <th colspan="7"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
+        <th colspan="6"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
+        <th ng-if="displaying == 'reports'"><a class="btn btn-sm btn-primary" ng-click="loadAllReports();">All</a></th>
     </tr>
-    <tr ng-repeat="row in displayedusers">
+    <tr ng-if="displaying == 'checkins'" ng-repeat="row in displayedresults">
       <td>{% raw %}{{row.created}}{% endraw %}</td>
       <td>{% raw %}{{row.name}}{% endraw %}</td>
       <td>{% raw %}{{row.gender}}{% endraw %}</td>
@@ -77,6 +91,15 @@
       <td>{% raw %}{{row.way_name}}{% endraw %}</td>
       <td>{% raw %}{{row.long}}{% endraw %}</td>
       <td>{% raw %}{{row.lat}}{% endraw %}</td>
+    </tr>
+    <tr ng-if="displaying == 'reports'" ng-repeat="row in displayedresults">
+      <td>{% raw %}{{row.created}}{% endraw %}</td>
+      <td>{% raw %}{{row.name}}{% endraw %}</td>
+      <td>{% raw %}{{row.email}}{% endraw %}</td>
+      <td>{% raw %}{{row.long}}{% endraw %}</td>
+      <td>{% raw %}{{row.lat}}{% endraw %}</td>
+      <td>{% raw %}{{row.way_name}}{% endraw %}</td>
+      <td><a ng-href="{% raw %}{{row.image_url}}{% endraw %}" target="_blank">image</a></td>
     </tr>
     </tbody>
     <tfoot>
@@ -87,7 +110,7 @@
       </tr>
     </tfoot>
   </table>
-  <button type="button" class="btn btn-success" csv-header="getHeader()" ng-csv="users" filename="checkins_{% raw %}{{current_district_name}}{% endraw %}.csv">CSV</button>
+  <button type="button" class="btn btn-success" csv-header="getHeader()" ng-csv="results" filename="checkins_{% raw %}{{current_district_name}}{% endraw %}.csv">CSV</button>
   <button type="button" class="btn btn-success" ng-click="savetojson()" >JSON</button>
 </div>
 <script>
@@ -109,9 +132,13 @@ var app = angular.module('main', ['smart-table', 'ngCsv']).
 controller('jscontroller', function($scope, $http, $window) {
   function onEachFeature(feature, layer) {
       layer.on('click', function (e) {
+        $scope.current_district = e.target.feature.id;
+        $scope.current_district_name = e.target.feature.properties.name;
+        if ( $scope.displaying == "checkins" ) {
           $('#myModal').modal();
-          $scope.current_district = e.target.feature.id;
-          $scope.current_district_name = e.target.feature.properties.name;
+        } else {
+          $scope.loadReports();
+        }
       });
       layer.bindPopup(feature.properties.name);
       if ( feature.geometry.type === "MultiPolygon" ) {
@@ -127,6 +154,8 @@ controller('jscontroller', function($scope, $http, $window) {
       onEachFeature: onEachFeature,
   });
 
+  $scope.displaying = "checkins";
+
   $scope.LoadCity = function (name) {
       geoj.clearLayers();
       $.get('/admin/district/' + name,
@@ -136,6 +165,16 @@ controller('jscontroller', function($scope, $http, $window) {
       $scope.city = name;
 
       geoj.addTo(map);
+  }
+
+  $scope.showTable = function (name) {
+      $scope.displaying = name;
+      $('.nav > li').removeClass("active");
+      $('#'+name+'-btn').addClass("active");
+      if ($scope.results) {
+        $scope.results = [];
+        $scope.displayedresults = $scope.results.slice(0);
+      }
   }
 
   // $(document).ready(function() {
@@ -151,21 +190,39 @@ controller('jscontroller', function($scope, $http, $window) {
   });
   // });
 
-  $scope.loadInfos = function () {
+  $scope.loadCheckins = function () {
       $('#myModal').modal('hide');
-      $http.get('/admin/district/' + $scope.city + '/' + $scope.current_district,
+      $http.get('/admin/checkins/' + $scope.city + '/' + $scope.current_district,
           {
               params: {'startdate': $scope.dates[0], 'enddate': $scope.dates[1]}
           })
           .success(function(data, status, headers, config) {
-             $scope.users = data.results;
-             $scope.displayedusers = $scope.users.slice(0);
+             $scope.results = data.results;
+             $scope.displayedresults = $scope.results.slice(0);
+             $scope.itemsByPage=15;
+          });
+  };
+
+  $scope.loadReports = function () {
+      $http.get('/admin/reports/' + $scope.city + '/' + $scope.current_district)
+          .success(function(data, status, headers, config) {
+             $scope.results = data.results;
+             $scope.displayedresults = $scope.results.slice(0);
+             $scope.itemsByPage=15;
+          });
+  };
+
+  $scope.loadAllReports = function () {
+      $http.get('/admin/reports/' + $scope.city)
+          .success(function(data, status, headers, config) {
+             $scope.results = data.results;
+             $scope.displayedresults = $scope.results.slice(0);
              $scope.itemsByPage=15;
           });
   };
 
   $scope.savetojson = function () {
-      $window.open("data:application/json,"+ angular.toJson($scope.users), "_blank", "width=800,height=600");
+      $window.open("data:application/json,"+ angular.toJson($scope.results), "_blank", "width=800,height=600");
   };
 
   $scope.getHeader = function () {return ['created', 'email', 'gender', 'name', 'way_name']};

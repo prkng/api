@@ -482,7 +482,8 @@ report_parser.add_argument('image_url', type=str, required=True,
 @api.route('/report')
 class Report(Resource):
     @api.secure
-    @api.doc(parser=report_parser)
+    @api.doc(parser=report_parser,
+        responses={201: "Resource created"})
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
