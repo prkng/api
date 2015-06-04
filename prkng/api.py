@@ -454,7 +454,7 @@ class Image(Resource):
         Generate an S3 URL for image submission
         """
         args = image_parser.parse_args()
-        data = Images.generate_s3_url(args["file_type"])
+        data = Images.generate_s3_url(args["image_type"], args["file_name"])
         return data, 200
 
 

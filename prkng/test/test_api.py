@@ -161,3 +161,20 @@ def test_api_loginemail_badpass(client):
         headers={'X-API-KEY': g.user.apikey})
     assert json.loads(resp.data) == 'Incorrect password'
     assert resp.status_code == 401
+
+
+def test_api_update_profile(client):
+    resp = client.put('/user/profile', data=dict(
+        email='test@prk.ng',
+        password='newpassword',
+        image='http://prk.ng/img/logo.png'),
+        headers={'X-API-KEY': g.user.apikey})
+    assert resp.status_code == 200
+
+
+def test_api_generate_s3_url(client):
+    resp = client.post('/image', data=dict(
+        image_type='avatar',
+        file_name='test_image.jpg'),
+        headers={'X-API-KEY': g.user.apikey})
+    assert resp.status_code == 200

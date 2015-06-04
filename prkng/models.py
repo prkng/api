@@ -465,7 +465,7 @@ class Images(object):
         """
         file_name = random_string(16) + file_name.rsplit(".")[1]
 
-        c = S3Conncetion(current_app.config["AWS_ACCESS_KEY"],
+        c = S3Connection(current_app.config["AWS_ACCESS_KEY"],
             current_app.config["AWS_SECRET_KEY"])
         url = c.generate_url(86400, "PUT", current_app.config["AWS_S3_BUCKET"],
             image_type+"/"+file_name, headers={"x-amz-acl": "public-read"})
