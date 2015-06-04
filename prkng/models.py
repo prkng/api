@@ -503,3 +503,7 @@ class Reports(object):
             {key: unicode(value) for key, value in row.items()}
             for row in res
         ]
+
+    @staticmethod
+    def delete(id):
+        db.engine.execute(report_table.delete().where(report_table.c.id == id))

@@ -139,3 +139,15 @@ def all_reports(city):
     """
     reports = Reports.get(city)
     return jsonify(results=reports), 200
+
+@admin.route(
+    '/reports/<int:id>',
+    methods=['DELETE'],
+    endpoint='delete_report')
+@login_required
+def delete_report(id):
+    """
+    Delete a report from the database
+    """
+    Reports.delete(id)
+    return "Resource deleted", 204

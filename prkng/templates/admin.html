@@ -76,11 +76,12 @@
       <th>lat</th>
       <th>way</th>
       <th>image</th>
+      <th></th>
     </tr>
     </thead>
     <tbody>
     <tr>
-        <th colspan="6"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
+        <th colspan="7"><input st-search="" class="form-control" placeholder="global search ..." type="text"/></th>
         <th ng-if="displaying == 'reports'"><a class="btn btn-sm btn-primary" ng-click="loadAllReports();">All</a></th>
     </tr>
     <tr ng-if="displaying == 'checkins'" ng-repeat="row in displayedresults">
@@ -100,6 +101,7 @@
       <td>{% raw %}{{row.lat}}{% endraw %}</td>
       <td>{% raw %}{{row.way_name}}{% endraw %}</td>
       <td><a ng-href="{% raw %}{{row.image_url}}{% endraw %}" target="_blank">image</a></td>
+      <td><a class="btn btn-sm btn-danger" href="#" ng-click="deleteReport(row.id);">Delete</a></td>
     </tr>
     </tbody>
     <tfoot>
@@ -218,6 +220,15 @@ controller('jscontroller', function($scope, $http, $window) {
              $scope.results = data.results;
              $scope.displayedresults = $scope.results.slice(0);
              $scope.itemsByPage=15;
+          });
+  };
+
+  $scope.deleteReport = function(id) {
+      $http.delete('/admin/reports/' + id)
+          .success(function(data, status, headers, config) {
+            $scope.results = $.grep($scope.results, function(result) {
+              return result.id != id;
+            });
           });
   };
 
