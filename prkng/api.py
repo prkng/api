@@ -290,7 +290,7 @@ user_model = api.model('User', {
     'auth_id': fields.String(),
     'id': fields.String(),
     'gender': fields.String(),
-    'picture': fields.String()
+    'image_url': fields.String()
 })
 
 
@@ -328,7 +328,7 @@ register_parser.add_argument('password', required=True, type=str, location='form
 register_parser.add_argument('name', required=True, type=unicode, location='form', help='user name')
 register_parser.add_argument('gender', required=True, type=str, location='form', help='gender')
 register_parser.add_argument('birthyear', required=True, type=int, location='form', help='birth year')
-register_parser.add_argument('picture', type=str, location='form', help='profile picture URL')
+register_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
 @api.route('/register')
@@ -413,7 +413,7 @@ update_profile_parser.add_argument('password', type=str, location='form', help='
 update_profile_parser.add_argument('name', type=unicode, location='form', help='user name')
 update_profile_parser.add_argument('gender', type=str, location='form', help='gender')
 update_profile_parser.add_argument('birthyear', type=int, location='form', help='birth year')
-update_profile_parser.add_argument('picture', type=str, location='form', help='profile picture URL')
+update_profile_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
 @api.route('/user/profile')
@@ -460,26 +460,32 @@ class Image(Resource):
 
 report_parser = deepcopy(api_key_parser)
 report_parser.add_argument(
-    'slot_id', type=int, required=True, help='Slot identifier', location='form')
-
-report_model = api.model('Report', {
-    'lat': fields.String(),
-    'long': fields.String(),
-    'way_name': fields.String(),
-    'slot_id': fields.String(),
-    'user_id': fields.String(),
-    'id': fields.String(),
-    'created': fields.String(),
-    'image_url': fields.String()
-})
+    'slot_id', type=int, help='Slot identifier', location='form')
+report_parser.add_argument(
+    'latitude',
+    type=float,
+    location='form',
+    required=True,
+    help='Latitude in degrees (WGS84)'
+)
+report_parser.add_argument(
+    'longitude',
+    type=float,
+    location='form',
+    required=True,
+    help='Longitude in degrees (WGS84)'
+)
+report_parser.add_argument('image_url', type=str, required=True,
+    location='form', help='report image URL')
 
 
 @api.route('/report')
 class Report(Resource):
     @api.secure
-    @api.doc(parser=report_parser, model=report_model)
+    @api.doc(parser=report_parser)
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
-        Reports.add(g.user.id, args["slot_id"], args["file_type"])
-        return report.json, 200
+        Reports.add(g.user.id, args.get("slot_id", None), args["longitude"],
+            args["latitude"], args.get("image_url", ""))
+        return "Resource created", 201

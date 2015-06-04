@@ -27,7 +27,7 @@ def load_user(id):
 
 def email_register(
         email=None, password=None, name=None, gender=None, birthyear=None,
-        picture=None):
+        image_url=None):
     """
     Signup with an email and a password
     """
@@ -40,7 +40,7 @@ def email_register(
         name=name,
         email=email,
         gender=gender,
-        picture=picture
+        image_url=image_url
     )
 
     # add an authentification method
@@ -68,11 +68,11 @@ def email_register(
 
 def email_update(
         user, email=None, password=None, name=None, gender=None, birthyear=None,
-        picture=None):
+        image_url=None):
     """
     Update user profile with new information
     """
-    user.update_profile(name, email, gender, picture)
+    user.update_profile(name, email, gender, image_url)
     auth_id = 'email${}'.format(user.id)
     ua = UserAuth.exists(auth_id)
     if ua and password:
@@ -163,11 +163,11 @@ def facebook_signin(access_token):
             name=me['name'],
             email=me['email'],
             gender=me.get('gender', None),
-            picture=pic)
+            image_url=pic)
     else:
         # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile(picture=pic)
+        user.update_profile(image_url=pic)
     # known facebook account ?
     auth_id = 'facebook${}'.format(me['id'])
     user_auth = UserAuth.exists(auth_id)
@@ -237,7 +237,7 @@ def google_signin(access_token):
             name=me['name'],
             email=me['email'],
             gender=me.get('gender', None),
-            picture=me.get('picture', ''))
+            image_url=me.get('picture', ''))
 
     if not user_auth:
         # add user auth informations
@@ -252,7 +252,7 @@ def google_signin(access_token):
     else:
         # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile(picture=me.get('picture', ''))
+        user.update_profile(image_url=me.get('picture', ''))
 
     # login user (powered by flask-login)
     login_user(user, True)

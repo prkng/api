@@ -167,7 +167,7 @@ def test_api_update_profile(client):
     resp = client.put('/user/profile', data=dict(
         email='test@prk.ng',
         password='newpassword',
-        image='http://prk.ng/img/logo.png'),
+        image_url='http://prk.ng/img/logo.png'),
         headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 200
 
@@ -178,3 +178,22 @@ def test_api_generate_s3_url(client):
         file_name='test_image.jpg'),
         headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 200
+
+
+def test_submit_report(client):
+    resp = client.post('/report', data=dict(
+        slot_id=2,
+        longitude=-73.5860631065519,
+        latitude=45.5204204797004,
+        image_url='http://prk.ng/img/logo.png'),
+        headers={'X-API-KEY': g.user.apikey})
+    assert resp.status_code == 201
+
+
+def test_submit_report_no_slot(client):
+    resp = client.post('/report', data=dict(
+        longitude=-73.5860631065519,
+        latitude=45.5204204797004,
+        image_url='http://prk.ng/img/logo.png'),
+        headers={'X-API-KEY': g.user.apikey})
+    assert resp.status_code == 201

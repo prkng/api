@@ -81,7 +81,7 @@ user_table = Table(
     Column('email', String(60), index=True, unique=True, nullable=False),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
     Column('apikey', String),
-    Column('picture', String)
+    Column('image_url', String)
 )
 
 # creating a functional index on apikey field
@@ -151,7 +151,7 @@ class User(UserMixin):
             """.format(key=newkey, user_id=self.id))
         self.apikey = newkey
 
-    def update_profile(self, name=None, email=None, gender=None, picture=None):
+    def update_profile(self, name=None, email=None, gender=None, image_url=None):
         """
         Update profile information
         """
@@ -160,17 +160,17 @@ class User(UserMixin):
             SET
                 name = '{name}',
                 email = '{email}',
-                picture = '{picture}'
+                image_url = '{image_url}'
             WHERE id = {user_id}
             """.format(email=email or self.email,
                 name=name or self.name,
                 gender=gender or self.gender,
-                picture=picture or self.picture,
+                image_url=image_url or self.image_url,
                 user_id=self.id))
         self.name = name or self.name
         self.email = email or self.email
         self.gender = gender or self.gender
-        self.picture = picture or self.picture
+        self.image_url = image_url or self.image_url
 
     @property
     def json(self):
@@ -244,7 +244,7 @@ class User(UserMixin):
         return res
 
     @staticmethod
-    def add_user(name=None, email=None, gender=None, picture=None):
+    def add_user(name=None, email=None, gender=None, image_url=None):
         """
         Add a new user.
         Raise an exception in case of already exists.
@@ -252,7 +252,7 @@ class User(UserMixin):
         apikey = User.generate_apikey(email)
         # insert data
         db.engine.execute(user_table.insert().values(
-            name=name, email=email, apikey=apikey, gender=gender, picture=picture))
+            name=name, email=email, apikey=apikey, gender=gender, image_url=image_url))
         # retrieve new user informations
         res = user_table.select(user_table.c.email == email).execute().first()
         return User(res)
@@ -475,29 +475,6 @@ class Images(object):
 
 class Reports(object):
     @staticmethod
-    def add(user_id, slot_id, file_type):
-        exists = db.engine.execute("""
-            select 1 from slots where id = {slot_id}
-            """.format(slot_id=slot_id)).first()
-        if not exists:
-            return False
-
-        db.engine.execute("""
-            INSERT INTO reports (user_id, slot_id, way_name, long, lat, image_url)
-            SELECT
-                {user_id}, {slot_id}, way_name,
-                (button_location->>'long')::float,
-                (button_location->>'lat')::float,
-                {image_url}
-            FROM slots WHERE id = {slot_id}
-        """.format(user_id=user_id, slot_id=slot_id, image_url=url))
-        return True
-
-    @property
-    def json(self):
-        vals = {
-            key: value for key, value in self.__dict__.items()
-        }
-        # since datetime is not JSON serializable
-        vals['created'] = self.created.strftime("%Y-%m-%d %H:%M:%S")
-        return vals
+    def add(user_id, slot_id, lng, lat, url):
+        db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
+            long=lng, lat=lat, image_url=url))
