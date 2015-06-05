@@ -102,6 +102,18 @@ def district(city):
 
 
 @admin.route(
+    '/checkins/<string:city>',
+    methods=['GET'],
+    endpoint='city_checkins')
+@login_required
+def city_checkins(city):
+    """
+    Get a list of all checkins in the city
+    """
+    checkins = Checkins.get_all_admin(city)
+    return jsonify(results=checkins), 200
+
+@admin.route(
     '/checkins/<string:city>/<int:district_id>',
     methods=['GET'],
     endpoint='checkins')

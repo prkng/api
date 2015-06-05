@@ -318,6 +318,29 @@ class Checkins(object):
         return [dict(row) for row in res]
 
     @staticmethod
+    def get_all_admin(city):
+        res = db.engine.execute("""
+            SELECT
+                c.way_name,
+                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                u.name,
+                u.email,
+                u.gender,
+                c.long,
+                c.lat,
+                c.active
+            FROM {}_district d
+            JOIN slots s ON ST_intersects(s.geom, d.geom)
+            JOIN checkins c ON s.id = c.slot_id
+            JOIN users u ON c.user_id = u.id
+            """.format(city)).fetchall()
+
+        return [
+            {key: unicode(value) for key, value in row.items()}
+            for row in res
+        ]
+
+    @staticmethod
     def add(user_id, slot_id):
         exists = db.engine.execute("""
             select 1 from slots where id = {slot_id}
