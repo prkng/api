@@ -294,6 +294,17 @@ user_model = api.model('User', {
 })
 
 
+checkin_model = api.model('User', {
+    'created': fields.String(),
+    'long': fields.String(),
+    'lat': fields.String(),
+    'wayname': fields.String(),
+    'slot_id': fields.String(),
+    'id': fields.String(),
+    'active': fields.String()
+})
+
+
 @api.route('/login/facebook')
 class LoginFacebook(Resource):
     @api.doc(parser=token_parser, model=user_model)
@@ -395,10 +406,10 @@ class Checkin(Resource):
         """
         args = get_checkin_parser.parse_args()
         limit = min(args['limit'], 10)
-        res = Checkins.get(g.user.id, limit)
+        res = Checkins.get_all(g.user.id, limit)
         return res, 200
 
-    @api.doc(parser=post_checkin_parser,
+    @api.doc(parser=post_checkin_parser, model=checkin_model,
              responses={404: "No slot existing with this id", 201: "Resource created"})
     @api.secure
     def post(self):
@@ -409,7 +420,8 @@ class Checkin(Resource):
         ok = Checkins.add(g.user.id, args['slot_id'])
         if not ok:
             api.abort(404, "No slot existing with this id")
-        return "Resource created", 201
+        res = Checkins.get(g.user.id)
+        return res, 201
 
     @api.doc(parser=delete_checkin_parser,
              responses={204: "Resource deleted"})

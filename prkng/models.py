@@ -292,7 +292,22 @@ class UserAuth(object):
 
 class Checkins(object):
     @staticmethod
-    def get(user_id, limit):
+    def get(user_id):
+        """
+        Get info on the user's current check-in
+        """
+        res = db.engine.execute("""
+            SELECT id, slot_id, way_name, long, lat, created::text as created, active
+            FROM checkins
+            WHERE user_id = {}
+            AND active = true
+        """.format(user_id)).first()
+        if not res:
+            return None
+        return dict(res)
+
+    @staticmethod
+    def get_all(user_id, limit):
         res = db.engine.execute("""
             SELECT id, slot_id, way_name, long, lat, created::text as created, active
             FROM checkins
