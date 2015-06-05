@@ -2,42 +2,29 @@
 """
 :author: ludovic.delaune@oslandia.com
 """
-from json import loads
-from flask import render_template, jsonify, Blueprint, abort, current_app, redirect, flash, url_for, request
-from wtforms import Form, TextField, validators
-from flask.ext.login import LoginManager, login_user, logout_user, login_required, UserMixin, current_user
+import json
+import time
+
+from functools import wraps
+
+from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
+from flask import jsonify, Blueprint, abort, current_app, request
 from jinja2 import TemplateNotFound
 from geojson import FeatureCollection, Feature
 
-from prkng.models import District, Checkins, Reports
+from prkng.models import District, Checkins, Reports, City
 
 
-# admin blueprint
-admin = Blueprint(
-    'admin',
-    __name__,
-    url_prefix='/admin',
-    template_folder='templates',
-    static_folder='static'
-)
-
-adminlogin = LoginManager()
-adminlogin.login_view = "admin.login"
+def add_cors_to_response(resp):
+    resp.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin','*')
+    resp.headers['Access-Control-Allow-Credentials'] = 'true'
+    resp.headers['Access-Control-Allow-Methods'] = 'PATCH, PUT, POST, OPTIONS, GET, DELETE'
+    resp.headers['Access-Control-Allow-Headers'] = 'Authorization, Origin, X-Requested-With, Accept, DNT, Cache-Control, Accept-Encoding, Content-Type'
+    return resp
 
 
-class AdminUser(UserMixin):
-    def get_id(self):
-        """
-        There's only one user but flask-login need it
-        """
-        return unicode(1)
-
-user = AdminUser()
-
-
-@adminlogin.user_loader
-def load_user(userid):
-    return user
+admin = Blueprint('admin', __name__, url_prefix='/admin')
+admin.after_request(add_cors_to_response)
 
 
 def init_admin(app):
@@ -45,38 +32,66 @@ def init_admin(app):
     Initialize login manager extension into flask application
     """
     app.register_blueprint(admin)
-    adminlogin.init_app(app)
 
 
-class LoginForm(Form):
-    username = TextField('Username', [validators.Length(min=4, max=25)])
-    password = TextField('Password', [validators.Required()])
+def auth_required():
+    def wrapper(func):
+        @wraps(func)
+        def decorator(*args, **kwargs):
+            v = verify()
+            if v:
+                return v
+            return func(*args, **kwargs)
+        return decorator
+    return wrapper
 
 
-@admin.route("/login", methods=["GET", "POST"])
-def login():
-    if current_user.is_authenticated():
-        return redirect(url_for("admin.index"))
-    form = LoginForm(request.form)
-    if request.method == 'POST' and form.validate():
-        if form.username.data == current_app.config['ADMIN_USER'] and \
-           form.password.data == current_app.config['ADMIN_PASS']:
-            login_user(user)
-            return redirect(url_for("admin.index"))
-        else:
-            flash('Bad username/password', 'error')
-    return render_template("adminlogin.html")
+def create_token():
+    iat = time.time()
+    payload = {
+        "iss": current_app.config["ADMIN_USER"],
+        "iat": iat,
+        "exp": iat + 21600
+    }
+    tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
+        expires_in=21600, algorithm_name="HS256")
+    return tjwss.dumps(payload).decode("utf-8")
 
 
-@admin.route('/logout', endpoint='logout')
-@login_required
-def logout():
-    logout_user()
-    return redirect(url_for('admin.login'))
+def verify():
+    token = request.headers.get("Authorization", None)
+    if not token:
+        return "Authorization required", 401
+
+    token = token.split()
+    if token[0] != "Bearer" or len(token) > 2:
+        return "Malformed token", 400
+    token = token[1]
+
+    try:
+        tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
+            expires_in=3600, algorithm_name="HS256")
+        payload = tjwss.loads(token)
+    except SignatureExpired:
+        return "Token expired", 401
+    except BadSignature:
+        return "Malformed token signature", 401
 
 
-@admin.route('/', endpoint='index')
-@login_required
+@admin.route('/token', methods=['POST'])
+def generate_token():
+    """
+    Generate a JSON Web Token for use with Ember.js admin
+    """
+    data = json.loads(request.data)
+    if data.get("username") == current_app.config["ADMIN_USER"] \
+    and data.get("password") == current_app.config["ADMIN_PASS"]:
+        return jsonify(token=create_token())
+    else:
+        return "Authorization required", 401
+
+
+@admin.route('/')
 def adminview():
     try:
         return render_template('admin.html')
@@ -84,8 +99,8 @@ def adminview():
         abort(404)
 
 
-@admin.route('/district/<city>', methods=['GET'], endpoint='district')
-@login_required
+@admin.route('/district/<city>', methods=['GET'])
+@auth_required()
 def district(city):
     geojson = District.get(city)
 
@@ -101,62 +116,40 @@ def district(city):
     ])), 200
 
 
-@admin.route(
-    '/checkins/<string:city>',
-    methods=['GET'],
-    endpoint='city_checkins')
-@login_required
-def city_checkins(city):
+@admin.route('/checkins', methods=['GET'])
+@auth_required()
+def district_checkins():
     """
-    Get a list of all checkins in the city
+    Get a list of checkins
     """
-    checkins = Checkins.get_all_admin(city)
-    return jsonify(results=checkins), 200
+    startdate = request.args.get('startdate', None)
+    enddate = request.args.get('enddate', None)
+    city = request.args.get('city', 'montreal')
+    district = request.args.get('district', None)
+    if district:
+        checkins = District.get_checkins(city, district, startdate, enddate)
+    else:
+        checkins = City.get_checkins(city, startdate, enddate)
+    return jsonify(checkins=checkins), 200
 
-@admin.route(
-    '/checkins/<string:city>/<int:district_id>',
-    methods=['GET'],
-    endpoint='checkins')
-@login_required
-def district_checkins(city, district_id):
-    """
-    Get a list of checkins inside this district
-    """
-    startdate = request.args['startdate']
-    enddate = request.args['enddate']
 
-    checkins = District.get_checkins(city, district_id, startdate, enddate)
-    return jsonify(results=checkins), 200
+@admin.route('/reports', methods=['GET'])
+@auth_required()
+def get_reports():
+    """
+    Get a list of reports
+    """
+    city = request.args.get('city', 'montreal')
+    district = request.args.get('district', None)
+    if district:
+        reports = District.get_reports(city, district)
+    else:
+        reports = City.get_reports(city)
+    return jsonify(reports=reports), 200
 
-@admin.route(
-    '/reports/<string:city>/<int:district_id>',
-    methods=['GET'],
-    endpoint='reports')
-@login_required
-def reports(city, district_id):
-    """
-    Get a list of reports inside this district
-    """
-    reports = District.get_reports(city, district_id)
-    return jsonify(results=reports), 200
 
-@admin.route(
-    '/reports/<string:city>',
-    methods=['GET'],
-    endpoint='all_reports')
-@login_required
-def all_reports(city):
-    """
-    Get a list of all reports in this city
-    """
-    reports = Reports.get(city)
-    return jsonify(results=reports), 200
-
-@admin.route(
-    '/reports/<int:id>',
-    methods=['DELETE'],
-    endpoint='delete_report')
-@login_required
+@admin.route('/reports/<int:id>', methods=['DELETE'])
+@auth_required()
 def delete_report(id):
     """
     Delete a report from the database

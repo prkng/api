@@ -318,29 +318,6 @@ class Checkins(object):
         return [dict(row) for row in res]
 
     @staticmethod
-    def get_all_admin(city):
-        res = db.engine.execute("""
-            SELECT
-                c.way_name,
-                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
-                u.name,
-                u.email,
-                u.gender,
-                c.long,
-                c.lat,
-                c.active
-            FROM {}_district d
-            JOIN slots s ON ST_intersects(s.geom, d.geom)
-            JOIN checkins c ON s.id = c.slot_id
-            JOIN users u ON c.user_id = u.id
-            """.format(city)).fetchall()
-
-        return [
-            {key: unicode(value) for key, value in row.items()}
-            for row in res
-        ]
-
-    @staticmethod
     def add(user_id, slot_id):
         exists = db.engine.execute("""
             select 1 from slots where id = {slot_id}
@@ -453,7 +430,7 @@ class District(object):
         return res
 
     @staticmethod
-    def get_checkins(city, district_id, startdate, enddate):
+    def get_checkins(city, district, startdate=None, enddate=None):
         res = db.engine.execute("""
             SELECT
                 c.way_name,
@@ -464,19 +441,14 @@ class District(object):
                 c.long,
                 c.lat,
                 c.active
-            FROM {1}_district d
+            FROM {}_district d
             JOIN slots s ON ST_intersects(s.geom, d.geom)
             JOIN checkins c ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
-            WHERE d.gid = {2}
-            AND c.created >= '{3}'::timestamp
-            AND c.created <= '{4}'::timestamp
-            """.format(
-                ','.join(district_field[city]),
-                city,
-                district_id,
-                startdate,
-                enddate
+            WHERE d.gid = {}
+            """.format(city, district) + (
+                " AND c.created >= '{}'::timestamp" if startdate else ""
+                " AND c.created <= '{}'::timestamp" if enddate else ""
             )).fetchall()
 
         return [
@@ -528,14 +500,37 @@ class Images(object):
         return {"request_url": url, "access_url": url.split("?")[0]}
 
 
-class Reports(object):
+class City(object):
     @staticmethod
-    def add(user_id, slot_id, lng, lat, url):
-        db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
-            long=lng, lat=lat, image_url=url))
+    def get_checkins(city, startdate=None, enddate=None):
+        res = db.engine.execute("""
+            SELECT
+                c.way_name,
+                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                u.name,
+                u.email,
+                u.gender,
+                c.long,
+                c.lat,
+                c.active
+            FROM {}_district d
+            JOIN slots s ON ST_intersects(s.geom, d.geom)
+            JOIN checkins c ON s.id = c.slot_id
+            JOIN users u ON c.user_id = u.id
+            """.format(city) + (
+                " WITH" if startdate or enddate else ""
+                " c.created >= '{}'::timestamp" if startdate else ""
+                " AND" if startdate else ""
+                " c.created <= '{}'::timestamp" if enddate else ""
+            )).fetchall()
+
+        return [
+            {key: unicode(value) for key, value in row.items()}
+            for row in res
+        ]
 
     @staticmethod
-    def get(city):
+    def get_reports(city):
         res = db.engine.execute("""
             SELECT
                 r.id,
@@ -557,6 +552,13 @@ class Reports(object):
             {key: unicode(value) for key, value in row.items()}
             for row in res
         ]
+
+
+class Reports(object):
+    @staticmethod
+    def add(user_id, slot_id, lng, lat, url):
+        db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
+            long=lng, lat=lat, image_url=url))
 
     @staticmethod
     def delete(id):

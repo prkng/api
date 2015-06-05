@@ -24,7 +24,9 @@ def serve():
 
 
 @click.command()
-def update():
+@click.option('--city', default='all',
+    help='A specific city to fetch data for (instead of all)')
+def update(city):
     """
     Update data sources
     """
@@ -32,6 +34,8 @@ def update():
     osm = OsmLoader()
     for source in DataSource.__subclasses__():
         obj = source()
+        if not city == 'all' and obj.city != city:
+            continue
         obj.download()
         obj.load()
         obj.load_rules()
@@ -39,7 +43,7 @@ def update():
         osm.download(obj.name, obj.get_extent())
 
     # load every osm files in one shot
-    osm.load()
+    osm.load(city)
 
 
 @click.command()

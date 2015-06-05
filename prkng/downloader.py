@@ -49,6 +49,7 @@ class Montreal(DataSource):
     """
     def __init__(self):
         super(Montreal, self).__init__()
+        self.city = 'montreal'
         # ckan API
         self.url_signs = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=stationnement-sur-rue-signalisation-courant"
 
@@ -218,6 +219,7 @@ class Quebec(DataSource):
     """
     def __init__(self):
         super(Quebec, self).__init__()
+        self.city = 'quebec'
         self.url = "http://donnees.ville.quebec.qc.ca/Handler.ashx?id=7&f=SHP"
 
     def download(self):
@@ -317,29 +319,32 @@ class OsmLoader(object):
         osm_file = download_progress(
             "http://overpass.osm.rambler.ru/cgi/interpreter?data=(way({});>;);out;"
             .format(','.join(map(str, extent))),
-            '{}.osm'.format(name),
+            '{}.osm'.format(name.lower()),
             CONFIG['DOWNLOAD_DIRECTORY']
         )
 
         self.queue.append(osm_file)
 
-    def load(self):
+    def load(self, city):
         """
         Load data using osm2pgsql
         """
-        merged_file = join(CONFIG['DOWNLOAD_DIRECTORY'], 'merged.osm')
+        if city == 'all':
+            process_file = join(CONFIG['DOWNLOAD_DIRECTORY'], 'merged.osm')
 
-        # merge files before loading because osm2pgsql failed to load 2 osm files
-        # at the same time
-        check_call("osmconvert {files} -o={merge}".format(
-            files=' '.join(self.queue),
-            merge=merged_file),
-            shell=True)
+            # merge files before loading because osm2pgsql failed to load 2 osm files
+            # at the same time
+            check_call("osmconvert {files} -o={merge}".format(
+                files=' '.join(self.queue),
+                merge=process_file),
+                shell=True)
+        else:
+            process_file = join(CONFIG['DOWNLOAD_DIRECTORY'], self.queue[0])
 
         check_call(
             "osm2pgsql -E 3857 -d {PG_DATABASE} -H {PG_HOST} -U {PG_USERNAME} "
             "-P {PG_PORT} {osm_file}".format(
-                osm_file=merged_file,
+                osm_file=process_file,
                 **CONFIG),
             shell=True
         )
