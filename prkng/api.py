@@ -376,6 +376,11 @@ get_checkin_parser = deepcopy(api_key_parser)
 get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
+delete_checkin_parser = deepcopy(api_key_parser)
+delete_checkin_parser.add_argument(
+    'checkin_id', type=int, required=True, help='Check-in identifier',
+    location='form')
+
 
 @api.route('/slot/checkin')
 class Checkin(Resource):
@@ -405,6 +410,17 @@ class Checkin(Resource):
         if not ok:
             api.abort(404, "No slot existing with this id")
         return "Resource created", 201
+
+    @api.doc(parser=delete_checkin_parser,
+             responses={204: "Resource deleted"})
+    @api.secure
+    def delete(self):
+        """
+        Deactivate an existing checkin
+        """
+        args = delete_checkin_parser.parse_args()
+        Checkins.delete(g.user.id, args['checkin_id'])
+        return "Resource deleted", 204
 
 
 update_profile_parser = deepcopy(api_key_parser)

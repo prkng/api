@@ -11,7 +11,7 @@ from boto.s3.connection import S3Connection
 
 from flask import current_app
 from flask.ext.login import UserMixin
-from sqlalchemy import Table, MetaData, Integer, String, func, \
+from sqlalchemy import Table, MetaData, Integer, String, Boolean, func, \
                        Float, Column, ForeignKey, DateTime, text, Index
 from sqlalchemy.dialects.postgresql import JSONB, ENUM
 from sqlalchemy import create_engine
@@ -101,6 +101,7 @@ checkin_table = Table(
     Column('lat', Float),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
     # The time the check-in was created.
+    Column('active', Boolean)
 )
 
 report_table = Table(
@@ -293,7 +294,7 @@ class Checkins(object):
     @staticmethod
     def get(user_id, limit):
         res = db.engine.execute("""
-            SELECT slot_id, way_name, long, lat, created::text as created
+            SELECT id, slot_id, way_name, long, lat, created::text as created, active
             FROM checkins
             WHERE user_id = {uid}
             ORDER BY created DESC
@@ -306,17 +307,31 @@ class Checkins(object):
         exists = db.engine.execute("""
             select 1 from slots where id = {slot_id}
             """.format(slot_id=slot_id)).first()
-
         if not exists:
             return False
+
+        # if the user is already checked in elsewhere, deactivate their old checkin
+        db.engine.execute(checkin_table.update().where(checkin_table.c.user_id == user_id).values(active=False))
+
         db.engine.execute("""
-            INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
+            INSERT INTO checkins (user_id, slot_id, way_name, long, lat, active)
             SELECT
                 {user_id}, {slot_id}, way_name,
                 (button_location->>'long')::float,
-                (button_location->>'lat')::float
+                (button_location->>'lat')::float,
+                true
             FROM slots WHERE id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name
+        return True
+
+    @staticmethod
+    def delete(user_id, checkin_id):
+        db.engine.execute("""
+            UPDATE checkins
+            SET active = false
+            WHERE user_id = {}
+            AND id = {}
+        """.format(user_id, checkin_id))
         return True
 
 
@@ -409,7 +424,8 @@ class District(object):
                 u.email,
                 u.gender,
                 c.long,
-                c.lat
+                c.lat,
+                c.active
             FROM {1}_district d
             JOIN slots s ON ST_intersects(s.geom, d.geom)
             JOIN checkins c ON s.id = c.slot_id
