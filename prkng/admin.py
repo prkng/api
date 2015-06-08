@@ -88,7 +88,7 @@ def generate_token():
     and data.get("password") == current_app.config["ADMIN_PASS"]:
         return jsonify(token=create_token())
     else:
-        return "Authorization required", 401
+        return jsonify(message="Username or password incorrect"), 401
 
 
 @admin.route('/')
@@ -107,7 +107,7 @@ def district(city):
     return jsonify(FeatureCollection([
         Feature(
             id=geo.id,
-            geometry=loads(geo.geom),
+            geometry=json.loads(geo.geom),
             properties={
                 "name": geo.name,
             }
@@ -122,14 +122,12 @@ def district_checkins():
     """
     Get a list of checkins
     """
-    startdate = request.args.get('startdate', None)
-    enddate = request.args.get('enddate', None)
     city = request.args.get('city', 'montreal')
     district = request.args.get('district', None)
     if district:
-        checkins = District.get_checkins(city, district, startdate, enddate)
+        checkins = District.get_checkins(city, district)
     else:
-        checkins = City.get_checkins(city, startdate, enddate)
+        checkins = City.get_checkins(city)
     return jsonify(checkins=checkins), 200
 
 

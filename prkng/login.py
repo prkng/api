@@ -153,7 +153,7 @@ def facebook_signin(access_token):
         "https://graph.facebook.com/me/picture",
         params={'access_token': access_token, 'redirect': False, 'type': 'normal'}
     )
-    pic = resp.json().get('url', '')
+    pic = resp.json()["data"].get('url', '')
 
     # check if user exists with its email as unique identifier
     user = User.get_byemail(me['email'])

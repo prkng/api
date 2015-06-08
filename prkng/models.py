@@ -179,7 +179,7 @@ class User(UserMixin):
             key: value for key, value in self.__dict__.items()
         }
         # since datetime is not JSON serializable
-        vals['created'] = self.created.strftime("%Y-%m-%d %H:%M:%S")
+        vals['created'] = self.created.strftime("%Y-%m-%dT%H:%M:%SZ")
         return vals
 
     @staticmethod
@@ -430,26 +430,28 @@ class District(object):
         return res
 
     @staticmethod
-    def get_checkins(city, district, startdate=None, enddate=None):
+    def get_checkins(city, district):
         res = db.engine.execute("""
             SELECT
+                c.id,
+                c.user_id,
+                s.id AS slot_id,
                 c.way_name,
-                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 u.name,
                 u.email,
                 u.gender,
                 c.long,
                 c.lat,
-                c.active
+                c.active,
+                a.auth_type AS user_type
             FROM {}_district d
             JOIN slots s ON ST_intersects(s.geom, d.geom)
             JOIN checkins c ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
+            JOIN users_auth a ON c.user_id = a.user_id
             WHERE d.gid = {}
-            """.format(city, district) + (
-                " AND c.created >= '{}'::timestamp" if startdate else ""
-                " AND c.created <= '{}'::timestamp" if enddate else ""
-            )).fetchall()
+            """.format(city, district)).fetchall()
 
         return [
             {key: unicode(value) for key, value in row.items()}
@@ -461,7 +463,7 @@ class District(object):
         res = db.engine.execute("""
             SELECT
                 r.id,
-                to_char(r.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 r.slot_id,
                 u.name,
                 u.email,
@@ -502,27 +504,27 @@ class Images(object):
 
 class City(object):
     @staticmethod
-    def get_checkins(city, startdate=None, enddate=None):
+    def get_checkins(city):
         res = db.engine.execute("""
             SELECT
+                c.id,
+                c.user_id,
+                s.id AS slot_id,
                 c.way_name,
-                to_char(c.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 u.name,
                 u.email,
                 u.gender,
                 c.long,
                 c.lat,
-                c.active
+                c.active,
+                a.auth_type AS user_type
             FROM {}_district d
             JOIN slots s ON ST_intersects(s.geom, d.geom)
             JOIN checkins c ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
-            """.format(city) + (
-                " WITH" if startdate or enddate else ""
-                " c.created >= '{}'::timestamp" if startdate else ""
-                " AND" if startdate else ""
-                " c.created <= '{}'::timestamp" if enddate else ""
-            )).fetchall()
+            JOIN users_auth a ON c.user_id = a.user_id
+            """.format(city)).fetchall()
 
         return [
             {key: unicode(value) for key, value in row.items()}
@@ -534,7 +536,7 @@ class City(object):
         res = db.engine.execute("""
             SELECT
                 r.id,
-                to_char(r.created, 'YYYY-Mon-D HH24:MI:SS') as created,
+                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 r.slot_id,
                 u.name,
                 u.email,
