@@ -465,12 +465,15 @@ class District(object):
                 r.id,
                 to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 r.slot_id,
-                u.name,
-                u.email,
+                u.id AS user_id,
+                u.name AS user_name,
+                u.email AS user_email,
                 s.way_name,
                 r.long,
                 r.lat,
-                r.image_url
+                r.image_url,
+                r.notes,
+                r.progress
             FROM {}_district d
             JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
             JOIN users u ON r.user_id = u.id
@@ -538,12 +541,15 @@ class City(object):
                 r.id,
                 to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
                 r.slot_id,
-                u.name,
-                u.email,
+                u.id AS user_id,
+                u.name AS user_name,
+                u.email AS user_email,
                 s.way_name,
                 r.long,
                 r.lat,
-                r.image_url
+                r.image_url,
+                r.notes,
+                r.progress
             FROM {}_district d
             JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
             JOIN users u ON r.user_id = u.id
@@ -561,6 +567,37 @@ class Reports(object):
     def add(user_id, slot_id, lng, lat, url):
         db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
             long=lng, lat=lat, image_url=url))
+
+    @staticmethod
+    def get(id):
+        res = db.engine.execute("""
+            SELECT
+                r.id,
+                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
+                r.slot_id,
+                u.id AS user_id,
+                u.name AS user_name,
+                u.email AS user_email,
+                s.way_name,
+                r.long,
+                r.lat,
+                r.image_url,
+                r.notes,
+                r.progress
+            FROM reports r
+            JOIN users u ON r.user_id = u.id
+            LEFT JOIN slots s ON r.slot_id = s.id
+            WHERE r.id = {}
+            """.format(id)).first()
+
+        return {key: unicode(value) for key, value in res.items()}
+
+    @staticmethod
+    def set_progress(id, progress):
+        db.engine.execute("""
+            UPDATE reports SET progress = {} WHERE id = {}
+        """.format(progress, id))
+        return Reports.get(id)
 
     @staticmethod
     def delete(id):

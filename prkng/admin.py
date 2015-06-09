@@ -3,28 +3,20 @@
 :author: ludovic.delaune@oslandia.com
 """
 import json
+import os
 import time
 
 from functools import wraps
 
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
-from flask import jsonify, Blueprint, abort, current_app, request
+from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from jinja2 import TemplateNotFound
 from geojson import FeatureCollection, Feature
 
 from prkng.models import District, Checkins, Reports, City
 
 
-def add_cors_to_response(resp):
-    resp.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin','*')
-    resp.headers['Access-Control-Allow-Credentials'] = 'true'
-    resp.headers['Access-Control-Allow-Methods'] = 'PATCH, PUT, POST, OPTIONS, GET, DELETE'
-    resp.headers['Access-Control-Allow-Headers'] = 'Authorization, Origin, X-Requested-With, Accept, DNT, Cache-Control, Accept-Encoding, Content-Type'
-    return resp
-
-
 admin = Blueprint('admin', __name__, url_prefix='/admin')
-admin.after_request(add_cors_to_response)
 
 
 def init_admin(app):
@@ -78,7 +70,24 @@ def verify():
         return "Malformed token signature", 401
 
 
-@admin.route('/token', methods=['POST'])
+@admin.route('/', defaults={'path': None})
+@admin.route('/<path:path>')
+def test_view(path):
+    """
+    Serve admin interface.
+    Should only be used for testing; otherwise serve with NGINX instead.
+    """
+    if path and not path.startswith(("assets", "public", "fonts", "images")):
+        path = None
+    sdir = os.path.dirname(os.path.realpath(__file__))
+    if path and path.startswith("images"):
+        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-admin/public'))
+    else:
+        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-admin/dist'))
+    return send_from_directory(sdir, path or 'index.html')
+
+
+@admin.route('/api/token', methods=['POST'])
 def generate_token():
     """
     Generate a JSON Web Token for use with Ember.js admin
@@ -91,32 +100,7 @@ def generate_token():
         return jsonify(message="Username or password incorrect"), 401
 
 
-@admin.route('/')
-def adminview():
-    try:
-        return render_template('admin.html')
-    except TemplateNotFound:
-        abort(404)
-
-
-@admin.route('/district/<city>', methods=['GET'])
-@auth_required()
-def district(city):
-    geojson = District.get(city)
-
-    return jsonify(FeatureCollection([
-        Feature(
-            id=geo.id,
-            geometry=json.loads(geo.geom),
-            properties={
-                "name": geo.name,
-            }
-        )
-        for geo in geojson
-    ])), 200
-
-
-@admin.route('/checkins', methods=['GET'])
+@admin.route('/api/checkins', methods=['GET'])
 @auth_required()
 def district_checkins():
     """
@@ -131,7 +115,7 @@ def district_checkins():
     return jsonify(checkins=checkins), 200
 
 
-@admin.route('/reports', methods=['GET'])
+@admin.route('/api/reports', methods=['GET'])
 @auth_required()
 def get_reports():
     """
@@ -146,7 +130,18 @@ def get_reports():
     return jsonify(reports=reports), 200
 
 
-@admin.route('/reports/<int:id>', methods=['DELETE'])
+@admin.route('/api/reports/<int:id>', methods=['PUT'])
+@auth_required()
+def update_report(id):
+    """
+    Updates a report's processing status
+    """
+    data = json.loads(request.data)["report"]
+    report = Reports.set_progress(id, data["progress"])
+    return jsonify(report=report), 200
+
+
+@admin.route('/api/reports/<int:id>', methods=['DELETE'])
 @auth_required()
 def delete_report(id):
     """
