@@ -526,7 +526,7 @@ class Reports(object):
             WHERE r.id = {}
             """.format(id)).first()
 
-        return {key: value for key, value in row.items()}
+        return {key: value for key, value in res.items()}
 
     @staticmethod
     def set_progress(id, progress):
