@@ -137,7 +137,7 @@ Build the admin interface
 .. code-block:: bash
 
     $ cd prkng-admin
-    $ sudo npm install -g ember-cli
+    $ sudo npm install -g ember-cli bower
     $ npm install
     $ bower install
     $ ember build
@@ -268,6 +268,28 @@ Launch the application ::
 
         # Make site accessible from http://localhost/
         server_name localhost;
+
+        location ^~ /admin/api/ {
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-NginX-Proxy true;
+            proxy_redirect off;
+            include uwsgi_params;
+            uwsgi_pass prkng_api;        
+        }
+
+        location ^~ /admin/assets/ {
+            alias /home/parkng/prkng-admin/dist/assets/;
+        }
+
+        location ^~ /admin/images/ {
+            alias /home/parkng/prkng-admin/dist/images/;
+        }
+
+        location ^~ /admin/ {
+            root /home/parkng/prkng-admin/dist/;
+            rewrite ^ /index.html break;
+        }
 
         location / {
             proxy_set_header X-Real-IP $remote_addr;
