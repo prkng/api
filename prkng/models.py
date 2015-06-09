@@ -421,74 +421,6 @@ district_field = {
 }
 
 
-class District(object):
-    @staticmethod
-    def get(city):
-        res = db.engine.execute("""
-            SELECT {0}
-            FROM {1}_district d
-            WHERE exists(select 1 from slots where ST_intersects(slots.geom, d.geom))
-            """.format(','.join(district_field[city]), city)).fetchall()
-        return res
-
-    @staticmethod
-    def get_checkins(city, district):
-        res = db.engine.execute("""
-            SELECT
-                c.id,
-                c.user_id,
-                s.id AS slot_id,
-                c.way_name,
-                to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
-                u.name,
-                u.email,
-                u.gender,
-                c.long,
-                c.lat,
-                c.active,
-                a.auth_type AS user_type
-            FROM {}_district d
-            JOIN slots s ON ST_intersects(s.geom, d.geom)
-            JOIN checkins c ON s.id = c.slot_id
-            JOIN users u ON c.user_id = u.id
-            JOIN users_auth a ON c.user_id = a.user_id
-            WHERE d.gid = {}
-            """.format(city, district)).fetchall()
-
-        return [
-            {key: unicode(value) for key, value in row.items()}
-            for row in res
-        ]
-
-    @staticmethod
-    def get_reports(city, district_id):
-        res = db.engine.execute("""
-            SELECT
-                r.id,
-                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
-                r.slot_id,
-                u.id AS user_id,
-                u.name AS user_name,
-                u.email AS user_email,
-                s.way_name,
-                r.long,
-                r.lat,
-                r.image_url,
-                r.notes,
-                r.progress
-            FROM {}_district d
-            JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
-            JOIN users u ON r.user_id = u.id
-            LEFT JOIN slots s ON r.slot_id = s.id
-            WHERE d.gid = {}
-            """.format(city, district_id)).fetchall()
-
-        return [
-            {key: unicode(value) for key, value in row.items()}
-            for row in res
-        ]
-
-
 class Images(object):
     @staticmethod
     def generate_s3_url(image_type, file_name):
@@ -547,6 +479,7 @@ class City(object):
                 u.name AS user_name,
                 u.email AS user_email,
                 s.way_name,
+                s.rules,
                 r.long,
                 r.lat,
                 r.image_url,
@@ -559,7 +492,7 @@ class City(object):
             """.format(city)).fetchall()
 
         return [
-            {key: unicode(value) for key, value in row.items()}
+            {key: value for key, value in row.items()}
             for row in res
         ]
 
@@ -581,6 +514,7 @@ class Reports(object):
                 u.name AS user_name,
                 u.email AS user_email,
                 s.way_name,
+                s.rules,
                 r.long,
                 r.lat,
                 r.image_url,
@@ -592,7 +526,7 @@ class Reports(object):
             WHERE r.id = {}
             """.format(id)).first()
 
-        return {key: unicode(value) for key, value in res.items()}
+        return {key: value for key, value in row.items()}
 
     @staticmethod
     def set_progress(id, progress):

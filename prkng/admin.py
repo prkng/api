@@ -13,7 +13,7 @@ from flask import jsonify, Blueprint, abort, current_app, request, send_from_dir
 from jinja2 import TemplateNotFound
 from geojson import FeatureCollection, Feature
 
-from prkng.models import District, Checkins, Reports, City
+from prkng.models import Checkins, Reports, City
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -62,7 +62,7 @@ def verify():
 
     try:
         tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
-            expires_in=3600, algorithm_name="HS256")
+            expires_in=21600, algorithm_name="HS256")
         payload = tjwss.loads(token)
     except SignatureExpired:
         return "Token expired", 401
@@ -107,11 +107,7 @@ def district_checkins():
     Get a list of checkins
     """
     city = request.args.get('city', 'montreal')
-    district = request.args.get('district', None)
-    if district:
-        checkins = District.get_checkins(city, district)
-    else:
-        checkins = City.get_checkins(city)
+    checkins = City.get_checkins(city)
     return jsonify(checkins=checkins), 200
 
 
@@ -122,11 +118,7 @@ def get_reports():
     Get a list of reports
     """
     city = request.args.get('city', 'montreal')
-    district = request.args.get('district', None)
-    if district:
-        reports = District.get_reports(city, district)
-    else:
-        reports = City.get_reports(city)
+    reports = City.get_reports(city)
     return jsonify(reports=reports), 200
 
 
