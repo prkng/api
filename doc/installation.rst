@@ -17,6 +17,7 @@ System requirements
 - virtualenv
 - uwsgi >= 2.0.8 (installed globally, not in a virtualenv, for production only)
 - git
+- nodejs >= 0.10.35
 
 
 Database configuration
@@ -101,7 +102,7 @@ Example of content ::
     # for the admin site
     ADMIN_USER = 'admin'
     ADMIN_PASS = '***'
-    
+
     AWS_ACCESS_KEY = '***'
     AWS_SECRET_KEY = '***'
     AWS_S3_BUCKET = 'prkng-pictures'
@@ -128,6 +129,21 @@ Build the documentation
     $ make html
 
 Go to ``<file:///home/user/path/to/prkng/doc/_build/html>`_
+
+
+Build the admin interface
+-------------------------
+
+.. code-block:: bash
+
+    $ cd prkng-admin
+    $ sudo npm install -g ember-cli
+    $ npm install
+    $ bower install
+    $ ember build
+
+
+``prkng serve`` will serve this interface internally for development purposes without having it run through NGINX. You will however need to run ``ember build`` in the prkng-admin folder after you pull from Git for the interface to be updated.
 
 
 Launch the tests
@@ -226,7 +242,14 @@ Launch the application ::
 
     $ uwsgi --ini prkng.uwsgi
 
-4. Nginx (which has a native support of the uWSGI protocol)
+4. Build the admin interface
+
+    $ cd prkng-admin
+    $ npm install
+    $ bower install
+    $ ember build
+
+5. Nginx (which has a native support of the uWSGI protocol)
 
 .. code-block:: bash
 
