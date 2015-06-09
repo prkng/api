@@ -116,7 +116,7 @@ report_table = Table(
     Column('created', DateTime, server_default=text('NOW()'), index=True),
     Column('image_url', String),
     Column('notes', String),
-    Column('progress', Integer, server_default=0)
+    Column('progress', Integer, server_default="0")
 )
 
 
