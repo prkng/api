@@ -54,6 +54,7 @@ def process():
     from prkng.processing import pipeline
     pipeline.run()
 
+
 main.add_command(serve)
 main.add_command(update)
 main.add_command(process)

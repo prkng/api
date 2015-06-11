@@ -121,6 +121,7 @@ UPDATE slots s
   SET rules = r.rules
   FROM r
   WHERE SORT(s.signposts) = SORT(r.signposts)
+  AND s.rules <> r.rules
 """
 
 create_slots = """

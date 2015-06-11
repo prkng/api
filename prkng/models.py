@@ -20,6 +20,7 @@ from passlib.hash import pbkdf2_sha256
 
 from itsdangerous import JSONWebSignatureSerializer
 
+from prkng.processing.common import process_corrected_rules, process_corrections
 from prkng.processing.filters import on_restriction
 from prkng.utils import random_string
 
@@ -473,7 +474,7 @@ class City(object):
         res = db.engine.execute("""
             SELECT
                 r.id,
-                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
+                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created,
                 r.slot_id,
                 u.id AS user_id,
                 u.name AS user_name,
@@ -484,11 +485,14 @@ class City(object):
                 r.lat,
                 r.image_url,
                 r.notes,
-                r.progress
+                r.progress,
+                ARRAY_REMOVE(ARRAY_AGG(c.id), NULL) AS corrections
             FROM {}_district d
             JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
             JOIN users u ON r.user_id = u.id
             LEFT JOIN slots s ON r.slot_id = s.id
+            LEFT JOIN corrections c ON SORT(s.signposts) = SORT(c.signposts)
+            GROUP BY r.id, u.id, s.way_name, s.rules
             """.format(city)).fetchall()
 
         return [
@@ -508,7 +512,7 @@ class Reports(object):
         res = db.engine.execute("""
             SELECT
                 r.id,
-                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
+                to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created,
                 r.slot_id,
                 u.id AS user_id,
                 u.name AS user_name,
@@ -519,22 +523,84 @@ class Reports(object):
                 r.lat,
                 r.image_url,
                 r.notes,
-                r.progress
+                r.progress,
+                ARRAY_REMOVE(ARRAY_AGG(c.id), NULL) AS corrections
             FROM reports r
             JOIN users u ON r.user_id = u.id
             LEFT JOIN slots s ON r.slot_id = s.id
+            LEFT JOIN corrections c ON SORT(s.signposts) = SORT(c.signposts)
             WHERE r.id = {}
-            """.format(id)).first()
+            GROUP BY r.id, u.id, s.way_name, s.rules
+        """.format(id)).first()
 
         return {key: value for key, value in res.items()}
 
     @staticmethod
     def set_progress(id, progress):
-        db.engine.execute("""
-            UPDATE reports SET progress = {} WHERE id = {}
-        """.format(progress, id))
-        return Reports.get(id)
+        res = db.engine.execute("""
+            UPDATE reports SET progress = {} WHERE id = {} RETURNING *
+        """.format(progress, id)).first()
+
+        return {key: value for key, value in res.items()}
 
     @staticmethod
     def delete(id):
         db.engine.execute(report_table.delete().where(report_table.c.id == id))
+
+
+class Corrections(object):
+    @staticmethod
+    def add(
+            slot_id, code, description, season_start, season_end, time_max_parking,
+            agenda, special_days, restrict_typ):
+        # get signposts by slot ID
+        res = db.engine.execute("""
+            SELECT signposts FROM slots WHERE id = {}
+        """.format(slot_id)).first()
+        if not res:
+            return False
+        signposts = res[0]
+
+        # map correction to signposts and save
+        res = db.engine.execute(
+            """
+            INSERT INTO corrections
+                (signposts, code, description, season_start, season_end,
+                    time_max_parking, agenda, special_days, restrict_typ)
+            SELECT ARRAY{signposts}, '{code}', '{description}', '{season_start}',
+                '{season_end}', {time_max_parking}, '{agenda}'::jsonb,
+                '{special_days}', '{restrict_typ}'
+            RETURNING *
+            """.format(signposts=signposts, code=code,
+                description=description, season_start=season_start,
+                season_end=season_end, time_max_parking=time_max_parking,
+                agenda=agenda, special_days=special_days, restrict_typ=restrict_typ)
+        ).first()
+        return {key: value for key, value in res.items()}
+
+    @staticmethod
+    def apply():
+        # apply any pending corrections to existing slots
+        db.engine.execute(text(process_corrected_rules).execution_options(autocommit=True))
+        db.engine.execute(text(process_corrections).execution_options(autocommit=True))
+
+    @staticmethod
+    def get(id):
+        res = db.engine.execute("""
+            SELECT * FROM corrections WHERE id = {}
+        """.format(id)).first()
+        if not res:
+            return False
+
+        return {key: value for key, value in res.items()}
+
+    @staticmethod
+    def get_all():
+        res = db.engine.execute("""
+            SELECT * FROM corrections
+        """).fetchall()
+
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]

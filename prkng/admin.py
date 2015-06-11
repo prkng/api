@@ -13,7 +13,7 @@ from flask import jsonify, Blueprint, abort, current_app, request, send_from_dir
 from jinja2 import TemplateNotFound
 from geojson import FeatureCollection, Feature
 
-from prkng.models import Checkins, Reports, City
+from prkng.models import Checkins, Reports, City, Corrections
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -102,7 +102,7 @@ def generate_token():
 
 @admin.route('/api/checkins', methods=['GET'])
 @auth_required()
-def district_checkins():
+def get_checkins():
     """
     Get a list of checkins
     """
@@ -120,6 +120,16 @@ def get_reports():
     city = request.args.get('city', 'montreal')
     reports = City.get_reports(city)
     return jsonify(reports=reports), 200
+
+
+@admin.route('/api/reports/<int:id>', methods=['GET'])
+@auth_required()
+def get_report(id):
+    """
+    Get an individual report
+    """
+    report = Reports.get(id)
+    return jsonify(report=report), 200
 
 
 @admin.route('/api/reports/<int:id>', methods=['PUT'])
@@ -141,3 +151,49 @@ def delete_report(id):
     """
     Reports.delete(id)
     return "Resource deleted", 204
+
+
+@admin.route('/api/corrections', methods=['GET'])
+@auth_required()
+def get_corrections():
+    """
+    Get all corrections made on slots
+    """
+    corrs = Corrections.get_all()
+    return jsonify(corrections=corrs), 200
+
+
+@admin.route('/api/corrections/<int:id>', methods=['GET'])
+@auth_required()
+def get_correction(id):
+    """
+    Get a specific correction by its id
+    """
+    corr = Corrections.get(id)
+    if not corr:
+        return jsonify(message="No such correction found"), 404
+    return jsonify(correction=corr), 200
+
+
+@admin.route('/api/corrections', methods=['POST'])
+@auth_required()
+def add_correction():
+    """
+    Add a new correction for a slot
+    """
+    data = json.loads(request.data)["correction"]
+    corr = Corrections.add(data["slot_id"], data["code"], data["description"],
+        data.get("season_start", ""), data.get("season_end", ""),
+        data.get("time_max_parking", 0.0), json.dumps(data["agenda"]),
+        data.get("special_days", ""), data.get("restrict_typ", ""))
+    return jsonify(correction=corr), 201
+
+
+@admin.route('/api/corrections/apply', methods=['POST'])
+@auth_required()
+def apply_corrections():
+    """
+    Apply all pending corrections to proper slots
+    """
+    Corrections.apply()
+    return jsonify(message="Operation successful"), 200
