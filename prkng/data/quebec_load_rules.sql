@@ -3,9 +3,9 @@ CREATE TABLE quebec_rules_translation (
     id serial,
     code varchar,
     description varchar,
-    season_start varchar,
-    season_end varchar,
-    time_max_parking float,
+    season_start varchar DEFAULT '',
+    season_end varchar DEFAULT '',
+    time_max_parking float DEFAULT 0.0,
     time_start float,
     time_end float,
     time_duration float,
@@ -17,8 +17,8 @@ CREATE TABLE quebec_rules_translation (
     sam smallint,
     dim smallint,
     daily float,
-    special_days varchar,
-    restrict_typ varchar
+    special_days varchar DEFAULT '',
+    restrict_typ varchar DEFAULT ''
 );
 
 copy quebec_rules_translation (code,description,season_start,season_end,

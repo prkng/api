@@ -256,6 +256,7 @@ def run():
     """
     Logger.debug("Loading extension fuzzystrmatch")
     db.query("create extension if not exists fuzzystrmatch")
+    db.query("create extension if not exists intarray")
 
     Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)
@@ -268,8 +269,13 @@ def run():
     db.query(common.create_rules)
     db.create_index('rules', 'code')
     db.query(common.create_slots)
+    db.query(common.create_corrections)
     process_montreal()
     process_quebec()
+
+    Logger.info("Mapping corrections to new slots")
+    db.query(common.process_corrected_rules)
+    db.query(common.process_corrections)
 
     Logger.info("Shorten final slots that intersects with slots or roads")
     db.query(common.cut_slots_crossing_roads)
