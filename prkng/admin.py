@@ -10,8 +10,6 @@ from functools import wraps
 
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
-from jinja2 import TemplateNotFound
-from geojson import FeatureCollection, Feature
 
 from prkng.models import Checkins, Reports, City, Corrections
 
@@ -150,16 +148,17 @@ def delete_report(id):
     Delete a report from the database
     """
     Reports.delete(id)
-    return "Resource deleted", 204
+    return "", 204
 
 
 @admin.route('/api/corrections', methods=['GET'])
 @auth_required()
 def get_corrections():
     """
-    Get all corrections made on slots
+    Get all corrections made on slots by city
     """
-    corrs = Corrections.get_all()
+    city = request.args.get('city', 'montreal')
+    corrs = City.get_corrections(city)
     return jsonify(corrections=corrs), 200
 
 
@@ -187,6 +186,18 @@ def add_correction():
         data.get("time_max_parking", 0.0), json.dumps(data["agenda"]),
         data.get("special_days", ""), data.get("restrict_typ", ""))
     return jsonify(correction=corr), 201
+
+
+@admin.route('/api/corrections/<int:id>', methods=['DELETE'])
+@auth_required()
+def delete_correction(id):
+    """
+    Remove a correction from the database
+    If no restrictions for this slot remain, they will revert to city's values
+    at next database process.
+    """
+    Corrections.delete(id)
+    return "", 204
 
 
 @admin.route('/api/corrections/apply', methods=['POST'])

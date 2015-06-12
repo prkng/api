@@ -500,6 +500,29 @@ class City(object):
             for row in res
         ]
 
+    @staticmethod
+    def get_corrections(city):
+        res = db.engine.execute("""
+            SELECT
+                c.*,
+                s.id AS slot_id,
+                s.way_name,
+                s.button_location ->> 'lat' AS lat,
+                s.button_location ->> 'long' AS long,
+                c.code = ANY(ARRAY_AGG(codes->>'code')) AS active
+            FROM corrections c,
+                slots s,
+                jsonb_array_elements(s.rules) codes
+            WHERE c.city = '{}'
+            AND SORT(c.signposts) = SORT(s.signposts)
+            GROUP BY c.id, s.id
+        """.format(city)).fetchall()
+
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
+
 
 class Reports(object):
     @staticmethod
@@ -587,20 +610,28 @@ class Corrections(object):
     @staticmethod
     def get(id):
         res = db.engine.execute("""
-            SELECT * FROM corrections WHERE id = {}
+            SELECT
+                c.*,
+                s.id AS slot_id,
+                s.way_name,
+                s.button_location ->> 'lat' AS lat,
+                s.button_location ->> 'long' AS long,
+                c.code = ANY(ARRAY_AGG(codes->>'code')) AS active
+            FROM corrections c,
+                slots s,
+                jsonb_array_elements(s.rules) codes
+            WHERE c.id = {}
+            AND SORT(s.signposts) = SORT(c.signposts)
+            GROUP BY c.id, s.id
         """.format(id)).first()
         if not res:
             return False
 
         return {key: value for key, value in res.items()}
-
+    
     @staticmethod
-    def get_all():
-        res = db.engine.execute("""
-            SELECT * FROM corrections
-        """).fetchall()
-
-        return [
-            {key: value for key, value in row.items()}
-            for row in res
-        ]
+    def delete(id):
+        db.engine.execute("""
+            DELETE FROM corrections
+            WHERE id = {}
+        """.format(id))
