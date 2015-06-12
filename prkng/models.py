@@ -456,7 +456,8 @@ class City(object):
                 c.long,
                 c.lat,
                 c.active,
-                a.auth_type AS user_type
+                a.auth_type AS user_type,
+                s.rules
             FROM checkins c
             JOIN slots s ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
@@ -468,7 +469,7 @@ class City(object):
             """.format(city)).fetchall()
 
         return [
-            {key: unicode(value) for key, value in row.items()}
+            {key: value for key, value in row.items()}
             for row in res
         ]
 
