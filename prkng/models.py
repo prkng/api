@@ -457,11 +457,14 @@ class City(object):
                 c.lat,
                 c.active,
                 a.auth_type AS user_type
-            FROM {}_district d
-            JOIN slots s ON ST_intersects(s.geom, d.geom)
-            JOIN checkins c ON s.id = c.slot_id
+            FROM checkins c
+            JOIN slots s ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
-            JOIN users_auth a ON c.user_id = a.user_id
+            JOIN {}_district d ON ST_intersects(s.geom, d.geom)
+            JOIN
+                (SELECT auth_type, user_id, max(id) AS id
+                    FROM users_auth GROUP BY auth_type, user_id) a
+                ON c.user_id = a.user_id
             """.format(city)).fetchall()
 
         return [

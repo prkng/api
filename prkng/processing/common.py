@@ -55,7 +55,7 @@ create_corrections = """
 CREATE TABLE IF NOT EXISTS corrections
 (
   id serial PRIMARY KEY,
-  created timestamp DEFAULT NOW()
+  created timestamp DEFAULT NOW(),
   city varchar,
   signposts integer[],
   code varchar,
