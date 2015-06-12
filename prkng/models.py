@@ -574,8 +574,8 @@ class Reports(object):
 class Corrections(object):
     @staticmethod
     def add(
-            slot_id, code, description, season_start, season_end, time_max_parking,
-            agenda, special_days, restrict_typ):
+            slot_id, code, city, description, season_start, season_end,
+            time_max_parking, agenda, special_days, restrict_typ):
         # get signposts by slot ID
         res = db.engine.execute("""
             SELECT signposts FROM slots WHERE id = {}
@@ -588,13 +588,13 @@ class Corrections(object):
         res = db.engine.execute(
             """
             INSERT INTO corrections
-                (signposts, code, description, season_start, season_end,
+                (signposts, code, city, description, season_start, season_end,
                     time_max_parking, agenda, special_days, restrict_typ)
-            SELECT ARRAY{signposts}, '{code}', '{description}', '{season_start}',
+            SELECT ARRAY{signposts}, '{code}', '{city}', '{description}', '{season_start}',
                 '{season_end}', {time_max_parking}, '{agenda}'::jsonb,
                 '{special_days}', '{restrict_typ}'
             RETURNING *
-            """.format(signposts=signposts, code=code,
+            """.format(signposts=signposts, code=code, city=city,
                 description=description, season_start=season_start,
                 season_end=season_end, time_max_parking=time_max_parking,
                 agenda=agenda, special_days=special_days, restrict_typ=restrict_typ)
@@ -628,7 +628,7 @@ class Corrections(object):
             return False
 
         return {key: value for key, value in res.items()}
-    
+
     @staticmethod
     def delete(id):
         db.engine.execute("""
