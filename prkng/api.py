@@ -12,7 +12,7 @@ from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
 from geojson import FeatureCollection, Feature
 
-from .models import SlotsModel, User, Checkins, Images, Reports
+from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports
 from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
@@ -367,6 +367,26 @@ class LoginEmail(Resource):
         """
         args = email_parser.parse_args()
         return email_signin(**args)
+
+
+passwd_reset_parser = api.parser()
+passwd_reset_parser.add_argument(
+    'email', type=str, required=True, help='Email of account to reset', location='form')
+
+
+@api.route('/login/email/reset')
+class LoginEmailReset(Resource):
+    @api.doc(parser=passwd_reset_parser,
+            responses={200: "OK", 400: "Account not found"})
+    def post(self):
+        """
+        Send a temporary reset password
+        """
+        args = passwd_reset_parser.parse_args()
+        user = User.get_byemail(args["email"])
+        if not user:
+            return "Account not found", 400
+        return UserAuth.reset_password("email${}".format(user.id), user.email)
 
 
 # define header parser for the API key

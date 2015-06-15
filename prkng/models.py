@@ -5,9 +5,11 @@
 from __future__ import unicode_literals
 from base64 import encodestring
 from datetime import datetime
+from passlib.hash import pbkdf2_sha256
 from time import time
 
 from boto.s3.connection import S3Connection
+from boto.ses.connection import SESConnection
 
 from flask import current_app
 from flask.ext.login import UserMixin
@@ -291,6 +293,21 @@ class UserAuth(object):
             password=password,
             fullprofile=fullprofile
         ))
+
+    @staticmethod
+    def reset_password(auth_id, email):
+        temp_passwd = random_string()[0:6]
+
+        c = SESConnection(current_app.config["AWS_ACCESS_KEY"],
+            current_app.config["AWS_SECRET_KEY"])
+        c.send_email(
+            "noreply@prk.ng",
+            "prkng - Reset password",
+            "Your prkng temporary password is: {}\n\nPlease change this inside the app via the Settings pane.\n\nThanks for using prkng!".format(temp_passwd),
+            email
+        )
+
+        UserAuth.update_password(auth_id, temp_passwd)
 
 
 class Checkins(object):
