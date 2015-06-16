@@ -379,7 +379,7 @@ class SlotsModel(object):
     )
 
     @staticmethod
-    def get_within(x, y, radius, duration, checkin):
+    def get_within(x, y, radius, duration, checkin=None):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -414,8 +414,7 @@ class SlotsModel(object):
     @staticmethod
     def get_byid(sid):
         """
-        Retrieve the nearest slots within ``radius`` meters of a
-        given location (x, y)
+        Retrieve slot information by its ID
         """
         return db.engine.execute("""
             SELECT {properties}
@@ -656,3 +655,37 @@ class Corrections(object):
             DELETE FROM corrections
             WHERE id = {}
         """.format(id))
+
+
+class Car2Go(object):
+    @staticmethod
+    def get(name):
+        """
+        Get a car2go by its name.
+        """
+        res = db.engine.execute("SELECT * FROM car2go WHERE name = {}".format(name)).first()
+        return {key: value for key, value in res.items()}
+
+    @staticmethod
+    def get_all():
+        """
+        Get all car2go records.
+        """
+        res = db.engine.execute("""
+            SELECT
+                c.id,
+                c.name,
+                c.vin,
+                c.address,
+                to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since,
+                c.long,
+                c.lat,
+                s.rules
+            FROM car2go c
+            JOIN slots s ON c.slot_id = s.id
+            WHERE c.in_lot = false
+        """).fetchall()
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]

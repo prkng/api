@@ -55,6 +55,16 @@ def process():
     pipeline.run()
 
 
+@click.command()
+def car2go():
+    """
+    Update local car2go data
+    """
+    from prkng.car2go import update
+    update()
+
+
 main.add_command(serve)
 main.add_command(update)
 main.add_command(process)
+main.add_command(car2go)
