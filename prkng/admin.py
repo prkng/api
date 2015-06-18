@@ -36,10 +36,10 @@ def auth_required():
     return wrapper
 
 
-def create_token():
+def create_token(user):
     iat = time.time()
     payload = {
-        "iss": current_app.config["ADMIN_USER"],
+        "iss": user,
         "iat": iat,
         "exp": iat + 21600
     }
@@ -93,7 +93,7 @@ def generate_token():
     data = json.loads(request.data)
     if data.get("username") == current_app.config["ADMIN_USER"] \
     and data.get("password") == current_app.config["ADMIN_PASS"]:
-        return jsonify(token=create_token())
+        return jsonify(token=create_token(current_app.config["ADMIN_USER"]))
     else:
         return jsonify(message="Username or password incorrect"), 401
 

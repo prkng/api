@@ -1,24 +1,17 @@
 # -*- coding: utf-8 -*-
 import json
+import os
 import urllib2
 
 from prkng import create_app
+from prkng.admin import auth_required
 from prkng.models import Car2Go
 from prkng.database import PostgresWrapper
 
-from flask import jsonify, Blueprint, request
-
-
-def add_cors_to_response(resp):
-    resp.headers['Access-Control-Allow-Origin'] = request.headers.get('Origin','*')
-    resp.headers['Access-Control-Allow-Credentials'] = 'true'
-    resp.headers['Access-Control-Allow-Methods'] = 'PATCH, PUT, POST, OPTIONS, GET, DELETE'
-    resp.headers['Access-Control-Allow-Headers'] = 'Authorization, Origin, X-Requested-With, Accept, DNT, Cache-Control, Accept-Encoding, Content-Type'
-    return resp
+from flask import jsonify, Blueprint, request, send_from_directory
 
 
 car2go = Blueprint('car2go', __name__, url_prefix='/car2go')
-car2go.after_request(add_cors_to_response)
 
 
 create_car2go_table = """
@@ -55,7 +48,25 @@ def init_car2go(app):
     app.register_blueprint(car2go)
 
 
+@car2go.route('/', defaults={'path': None})
+@car2go.route('/<path:path>')
+def test_view(path):
+    """
+    Serve car2go interface.
+    Should only be used for testing; otherwise serve with NGINX instead.
+    """
+    if path and not path.startswith(("assets", "public", "fonts", "images")):
+        path = None
+    sdir = os.path.dirname(os.path.realpath(__file__))
+    if path and path.startswith("images"):
+        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-car2go/public'))
+    else:
+        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-car2go/dist'))
+    return send_from_directory(sdir, path or 'index.html')
+
+
 @car2go.route('/api/cars', methods=['GET'])
+@auth_required()
 def get_checkins():
     """
     Get all car2go checkins
