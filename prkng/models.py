@@ -8,8 +8,8 @@ from datetime import datetime
 from passlib.hash import pbkdf2_sha256
 from time import time
 
+import boto.ses
 from boto.s3.connection import S3Connection
-from boto.ses.connection import SESConnection
 
 from flask import current_app
 from flask.ext.login import UserMixin
@@ -276,12 +276,12 @@ class UserAuth(object):
 
     @staticmethod
     def update(auth_id, birthyear):
-        userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(fullprofile={'birthyear': birthyear})
+        db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(fullprofile={'birthyear': birthyear}))
 
     @staticmethod
     def update_password(auth_id, password):
         crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)
-        userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass)
+        db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass))
 
     @staticmethod
     def add_userauth(user_id=None, name=None, auth_id=None, auth_type=None,
