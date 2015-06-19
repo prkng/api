@@ -187,14 +187,14 @@ slot_parser.add_argument(
     type=timestamp,
     location='args',
     default=strftime("%Y-%m-%dT%H:%M:%S"),
-    help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00') ; default is now"
+    help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00'); default is now"
 )
 slot_parser.add_argument(
     'duration',
     type=float,
     location='args',
-    default=1,
-    help='Desired Parking time in hours ; default is 1 hour'
+    default=0.5,
+    help='Desired Parking time in hours; default is 30 min'
 )
 
 

@@ -298,8 +298,9 @@ class UserAuth(object):
     def reset_password(auth_id, email):
         temp_passwd = random_string()[0:6]
 
-        c = SESConnection(current_app.config["AWS_ACCESS_KEY"],
-            current_app.config["AWS_SECRET_KEY"])
+        c = boto.ses.connect_to_region("us-west-2",
+            aws_access_key_id=current_app.config["AWS_ACCESS_KEY"],
+            aws_secret_access_key=current_app.config["AWS_SECRET_KEY"])
         c.send_email(
             "noreply@prk.ng",
             "prkng - Reset password",
