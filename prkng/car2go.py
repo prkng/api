@@ -25,6 +25,7 @@ CREATE TABLE IF NOT EXISTS car2go
   lat float,
   address varchar,
   slot_id integer,
+  parked boolean DEFAULT true,
   in_lot boolean DEFAULT false
 )
 """
@@ -35,8 +36,8 @@ INSERT INTO car2go (vin, name, long, lat, address, slot_id, in_lot)
 """
 
 update_car2go = """
-UPDATE car2go SET name = '{name}', long = {long}, lat = {lat}, address = '{address}',
-        slot_id = {slot_id}, in_lot = {in_lot}
+UPDATE car2go SET since = NOW(), name = '{name}', long = {long}, lat = {lat}, address = '{address}',
+        slot_id = {slot_id}, in_lot = {in_lot}, parked = true
     WHERE vin = '{vin}'
 """
 
@@ -92,16 +93,19 @@ def update():
     lot_data = json.loads(raw.read())["placemarks"]
     lots = [x["name"] for x in lot_data]
 
-    # remove stale entries in our database
+    # unpark stale entries in our database
     our_vins = db.query("SELECT vin FROM car2go")
     our_vins = [x[0] for x in our_vins]
+    parked_vins = db.query("SELECT vin FROM car2go WHERE parked = true")
+    parked_vins = [x[0] for x in parked_vins]
     their_vins = [x["vin"] for x in data]
-    for x in our_vins:
-        if not x[0] in their_vins:
-            queries.append("DELETE FROM car2go WHERE vin = '{}'".format(x[0]))
+    for x in parked_vins:
+        if not x in their_vins:
+            queries.append("UPDATE car2go SET parked = false WHERE vin = '{}'".format(x))
 
     # create or update car2go tracking with new data
     for x in data:
+        query = None
         x["coordinates"] = json.loads(x["coordinates"])
 
         # if the address matches a car2go reserved lot, don't bother with a slot
@@ -125,18 +129,19 @@ def update():
             in_lot = False
 
         # update or insert
-        if x["vin"] in our_vins:
+        if x["vin"] in our_vins and not x["vin"] in parked_vins:
             query = update_car2go.format(
                 vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
                 address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
                 in_lot=in_lot
             )
-        else:
+        elif not x["vin"] in our_vins:
             query = insert_car2go.format(
                 vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
                 address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
                 in_lot=in_lot
             )
-        queries.append(query)
+        if query:
+            queries.append(query)
 
     db.queries(queries)
