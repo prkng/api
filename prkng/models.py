@@ -413,6 +413,32 @@ class SlotsModel(object):
         )
 
     @staticmethod
+    def get_all_within(nelat, nelng, swlat, swlng):
+        """
+        Retrieve all slots inside a given boundbox.
+        """
+        req = """
+        SELECT {properties}
+        FROM slots
+        WHERE
+            ST_intersects(
+                ST_Transform(
+                    ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
+                    3857
+                ),
+                geom
+            )
+        """.format(
+            properties=','.join(SlotsModel.properties),
+            nelat=nelat,
+            nelng=nelng,
+            swlat=swlat,
+            swlng=swlng
+        )
+
+        return db.engine.execute(req).fetchall()
+
+    @staticmethod
     def get_byid(sid):
         """
         Retrieve slot information by its ID

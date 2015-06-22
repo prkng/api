@@ -11,7 +11,7 @@ from functools import wraps
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 
-from prkng.models import Checkins, Reports, City, Corrections
+from prkng.models import Checkins, Reports, City, Corrections, SlotsModel
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -209,3 +209,24 @@ def apply_corrections():
     """
     Corrections.apply()
     return jsonify(message="Operation successful"), 200
+
+
+@admin.route('/api/slots')
+@auth_required()
+def get_slots():
+    """
+    Returns slots inside a boundbox
+    """
+    res = SlotsModel.get_all_within(
+        request.args['neLat'],
+        request.args['neLng'],
+        request.args['swLat'],
+        request.args['swLng']
+    )
+
+    slots = [
+        {key: value for key, value in row.items()}
+        for row in res
+    ]
+
+    return jsonify(slots=slots), 200
