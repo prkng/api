@@ -670,7 +670,7 @@ class Car2Go(object):
     @staticmethod
     def get_all():
         """
-        Get all car2go records.
+        Get all active car2go records.
         """
         res = db.engine.execute("""
             SELECT
@@ -685,6 +685,7 @@ class Car2Go(object):
             FROM car2go c
             JOIN slots s ON c.slot_id = s.id
             WHERE c.in_lot = false
+                AND c.parked = true
         """).fetchall()
         return [
             {key: value for key, value in row.items()}
