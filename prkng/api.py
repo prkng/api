@@ -371,7 +371,7 @@ class LoginEmail(Resource):
 
 passwd_reset_parser = api.parser()
 passwd_reset_parser.add_argument(
-    'email', type=str, required=True, help='Email of account to reset', location='form')
+    'email', type=str, required=True, help='Email of account', location='form')
 
 
 @api.route('/login/email/reset')
@@ -380,13 +380,38 @@ class LoginEmailReset(Resource):
             responses={200: "OK", 400: "Account not found"})
     def post(self):
         """
-        Send a temporary reset password
+        Send an account password reset code
         """
         args = passwd_reset_parser.parse_args()
         user = User.get_byemail(args["email"])
         if not user:
             return "Account not found", 400
-        return UserAuth.reset_password("email${}".format(user.id), user.email)
+        return UserAuth.send_reset_code("email${}".format(user.id), user.email)
+
+
+passwd_change_parser = api.parser()
+passwd_change_parser.add_argument(
+    'email', type=str, required=True, help='Email of account to reset', location='form')
+passwd_change_parser.add_argument(
+    'code', type=str, required=True, help='Account reset code', location='form')
+passwd_change_parser.add_argument(
+    'passwd', type=str, required=True, help='New password', location='form')
+
+
+@api.route('/login/email/changepass')
+class LoginEmailChangePass(Resource):
+    @api.doc(parser=passwd_change_parser,
+            responses={200: "OK", 404: "Account not found", 400: "Reset code incorrect"})
+    def post(self):
+        """
+        Change an account's password via reset code
+        """
+        args = passwd_change_parser.parse_args()
+        user = User.get_byemail(args["email"])
+        if not user:
+            return "Account not found", 404
+        if not UserAuth.update_password("email${}".format(user.id), args["passwd"], args["code"]):
+            return "Reset code incorrect", 400
 
 
 # define header parser for the API key

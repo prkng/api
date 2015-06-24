@@ -132,6 +132,7 @@ userauth_table = Table(
     Column('auth_type', ENUM(*AUTH_PROVIDERS, name='auth_provider')),  # oauth_type
     Column('password', String),  # for the email accounts
     Column('fullprofile', JSONB),
+    Column('reset_code', String, nullable=True)
 )
 
 
@@ -279,9 +280,14 @@ class UserAuth(object):
         db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(fullprofile={'birthyear': birthyear}))
 
     @staticmethod
-    def update_password(auth_id, password):
+    def update_password(auth_id, password, reset_code=None):
+        if reset_code:
+            u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().fetchone()
+            if reset_code != u["reset_code"]:
+                return False
         crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)
-        db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass))
+        db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass, reset_code=None))
+        return True
 
     @staticmethod
     def add_userauth(user_id=None, name=None, auth_id=None, auth_type=None,
@@ -295,7 +301,7 @@ class UserAuth(object):
         ))
 
     @staticmethod
-    def reset_password(auth_id, email):
+    def send_reset_code(auth_id, email):
         temp_passwd = random_string()[0:6]
 
         c = boto.ses.connect_to_region("us-west-2",
@@ -304,11 +310,11 @@ class UserAuth(object):
         c.send_email(
             "noreply@prk.ng",
             "prkng - Reset password",
-            "Your prkng temporary password is: {}\n\nPlease change this inside the app via the Settings pane.\n\nThanks for using prkng!".format(temp_passwd),
+            "Please visit the following address to change your password. If you did not request this password change, feel free to ignore this message. \n\nhttps://api.prk.ng/resetpassword?resetCode={}&email={}\n\nThanks for using prkng!".format(temp_passwd, email.replace('@', '%40')),
             email
         )
 
-        UserAuth.update_password(auth_id, temp_passwd)
+        db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(reset_code=temp_passwd))
 
 
 class Checkins(object):
