@@ -376,7 +376,8 @@ class SlotsModel(object):
         'id',
         'geojson',
         'rules',
-        'button_location'
+        'button_location',
+        'way_name'
     )
 
     @staticmethod
@@ -448,6 +449,14 @@ class SlotsModel(object):
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(SlotsModel.properties))).fetchall()
+
+
+class ServiceAreas(object):
+    @staticmethod
+    def get_all():
+        return db.engine.execute("""
+            SELECT id, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom FROM service_areas
+        """)
 
 
 # associate fields for each city provider
