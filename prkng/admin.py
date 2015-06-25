@@ -10,8 +10,9 @@ from functools import wraps
 
 from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
+from geojson import Feature, FeatureCollection
 
-from prkng.models import Checkins, Reports, City, Corrections
+from prkng.models import Checkins, Reports, City, Corrections, SlotsModel, ServiceAreas
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -36,10 +37,10 @@ def auth_required():
     return wrapper
 
 
-def create_token():
+def create_token(user):
     iat = time.time()
     payload = {
-        "iss": current_app.config["ADMIN_USER"],
+        "iss": user,
         "iat": iat,
         "exp": iat + 21600
     }
@@ -93,7 +94,7 @@ def generate_token():
     data = json.loads(request.data)
     if data.get("username") == current_app.config["ADMIN_USER"] \
     and data.get("password") == current_app.config["ADMIN_PASS"]:
-        return jsonify(token=create_token())
+        return jsonify(token=create_token(current_app.config["ADMIN_USER"]))
     else:
         return jsonify(message="Username or password incorrect"), 401
 
@@ -209,3 +210,45 @@ def apply_corrections():
     """
     Corrections.apply()
     return jsonify(message="Operation successful"), 200
+
+
+@admin.route('/api/coverage')
+@auth_required()
+def get_coverage_area():
+    """
+    Returns coverage area as GeoJSON
+    """
+    res = ServiceAreas.get_all()
+
+    return jsonify(FeatureCollection([
+        Feature(
+            id=x[0],
+            geometry=json.loads(x[2]),
+            properties={"id": x[0], "name": x[1]}
+        ) for x in res
+    ])), 200
+
+
+@admin.route('/api/slots')
+@auth_required()
+def get_slots():
+    """
+    Returns slots inside a boundbox
+    """
+    res = SlotsModel.get_boundbox(
+        request.args['neLat'],
+        request.args['neLng'],
+        request.args['swLat'],
+        request.args['swLng'],
+        request.args.get('checkin'),
+        request.args.get('duration'),
+        int(request.args.get('type', 0)),
+        request.args.get('invert') in [True, "true"]
+    )
+
+    slots = [
+        {key: value for key, value in row.items()}
+        for row in res
+    ]
+
+    return jsonify(slots=slots), 200

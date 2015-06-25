@@ -382,11 +382,12 @@ class SlotsModel(object):
         'id',
         'geojson',
         'rules',
-        'button_location'
+        'button_location',
+        'way_name'
     )
 
     @staticmethod
-    def get_within(x, y, radius, duration, checkin):
+    def get_within(x, y, radius, duration, checkin=None):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -419,16 +420,61 @@ class SlotsModel(object):
         )
 
     @staticmethod
+    def get_boundbox(
+            nelat, nelng, swlat, swlng, checkin=None, duration=0.5, type=None,
+            invert=False):
+        """
+        Retrieve all slots inside a given boundbox.
+        """
+        req = """
+        SELECT {properties}
+        FROM slots
+        WHERE
+            ST_intersects(
+                ST_Transform(
+                    ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
+                    3857
+                ),
+                geom
+            )
+        """.format(
+            properties=','.join(SlotsModel.properties),
+            nelat=nelat,
+            nelng=nelng,
+            swlat=swlat,
+            swlng=swlng
+        )
+
+        slots = db.engine.execute(req).fetchall()
+        if checkin and invert:
+            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration)), slots)
+        elif checkin:
+            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration)), slots)
+        if type == 1:
+            slots = filter(lambda x: "permit" in [y["restrict_typ"] for y in x.rules], slots)
+        elif type == 2:
+            slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
+
+        return slots
+
+    @staticmethod
     def get_byid(sid):
         """
-        Retrieve the nearest slots within ``radius`` meters of a
-        given location (x, y)
+        Retrieve slot information by its ID
         """
         return db.engine.execute("""
             SELECT {properties}
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(SlotsModel.properties))).fetchall()
+
+
+class ServiceAreas(object):
+    @staticmethod
+    def get_all():
+        return db.engine.execute("""
+            SELECT id, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom FROM service_areas
+        """)
 
 
 # associate fields for each city provider
@@ -663,3 +709,38 @@ class Corrections(object):
             DELETE FROM corrections
             WHERE id = {}
         """.format(id))
+
+
+class Car2Go(object):
+    @staticmethod
+    def get(name):
+        """
+        Get a car2go by its name.
+        """
+        res = db.engine.execute("SELECT * FROM car2go WHERE name = {}".format(name)).first()
+        return {key: value for key, value in res.items()}
+
+    @staticmethod
+    def get_all():
+        """
+        Get all active car2go records.
+        """
+        res = db.engine.execute("""
+            SELECT
+                c.id,
+                c.name,
+                c.vin,
+                c.address,
+                to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since,
+                c.long,
+                c.lat,
+                s.rules
+            FROM car2go c
+            JOIN slots s ON c.slot_id = s.id
+            WHERE c.in_lot = false
+                AND c.parked = true
+        """).fetchall()
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
