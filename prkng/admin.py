@@ -235,11 +235,15 @@ def get_slots():
     """
     Returns slots inside a boundbox
     """
-    res = SlotsModel.get_all_within(
+    res = SlotsModel.get_boundbox(
         request.args['neLat'],
         request.args['neLng'],
         request.args['swLat'],
-        request.args['swLng']
+        request.args['swLng'],
+        request.args.get('checkin'),
+        request.args.get('duration'),
+        int(request.args.get('type', 0)),
+        request.args.get('invert') in [True, "true"]
     )
 
     slots = [

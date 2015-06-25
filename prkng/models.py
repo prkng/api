@@ -414,7 +414,9 @@ class SlotsModel(object):
         )
 
     @staticmethod
-    def get_all_within(nelat, nelng, swlat, swlng):
+    def get_boundbox(
+            nelat, nelng, swlat, swlng, checkin=None, duration=0.5, type=None,
+            invert=False):
         """
         Retrieve all slots inside a given boundbox.
         """
@@ -437,7 +439,17 @@ class SlotsModel(object):
             swlng=swlng
         )
 
-        return db.engine.execute(req).fetchall()
+        slots = db.engine.execute(req).fetchall()
+        if checkin and invert:
+            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration)), slots)
+        elif checkin:
+            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration)), slots)
+        if type == 1:
+            slots = filter(lambda x: "permit" in [y["restrict_typ"] for y in x.rules], slots)
+        elif type == 2:
+            slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
+
+        return slots
 
     @staticmethod
     def get_byid(sid):
