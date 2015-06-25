@@ -182,7 +182,7 @@ def add_correction():
     """
     data = json.loads(request.data)["correction"]
     corr = Corrections.add(data["slot_id"], "XX-"+data["code"],
-        data["city"], data["description"],
+        data["city"], data["description"], data["initials"],
         data.get("season_start", ""), data.get("season_end", ""),
         data.get("time_max_parking", 0.0), json.dumps(data["agenda"]),
         data.get("special_days", ""), data.get("restrict_typ", ""))

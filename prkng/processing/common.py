@@ -56,6 +56,7 @@ CREATE TABLE IF NOT EXISTS corrections
 (
   id serial PRIMARY KEY,
   created timestamp DEFAULT NOW(),
+  initials varchar,
   city varchar,
   signposts integer[],
   code varchar,
