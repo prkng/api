@@ -536,11 +536,12 @@ class City(object):
             FROM checkins c
             JOIN slots s ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
-            JOIN {}_district d ON ST_intersects(s.geom, d.geom)
+            JOIN service_areas sa ON ST_intersects(s.geom, sa.geom)
             JOIN
                 (SELECT auth_type, user_id, max(id) AS id
                     FROM users_auth GROUP BY auth_type, user_id) a
                 ON c.user_id = a.user_id
+            WHERE sa.name = '{}'
             """.format(city)).fetchall()
 
         return [
@@ -566,11 +567,12 @@ class City(object):
                 r.notes,
                 r.progress,
                 ARRAY_REMOVE(ARRAY_AGG(c.id), NULL) AS corrections
-            FROM {}_district d
-            JOIN reports r ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), d.geom)
+            FROM reports r
+            JOIN service_areas sa ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), sa.geom)
             JOIN users u ON r.user_id = u.id
             LEFT JOIN slots s ON r.slot_id = s.id
             LEFT JOIN corrections c ON SORT(s.signposts) = SORT(c.signposts)
+            WHERE sa.name = '{}'
             GROUP BY r.id, u.id, s.way_name, s.rules
             """.format(city)).fetchall()
 

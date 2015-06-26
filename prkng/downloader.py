@@ -165,19 +165,6 @@ class Montreal(DataSource):
         )
         self.db.vacuum_analyze("public", "montreal_geobase")
 
-        Logger.debug("Loading Montreal districts")
-        check_call(
-            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I "
-            "{filename} montreal_district | "
-            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
-            .format(filename=script('montreal_district.shp'), **CONFIG),
-            shell=True
-        )
-        self.db.query("""update montreal_district
-            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
-        self.db.create_index('montreal_district', 'geom', index_type='gist')
-        self.db.vacuum_analyze("public", "montreal_district")
-
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %
                      (self.csvfile, script('montreal_load_panneau_descr.sql')))
@@ -258,20 +245,6 @@ class Quebec(DataSource):
         self.db.create_index('quebec_panneau', 'lect_met')
         self.db.vacuum_analyze("public", "quebec_panneau")
 
-        Logger.debug("Loading Québec districts")
-
-        check_call(
-            "shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I "
-            "{filename} quebec_district | "
-            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
-            .format(filename=script('quebec_district.shp'), **CONFIG),
-            shell=True
-        )
-        self.db.query("""update quebec_district
-            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
-        self.db.create_index('quebec_district', 'geom', index_type='gist')
-        self.db.vacuum_analyze("public", "quebec_district")
-
     def load_rules(self):
         """
         load parking rules translation
@@ -329,6 +302,19 @@ class OsmLoader(object):
         """
         Load data using osm2pgsql
         """
+        Logger.debug("Loading service areas")
+        check_call(
+            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
+            "{filename} service_areas | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('service_areas.shp'), **CONFIG),
+            shell=True
+        )
+        self.db.query("""update service_areas
+            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
+        self.db.create_index('service_areas', 'geom', index_type='gist')
+        self.db.vacuum_analyze("public", "service_areas")
+
         if city == 'all':
             process_file = join(CONFIG['DOWNLOAD_DIRECTORY'], 'merged.osm')
 
