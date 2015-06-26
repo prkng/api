@@ -218,7 +218,7 @@ class User(UserMixin):
         does exist then return a User Object.  If not then return None as
         required by Flask-Login.
         """
-        res = user_table.select(user_table.c.email == email).execute().first()
+        res = user_table.select(user_table.c.email == email.lower()).execute().first()
         if not res:
             return None
         return User(res)
@@ -283,7 +283,7 @@ class UserAuth(object):
     def update_password(auth_id, password, reset_code=None):
         if reset_code:
             u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().fetchone()
-            if reset_code != u["reset_code"]:
+            if not u or reset_code != u["reset_code"]:
                 return False
         crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)
         db.engine.execute(userauth_table.update().where(userauth_table.c.auth_id == auth_id).values(password=crypt_pass, reset_code=None))

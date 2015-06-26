@@ -31,6 +31,7 @@ def email_register(
     """
     Signup with an email and a password
     """
+    email=email.lower()
     user = User.get_byemail(email)
     if user:
         return "User already exists", 404

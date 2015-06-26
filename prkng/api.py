@@ -401,7 +401,7 @@ class LoginEmailReset(Resource):
         Send an account password reset code
         """
         args = passwd_reset_parser.parse_args()
-        user = User.get_byemail(args["email"])
+        user = User.get_byemail(args["email"].lower())
         if not user:
             return "Account not found", 400
         return UserAuth.send_reset_code("email${}".format(user.id), user.email)
