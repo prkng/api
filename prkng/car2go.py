@@ -112,7 +112,7 @@ def update():
         if x["address"] in lots:
             slot_id = "NULL"
             in_lot = True
-        # otherwise grab the most likely slot within 3m
+        # otherwise grab the most likely slot within 5m
         else:
             slot = db.query("""
                 SELECT id

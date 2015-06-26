@@ -10,9 +10,9 @@ from aniso8601 import parse_datetime
 
 from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
-from geojson import FeatureCollection, Feature
+from geojson import loads, FeatureCollection, Feature
 
-from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports
+from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports, ServiceAreas
 from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
@@ -120,6 +120,24 @@ class ButtonLocation(fields.Raw):
 })
 class SlotsField(fields.Raw):
     pass
+
+
+@api.route('/areas')
+class ServiceAreaResource(Resource):
+    def get(self):
+        """
+        Returns coverage area as GeoJSON
+        """
+        res = ServiceAreas.get_all()
+
+        return FeatureCollection([
+            Feature(
+                id=x[0],
+                geometry=loads(x[3]),
+                properties={"id": x[0], "name": x[1], "name_disp": x[2]}
+            ) for x in res
+        ]), 200
+
 
 slots_fields = api.model('GeoJSONFeature', {
     'id': fields.String(required=True),

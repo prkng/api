@@ -473,7 +473,12 @@ class ServiceAreas(object):
     @staticmethod
     def get_all():
         return db.engine.execute("""
-            SELECT id, name, ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom FROM service_areas
+            SELECT
+                gid AS id,
+                name,
+                name_disp,
+                ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom
+            FROM service_areas
         """)
 
 

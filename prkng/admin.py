@@ -12,7 +12,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadS
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
 
-from prkng.models import Checkins, Reports, City, Corrections, SlotsModel, ServiceAreas
+from prkng.models import Checkins, Reports, City, Corrections, SlotsModel
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -210,23 +210,6 @@ def apply_corrections():
     """
     Corrections.apply()
     return jsonify(message="Operation successful"), 200
-
-
-@admin.route('/api/coverage')
-@auth_required()
-def get_coverage_area():
-    """
-    Returns coverage area as GeoJSON
-    """
-    res = ServiceAreas.get_all()
-
-    return jsonify(FeatureCollection([
-        Feature(
-            id=x[0],
-            geometry=json.loads(x[2]),
-            properties={"id": x[0], "name": x[1]}
-        ) for x in res
-    ])), 200
 
 
 @admin.route('/api/slots')

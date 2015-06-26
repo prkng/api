@@ -19,7 +19,8 @@ requirements = (
     'geojson==1.0.9',
     'aniso8601==0.92',
     'pytest==2.6.4',
-    'passlib==1.6.2'
+    'passlib==1.6.2',
+    'boto==2.38.0'
 )
 
 
