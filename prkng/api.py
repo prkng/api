@@ -122,21 +122,32 @@ class SlotsField(fields.Raw):
     pass
 
 
+service_areas_parser = api.parser()
+service_areas_parser.add_argument(
+    'returns', type=str, default='json', help='Select return type (json, kml)', location='args')
+
+
 @api.route('/areas')
 class ServiceAreaResource(Resource):
+    @api.doc(parser=service_areas_parser)
     def get(self):
         """
         Returns coverage area as GeoJSON
         """
-        res = ServiceAreas.get_all()
+        args = service_areas_parser.parse_args()
 
-        return FeatureCollection([
-            Feature(
-                id=x[0],
-                geometry=loads(x[3]),
-                properties={"id": x[0], "name": x[1], "name_disp": x[2]}
-            ) for x in res
-        ]), 200
+        if args["returns"] == "kml":
+            res = ServiceAreas.get_mask_kml()
+            return Response(res)
+        else:
+            res = ServiceAreas.get_mask()
+            return FeatureCollection([
+                Feature(
+                    id=1,
+                    geometry=loads(res[0]),
+                    properties={"id": 1}
+                )
+            ]), 200
 
 
 slots_fields = api.model('GeoJSONFeature', {

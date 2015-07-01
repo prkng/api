@@ -471,15 +471,16 @@ class SlotsModel(object):
 
 class ServiceAreas(object):
     @staticmethod
-    def get_all():
+    def get_mask():
         return db.engine.execute("""
-            SELECT
-                gid AS id,
-                name,
-                name_disp,
-                ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom
-            FROM service_areas
-        """)
+            SELECT ST_AsGeoJSON(ST_Transform(geom, 4326)) AS geom FROM service_areas_mask
+        """).first()
+
+    @staticmethod
+    def get_mask_kml():
+        return db.engine.execute("""
+            SELECT ST_AsKML(ST_Transform(geom, 4326)) AS geom FROM service_areas_mask
+        """).first()
 
 
 # associate fields for each city provider
