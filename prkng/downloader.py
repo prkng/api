@@ -56,16 +56,14 @@ class Montreal(DataSource):
         self.url_roads = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=geobase"
 
         self.resources = (
-            'Ahuntsic-Cartierville',
-            'Côte-des-Neiges-Notre-Dame-de-Grâce',
-            'Rosemont-La Petite-Patrie',
             'Outremont',
             'Plateau-Mont-Royal',
+            'Rosemont-La Petite-Patrie',
             'Saint-Laurent',
             'Le Sud-Ouest',
             'Ville-Marie',
-            'Verdun',
-            'signalisation-description-panneau',
+            'Villeray-Saint-Michel-Parc-Extension',
+            'signalisation-description-panneau'
         )
 
         self.jsonfiles = []
