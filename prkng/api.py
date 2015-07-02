@@ -126,7 +126,7 @@ service_areas_parser = api.parser()
 service_areas_parser.add_argument(
     'returns', type=str, default='json', help='Select return type (json, kml)', location='args')
 service_areas_parser.add_argument(
-    'mask', type=bool, default=True, help='Return as an inverted polygon of world (mask)', location='args')
+    'mask', type=str, default='true', help='Return as an inverted polygon of world (mask)', location='args')
 
 
 @api.route('/areas')
@@ -138,9 +138,10 @@ class ServiceAreaResource(Resource):
         """
         args = service_areas_parser.parse_args()
 
-        if args["mask"]:
-            res = ServiceAreas.get_mask(returns=args["returns"]) if args["mask"] \
-                    else ServiceAreas.get_all(returns=args["returns"])
+        if args["mask"] == 'true':
+            res = ServiceAreas.get_mask(returns=args["returns"])
+        else:
+            res = ServiceAreas.get_all(returns=args["returns"])
 
         if args["returns"] == "kml":
             return Response('<?xml version="1.0" encoding="utf-8"?>'
