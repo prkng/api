@@ -125,6 +125,8 @@ class SlotsField(fields.Raw):
 service_areas_parser = api.parser()
 service_areas_parser.add_argument(
     'returns', type=str, default='json', help='Select return type (json, kml)', location='args')
+service_areas_parser.add_argument(
+    'mask', type=bool, default=True, help='Return as an inverted polygon of world (mask)', location='args')
 
 
 @api.route('/areas')
@@ -136,23 +138,23 @@ class ServiceAreaResource(Resource):
         """
         args = service_areas_parser.parse_args()
 
+        if args["mask"]:
+            res = ServiceAreas.get_mask(returns=args["returns"]) if args["mask"] \
+                    else ServiceAreas.get_all(returns=args["returns"])
+
         if args["returns"] == "kml":
-            res = ServiceAreas.get_mask_kml()
             return Response('<?xml version="1.0" encoding="utf-8"?>'
                 '<kml xmlns="http://www.opengis.net/kml/2.2">'
-                    '<Placemark>'
-                        '{}'
-                    '</Placemark>'
-                '</kml>'.format(res[0]),
+                    '{}'
+                '</kml>'.format(''.join(['<Placemark>'+x[3]+'</Placemark>' for x in res])),
                 content_type='application/xml')
         else:
-            res = ServiceAreas.get_mask()
             return FeatureCollection([
                 Feature(
-                    id=1,
-                    geometry=loads(res[0]),
-                    properties={"id": 1}
-                )
+                    id=x[0],
+                    geometry=loads(x[3]),
+                    properties={"id": x[0], "name": x[1], "name_disp": x[2]}
+                ) for x in res
             ]), 200
 
 
