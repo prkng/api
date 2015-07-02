@@ -138,7 +138,13 @@ class ServiceAreaResource(Resource):
 
         if args["returns"] == "kml":
             res = ServiceAreas.get_mask_kml()
-            return Response(res)
+            return Response('<?xml version="1.0" encoding="utf-8"?>'
+                '<kml xmlns="http://www.opengis.net/kml/2.2">'
+                    '<Placemark>'
+                        '{}'
+                    '</Placemark>'
+                '</kml>'.format(res[0]),
+                content_type='application/xml')
         else:
             res = ServiceAreas.get_mask()
             return FeatureCollection([
