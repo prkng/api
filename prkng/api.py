@@ -12,7 +12,7 @@ from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
 from geojson import loads, FeatureCollection, Feature
 
-from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports, ServiceAreas
+from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports, ServiceAreasMeta
 from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
@@ -122,41 +122,43 @@ class SlotsField(fields.Raw):
     pass
 
 
-service_areas_parser = api.parser()
-service_areas_parser.add_argument(
-    'returns', type=str, default='json', help='Select return type (json, kml)', location='args')
-service_areas_parser.add_argument(
-    'mask', type=str, default='true', help='Return as an inverted polygon of world (mask)', location='args')
+@api.model(fields={
+    'version': fields.String(description='version of resource'),
+    'kml_addr': fields.String(description='URL to service areas dataset (KML format, gzipped)'),
+    'geojson_addr': fields.String(description='URL to service areas dataset (GeoJSON format, gzipped)'),
+    'kml_mask_addr': fields.String(description='URL to service areas mask dataset (KML format, gzipped)'),
+    'geojson_mask_addr': fields.String(description='URL to service areas mask dataset (GeoJSON format, gzipped)')
+})
+class ServiceAreasVersion(fields.Raw):
+    pass
+
+
+@api.model(fields={0: ServiceAreasVersion()})
+class ServiceAreasVersions(fields.Raw):
+    pass
+
+
+service_areas_model = api.model('ServiceAreasMeta', {
+    'latest_version': fields.Integer(description='latest available version of resources'),
+    'versions': ServiceAreasVersions()
+})
 
 
 @api.route('/areas')
 class ServiceAreaResource(Resource):
-    @api.doc(parser=service_areas_parser)
+    @api.doc(model=service_areas_model)
     def get(self):
         """
-        Returns coverage area as GeoJSON
+        Returns coverage area package versions and metadata
         """
-        args = service_areas_parser.parse_args()
+        res = ServiceAreasMeta.get_all()
 
-        if args["mask"] == 'true':
-            res = ServiceAreas.get_mask(returns=args["returns"])
-        else:
-            res = ServiceAreas.get_all(returns=args["returns"])
-
-        if args["returns"] == "kml":
-            return Response('<?xml version="1.0" encoding="utf-8"?>'
-                '<kml xmlns="http://www.opengis.net/kml/2.2">'
-                    '{}'
-                '</kml>'.format(''.join(['<Placemark>'+x[3]+'</Placemark>' for x in res])),
-                content_type='application/xml')
-        else:
-            return FeatureCollection([
-                Feature(
-                    id=x[0],
-                    geometry=loads(x[3]),
-                    properties={"id": x[0], "name": x[1], "name_disp": x[2]}
-                ) for x in res
-            ]), 200
+        return {
+            "latest_version": max([x["version"] for x in res]),
+            "versions": {
+                x["version"]: x for x in res
+            }
+        }, 200
 
 
 slots_fields = api.model('GeoJSONFeature', {

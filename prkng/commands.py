@@ -46,6 +46,16 @@ def update(city):
     osm.load(city)
 
 
+@click.command(name="update-areas")
+def update_areas():
+    """
+    Create a new version of service area statics and upload to S3
+    """
+    from prkng.downloader import ServiceAreasLoader
+    sal = ServiceAreasLoader()
+    sal.process_areas()
+
+
 @click.command()
 def process():
     """
@@ -67,4 +77,5 @@ def car2go():
 main.add_command(serve)
 main.add_command(update)
 main.add_command(process)
+main.add_command(update_areas)
 main.add_command(car2go)

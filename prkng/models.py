@@ -493,6 +493,25 @@ class ServiceAreas(object):
         """.format("GeoJSON" if returns == "json" else "KML")).fetchall()
 
 
+class ServiceAreasMeta(object):
+    @staticmethod
+    def get_all():
+        res = db.engine.execute("""
+            SELECT
+                version,
+                kml_addr,
+                geojson_addr,
+                kml_mask_addr,
+                geojson_mask_addr
+            FROM service_areas_meta
+        """).fetchall()
+
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
+
+
 # associate fields for each city provider
 district_field = {
     'montreal': (

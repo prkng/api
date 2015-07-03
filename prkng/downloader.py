@@ -15,7 +15,13 @@ from __future__ import print_function, unicode_literals
 from subprocess import check_call
 from os.path import join, basename, dirname
 from zipfile import ZipFile
+import geojson
+import gzip
 import requests
+import StringIO
+
+from boto.s3.key import Key
+from boto.s3.connection import S3Connection
 
 from logger import Logger
 from utils import download_progress
@@ -56,6 +62,8 @@ class Montreal(DataSource):
         self.url_roads = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=geobase"
 
         self.resources = (
+            'Ahuntsic-Cartierville',
+            'Côte-des-Neiges-Notre-Dame-de-Grâce',
             'Outremont',
             'Plateau-Mont-Royal',
             'Rosemont-La Petite-Patrie',
@@ -300,19 +308,6 @@ class OsmLoader(object):
         """
         Load data using osm2pgsql
         """
-        Logger.debug("Loading service areas")
-        check_call(
-            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} service_areas | "
-            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
-            .format(filename=script('service_areas.shp'), **CONFIG),
-            shell=True
-        )
-        self.db.query("""update service_areas
-            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
-        self.db.create_index('service_areas', 'geom', index_type='gist')
-        self.db.vacuum_analyze("public", "service_areas")
-
         if city == 'all':
             process_file = join(CONFIG['DOWNLOAD_DIRECTORY'], 'merged.osm')
 
@@ -339,3 +334,127 @@ class OsmLoader(object):
         self.db.create_index('planet_osm_line', 'name')
         self.db.create_index('planet_osm_line', 'highway')
         self.db.create_index('planet_osm_line', 'boundary')
+
+
+class ServiceAreasLoader(object):
+    """
+    Import service area shapefiles, upload statics to S3
+    """
+    def __init__(self):
+        self.db = PostgresWrapper(
+            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+        self.bucket = S3Connection(CONFIG["AWS_ACCESS_KEY"],
+            CONFIG["AWS_SECRET_KEY"]).get_bucket('prkng-service-areas')
+        self.areas_qry = """
+            SELECT
+                gid AS id,
+                name,
+                name_disp,
+                ST_As{}(ST_Transform(geom, 4326)) AS geom
+            FROM service_areas
+        """
+        self.mask_qry = """
+            SELECT
+                1,
+                'world_mask',
+                'world_mask',
+                ST_As{}(ST_Transform(geom, 4326)) AS geom
+            FROM service_areas_mask
+        """
+
+    def upload_kml(self, version, query):
+        kml_res = self.db.query(query.format("KML"))
+        kml = ('<?xml version="1.0" encoding="utf-8"?>'
+            '<kml xmlns="http://www.opengis.net/kml/2.2">'
+                '{}'
+            '</kml>').format(''.join(['<Placemark>'+x[3]+'</Placemark>' for x in kml_res]))
+
+        strio = StringIO.StringIO()
+        kml_file = gzip.GzipFile(fileobj=strio, mode='w')
+        kml_file.write(kml)
+        kml_file.close()
+        strio.seek(0)
+        key = self.bucket.new_key('{}.kml.gz'.format(version))
+        key.set_contents_from_file(strio, {"x-amz-acl": "public-read",
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/gzip"})
+        return key.generate_url(0)
+
+    def upload_geojson(self, version, query):
+        json_res = self.db.query(query.format("GeoJSON"))
+        json = geojson.dumps(geojson.FeatureCollection([
+            geojson.Feature(
+                id=x[0],
+                geometry=geojson.loads(x[3]),
+                properties={"id": x[0], "name": x[1], "name_disp": x[2]}
+            ) for x in json_res
+        ]))
+
+        strio = StringIO.StringIO()
+        json_file = gzip.GzipFile(fileobj=strio, mode='w')
+        json_file.write(json)
+        json_file.close()
+        strio.seek(0)
+        key = self.bucket.new_key('{}.geojson.gz'.format(version))
+        key.set_contents_from_file(strio, {"x-amz-acl": "public-read",
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/gzip"})
+        return key.generate_url(0)
+
+    def process_areas(self):
+        """
+        Reload service area statics from source and upload new version of statics to S3
+        """
+        self.db.query("""
+            CREATE TABLE IF NOT EXISTS service_areas_meta (
+                id serial PRIMARY KEY,
+                version integer,
+                kml_addr varchar,
+                kml_mask_addr varchar,
+                geojson_addr varchar,
+                geojson_mask_addr varchar
+            )
+        """)
+
+        version_res = self.db.query("""
+            SELECT version
+            FROM service_areas_meta
+            ORDER BY version DESC
+            LIMIT 1
+        """)
+        version = str((version_res[0][0] if version_res else 0) + 1)
+
+        Logger.info("Importing service area shapefiles")
+        check_call(
+            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
+            "{filename} service_areas | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('service_areas.shp'), **CONFIG),
+            shell=True
+        )
+        check_call(
+            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
+            "{filename} service_areas_mask | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('service_areas_mask.shp'), **CONFIG),
+            shell=True
+        )
+        self.db.query("""update service_areas
+            set geom = st_makevalid(geom) where not st_isvalid(geom)""")
+        self.db.create_index('service_areas', 'geom', index_type='gist')
+        self.db.vacuum_analyze("public", "service_areas")
+
+        Logger.info("Exporting new version of statics to S3")
+        kml_url = self.upload_kml(version, self.areas_qry)
+        kml_mask_url = self.upload_kml(version + ".mask", self.mask_qry)
+        json_url = self.upload_geojson(version, self.areas_qry)
+        json_mask_url = self.upload_geojson(version + ".mask", self.mask_qry)
+
+        Logger.info("Saving metadata")
+        self.db.query("""
+            INSERT INTO service_areas_meta
+                (version, kml_addr, kml_mask_addr, geojson_addr, geojson_mask_addr)
+            SELECT {}, '{}', '{}', '{}', '{}'
+        """.format(version, kml_url.split('?')[0], kml_mask_url.split('?')[0],
+            json_url.split('?')[0], json_mask_url.split('?')[0]))
