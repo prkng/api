@@ -363,7 +363,7 @@ class ServiceAreasLoader(object):
             FROM service_areas_mask
         """
 
-    def upload_kml(self, version, query):
+    def upload_kml(self, version, query, gz=False):
         kml_res = self.db.query(query.format("KML"))
         kml = ('<?xml version="1.0" encoding="utf-8"?>'
             '<kml xmlns="http://www.opengis.net/kml/2.2">'
@@ -375,11 +375,15 @@ class ServiceAreasLoader(object):
         kml_file.write(kml)
         kml_file.close()
         strio.seek(0)
-        key = self.bucket.new_key('{}.kml.gz'.format(version))
-        key.set_contents_from_file(strio, {"x-amz-acl": "public-read",
-            "Content-Encoding": "gzip",
+        key1 = self.bucket.new_key('{}.kml.gz'.format(version))
+        key1.set_contents_from_file(strio, {"x-amz-acl": "public-read",
             "Content-Type": "application/gzip"})
-        return key.generate_url(0)
+        strio.seek(0)
+        key2 = self.bucket.new_key('{}.kml'.format(version))
+        key2.set_contents_from_file(strio, {"x-amz-acl": "public-read",
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/xml"})
+        return key1.generate_url(0)
 
     def upload_geojson(self, version, query):
         json_res = self.db.query(query.format("GeoJSON"))
@@ -396,11 +400,15 @@ class ServiceAreasLoader(object):
         json_file.write(json)
         json_file.close()
         strio.seek(0)
-        key = self.bucket.new_key('{}.geojson.gz'.format(version))
-        key.set_contents_from_file(strio, {"x-amz-acl": "public-read",
-            "Content-Encoding": "gzip",
+        key1 = self.bucket.new_key('{}.geojson.gz'.format(version))
+        key1.set_contents_from_file(strio, {"x-amz-acl": "public-read",
             "Content-Type": "application/gzip"})
-        return key.generate_url(0)
+        strio.seek(0)
+        key2 = self.bucket.new_key('{}.geojson'.format(version))
+        key2.set_contents_from_file(strio, {"x-amz-acl": "public-read",
+            "Content-Encoding": "gzip",
+            "Content-Type": "application/json"})
+        return key1.generate_url(0)
 
     def process_areas(self):
         """
