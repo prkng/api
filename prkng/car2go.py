@@ -4,11 +4,11 @@ import os
 import urllib2
 
 from prkng import create_app
-from prkng.admin import auth_required
+from prkng.admin import auth_required, create_token
 from prkng.models import Car2Go
 from prkng.database import PostgresWrapper
 
-from flask import jsonify, Blueprint, request, send_from_directory
+from flask import current_app, jsonify, Blueprint, request, send_from_directory
 
 
 car2go = Blueprint('car2go', __name__, url_prefix='/car2go')
@@ -64,6 +64,20 @@ def test_view(path):
     else:
         sdir = os.path.abspath(os.path.join(sdir, '../../prkng-car2go/dist'))
     return send_from_directory(sdir, path or 'index.html')
+
+
+@car2go.route('/api/token', methods=['POST'])
+def generate_token():
+    """
+    Generate a JSON Web Token for use with Ember.js admin
+    """
+    data = json.loads(request.data)
+    uname, passwd = data.get("username"), data.get("password")
+    if uname in current_app.config["CAR2GO_ACCTS"] \
+    and passwd == current_app.config["CAR2GO_ACCTS"][uname]:
+        return jsonify(token=create_token(uname))
+    else:
+        return jsonify(message="Username or password incorrect"), 401
 
 
 @car2go.route('/api/cars', methods=['GET'])

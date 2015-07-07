@@ -92,9 +92,10 @@ def generate_token():
     Generate a JSON Web Token for use with Ember.js admin
     """
     data = json.loads(request.data)
-    if data.get("username") == current_app.config["ADMIN_USER"] \
-    and data.get("password") == current_app.config["ADMIN_PASS"]:
-        return jsonify(token=create_token(current_app.config["ADMIN_USER"]))
+    uname, passwd = data.get("username"), data.get("password")
+    if uname in current_app.config["ADMIN_ACCTS"] \
+    and passwd == current_app.config["ADMIN_ACCTS"][uname]:
+        return jsonify(token=create_token(uname))
     else:
         return jsonify(message="Username or password incorrect"), 401
 
