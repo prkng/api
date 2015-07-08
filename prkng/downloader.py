@@ -64,6 +64,7 @@ class Montreal(DataSource):
         self.resources = (
             'Ahuntsic-Cartierville',
             'Côte-des-Neiges-Notre-Dame-de-Grâce',
+            'Mercier-Hochelaga-Maisonneuve',
             'Outremont',
             'Plateau-Mont-Royal',
             'Rosemont-La Petite-Patrie',
