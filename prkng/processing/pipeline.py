@@ -24,7 +24,7 @@ db = PostgresWrapper(
     "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
 # distance from road to slot
-LINE_OFFSET = 4
+LINE_OFFSET = 6
 
 
 def process_quebec():
