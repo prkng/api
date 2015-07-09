@@ -15,6 +15,108 @@ CREATE TABLE quebec_sign (
 )
 """
 
+# insert quebec virtual signposts for paid slots
+create_paid_signpost = """
+WITH bornes AS (
+    SELECT
+        b.*,
+        st_azimuth(st_closestpoint(r.geom, b.geom)::geometry(point, 3857), b.geom) AS azi,
+        rank() over (
+            PARTITION BY b.id
+            ORDER BY levenshtein(b.nom_topog, r.name),
+                st_distance(b.geom, r.geom)
+        ) AS rank,
+        r.id AS road_id,
+        r.geom AS geom_road
+    FROM quebec_bornes b
+    JOIN roads r on r.geom && st_buffer(b.geom, 30)
+    WHERE nom_topog NOT LIKE '%Stationnement%'
+      AND no_borne::int NOT BETWEEN 6100 AND 6125   -- exclude mis-identified lot
+), bornes_proj AS (
+    SELECT
+        s.no_borne::int,
+        s.nom_topog,
+        s.road_id,
+        s.geom_road,
+        ST_isLeft(s.geom_road, s.geom) AS isleft,
+        CASE WHEN (s.azi - radians(90.0) > 2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) - (2*pi())))::geometry, 3857)
+        WHEN (s.azi - radians(90.0) < -2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) + (2*pi())))::geometry, 3857)
+        ELSE
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, s.azi - radians(90.0))::geometry, 3857)
+        END AS geom
+    FROM bornes s
+    WHERE s.rank = 1
+    UNION ALL
+    SELECT
+        s.no_borne::int,
+        s.nom_topog,
+        s.road_id,
+        s.geom_road,
+        ST_isLeft(s.geom_road, s.geom) AS isleft,
+        CASE WHEN (s.azi + radians(90.0) > 2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) - (2*pi())))::geometry, 3857)
+        WHEN (s.azi + radians(90.0) < -2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) + (2*pi())))::geometry, 3857)
+        ELSE
+            st_transform(st_project(st_transform(st_closestpoint(s.geom_road, s.geom), 4326)::geography, 3, s.azi + radians(90.0))::geometry, 3857)
+        END AS geom
+    FROM bornes s
+    WHERE s.rank = 1
+)
+INSERT INTO quebec_bornes_raw (no_borne, nom_topog, isleft, geom, road_id, road_pos)
+    SELECT
+        s.no_borne::int,
+        s.nom_topog,
+        s.isleft,
+        s.geom,
+        s.road_id,
+        st_line_locate_point(s.geom_road, s.geom)
+    FROM bornes_proj s
+"""
+
+aggregate_paid_signposts = """
+DO
+$$
+DECLARE
+  borne record;
+  id_a integer;
+  id_b integer;
+  id_match integer;
+BEGIN
+  DROP TABLE IF EXISTS quebec_bornes_merged;
+  CREATE TABLE quebec_bornes_merged (id serial primary key, ids integer[], bornes integer[], geom geometry, way_name varchar, isleft integer, road_id integer);
+  CREATE INDEX ON quebec_bornes_merged USING GIST(geom);
+
+  FOR borne IN SELECT * FROM quebec_bornes_raw ORDER BY road_id, road_pos LOOP
+    SELECT id FROM quebec_bornes_merged
+      WHERE borne.road_id = quebec_bornes_merged.road_id
+      AND borne.isleft = quebec_bornes_merged.isleft
+      AND ST_DWithin(borne.geom, quebec_bornes_merged.geom, 10)
+      LIMIT 1 INTO id_match;
+
+    IF id_match IS NULL THEN
+      INSERT INTO quebec_bornes_merged (ids, bornes, geom, way_name, isleft, road_id) VALUES
+        (ARRAY[borne.id], ARRAY[borne.no_borne], borne.geom, borne.nom_topog, borne.isleft, borne.road_id);
+    ELSE
+      UPDATE quebec_bornes_merged SET geom = ST_MakeLine(borne.geom, geom),
+        ids = uniq(sort(array_prepend(borne.id, ids))), bornes = uniq(sort(array_prepend(borne.no_borne, bornes)))
+      WHERE quebec_bornes_merged.id = id_match;
+    END IF;
+  END LOOP;
+
+  UPDATE quebec_bornes_merged SET geom =
+    (CASE
+      WHEN isleft = 1 then
+        ST_OffsetCurve(ST_Simplify(geom, 1), -4, 'quad_segs=4 join=round')
+      ELSE
+        ST_OffsetCurve(ST_Simplify(geom, 1), 4, 'quad_segs=4 join=round')
+    END);
+END;
+$$ language plpgsql;
+"""
+
 # insert quebec signs
 insert_sign = """
 INSERT INTO quebec_sign
@@ -303,6 +405,39 @@ SELECT
 FROM selection,
 LATERAL st_transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) as center
 WHERE st_geometrytype(geom) = 'ST_LineString' -- skip curious rings
+"""
+
+insert_paid_slots = """
+WITH prepared AS (
+    SELECT
+        min(b.ids) AS ids,
+        array_to_json(
+            array_agg(distinct
+            json_build_object(
+                'code', r.code,
+                'description', r.description,
+                'address', b.way_name,
+                'season_start', r.season_start,
+                'season_end', r.season_end,
+                'agenda', r.agenda,
+                'time_max_parking', r.time_max_parking,
+                'special_days', r.special_days,
+                'restrict_typ', r.restrict_typ
+            )::jsonb
+        ))::jsonb AS rules,
+        min(b.way_name) AS way_name,
+        min(geom) AS geom
+    FROM quebec_bornes_merged b
+    JOIN rules r ON r.code = 'QCPAY1'
+    GROUP BY b.id
+)
+INSERT INTO quebec_slots_paid (signposts, rules, way_name, geom, geojson, button_location)
+    SELECT
+        ids, rules, way_name, geom,
+        ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
+        json_build_object('long', ST_X(center), 'lat', ST_Y(center))::jsonb
+    FROM prepared,
+    LATERAL ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) AS center
 """
 
 create_slots_for_debug = """

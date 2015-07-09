@@ -383,7 +383,8 @@ class SlotsModel(object):
         'geojson',
         'rules',
         'button_location',
-        'way_name'
+        'way_name',
+        'slot_type'
     )
 
     @staticmethod
@@ -397,8 +398,11 @@ class SlotsModel(object):
         checkin = checkin or datetime.now()
 
         req = """
-        SELECT {properties}
+        SELECT * FROM (SELECT {properties}, 'normal' AS slot_type
         FROM slots
+        UNION ALL
+        SELECT {properties}, 'paid' AS slot_type
+        FROM quebec_slots_paid) AS foo
         WHERE
             ST_Dwithin(
                 st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -427,15 +431,19 @@ class SlotsModel(object):
         Retrieve all slots inside a given boundbox.
         """
         req = """
-        SELECT {properties}
+        SELECT {properties} FROM (SELECT *, 'normal' AS slot_type
         FROM slots
+        UNION ALL
+        SELECT *, 'paid' AS slot_type
+        FROM quebec_slots_paid) AS results
+
         WHERE
             ST_intersects(
                 ST_Transform(
                     ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
                     3857
                 ),
-                geom
+                results.geom
             )
         """.format(
             properties=','.join(SlotsModel.properties),

@@ -294,10 +294,10 @@ class OsmLoader(object):
 
     def download(self, name, extent):
         Logger.info("Getting Openstreetmap ways for {}".format(name))
-        Logger.debug("overpass.osm.rambler.ru/cgi/interpreter?data=(way({});>;);out;"
+        Logger.debug("https://overpass-api.de/api/interpreter?data=(way({});>;);out;"
                      .format(','.join(map(str, extent))))
         osm_file = download_progress(
-            "http://overpass.osm.rambler.ru/cgi/interpreter?data=(way({});>;);out;"
+            "https://overpass-api.de/api/interpreter?data=(way({});>;);out;"
             .format(','.join(map(str, extent))),
             '{}.osm'.format(name.lower()),
             CONFIG['DOWNLOAD_DIRECTORY']

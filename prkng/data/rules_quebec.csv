@@ -1344,3 +1344,5 @@ PP1448,Stat. int. 8h - 16h MAR-JEU 15 NOV AU 31 MARS (fl. dr.),11-15,03-31,,8,16
 PP2691,Stat. int. 7h - 9h MER-SAM (fl. ga.),,,,7,9,2,,,1,,,1,,,,
 PP2326,Stat. int. MAR-JEU-SAM (fl. dou.),,,,,,,,1,,1,,1,,,,
 PS2532,Stat. 90 min 9h - 18h LUN À VEN (fl. dr.),,,90,9,18,9,1,1,1,1,1,,,,,
+QCPAID,"Stat. payant 9h - 21h LUN À SAM, 10h - 21h DIM",,,,9,21,12,1,1,1,1,1,1,,,,paid
+QCPAID,"Stat. payant 9h - 21h LUN À SAM, 10h - 21h DIM",,,,10,21,11,,,,,,,1,,,paid
