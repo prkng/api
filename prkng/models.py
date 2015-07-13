@@ -421,7 +421,7 @@ class SlotsModel(object):
 
     @staticmethod
     def get_boundbox(
-            nelat, nelng, swlat, swlng, checkin=None, duration=0.5, type=None,
+            nelat, nelng, swlat, swlng, checkin=None, duration=0.25, type=None,
             permit=False, invert=False):
         """
         Retrieve all slots inside a given boundbox.

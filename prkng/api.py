@@ -8,7 +8,7 @@ from functools import wraps
 from time import strftime
 from aniso8601 import parse_datetime
 
-from flask import current_app, render_template, Response, g, request
+from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
 from geojson import loads, FeatureCollection, Feature
 
@@ -56,8 +56,7 @@ class PrkngApi(Api):
 api = PrkngApi(
     version='1.0',
     title='Prkng API',
-    description='On-street parking information API',
-    ui=current_app.config["DEBUG"]
+    description='On-street parking information API'
 )
 
 
@@ -65,6 +64,7 @@ def init_api(app):
     """
     Initialize extensions into flask application
     """
+    api.ui = app.config["DEBUG"]
     api.init_app(app)
 
 

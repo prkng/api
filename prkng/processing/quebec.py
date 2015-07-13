@@ -281,7 +281,7 @@ SELECT
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
             'restrict_typ', r.restrict_typ,
-            'permit_no', z.number
+            'permit_no', r.permit_no
         )::jsonb
     ))::jsonb as rules
     , CASE
@@ -292,7 +292,6 @@ SELECT
       END as geom
 FROM tmp t
 JOIN rules r ON t.code = r.code
-LEFT JOIN permit_zones z ON r.restrict_typ = 'permit' AND ST_Intersects(geom, z.geom)
 GROUP BY t.id
 ) INSERT INTO slots (signposts, rules, geom, geojson, button_location, way_name)
 SELECT
