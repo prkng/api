@@ -18,7 +18,8 @@ CREATE TABLE montreal_rules_translation (
     dim smallint,
     daily float,
     special_days varchar DEFAULT '',
-    restrict_typ varchar DEFAULT ''
+    restrict_typ varchar DEFAULT '',
+    permit_no varchar DEFAULT ''
 );
 
 copy montreal_rules_translation (code,description,season_start,season_end,
