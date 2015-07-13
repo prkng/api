@@ -28,8 +28,8 @@ def on_restriction(rules, checkin, duration, permit=False):
     for rule in rules:
 
         # first test season day/month
-        start_day, start_month = ('-' or rule['season_start']).split('-')
-        end_day, end_month = ('-' or rule['season_end']).split('-')
+        start_month, start_day = ('-' or rule['season_start']).split('-')
+        end_month, end_day = ('-' or rule['season_end']).split('-')
         season_match = season_matching(
             start_day,
             start_month,
