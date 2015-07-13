@@ -56,7 +56,7 @@ class PrkngApi(Api):
 api = PrkngApi(
     version='1.0',
     title='Prkng API',
-    description='An API to access free parking slots in some cities of Canada',
+    description='On-street parking information API'
 )
 
 
@@ -64,6 +64,7 @@ def init_api(app):
     """
     Initialize extensions into flask application
     """
+    api.ui = app.config["DEBUG"]
     api.init_app(app)
 
 
@@ -239,6 +240,13 @@ slot_parser.add_argument(
     default=0.5,
     help='Desired Parking time in hours; default is 30 min'
 )
+slot_parser.add_argument(
+    'permit',
+    type=str,
+    location='args',
+    default=False,
+    help='Permit number to check availability for; can also use "all"'
+)
 
 
 @api.route('/slots')
@@ -259,7 +267,8 @@ class SlotsResource(Resource):
             args['latitude'],
             args['radius'],
             args['duration'],
-            args['checkin']
+            args['checkin'],
+            args['permit']
         )
 
         if not res:
@@ -291,7 +300,8 @@ class SlotsOnMap(Resource):
             args['latitude'],
             args['radius'],
             args['duration'],
-            args['checkin']
+            args['checkin'],
+            args['permit']
         )
 
         if not res:

@@ -18,11 +18,12 @@ CREATE TABLE quebec_rules_translation (
     dim smallint,
     daily float,
     special_days varchar DEFAULT '',
-    restrict_typ varchar DEFAULT ''
+    restrict_typ varchar DEFAULT '',
+    permit_no varchar DEFAULT ''
 );
 
 copy quebec_rules_translation (code,description,season_start,season_end,
     time_max_parking,time_start,time_end,time_duration,lun,mar,mer,jeu,ven,
-    sam,dim,daily,special_days,restrict_typ)
+    sam,dim,daily,special_days,restrict_typ,permit_no)
 from '{}'
 WITH CSV HEADER DELIMITER ',' ENCODING 'UTF-8';

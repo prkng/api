@@ -387,7 +387,7 @@ class SlotsModel(object):
     )
 
     @staticmethod
-    def get_within(x, y, radius, duration, checkin=None):
+    def get_within(x, y, radius, duration, checkin=None, permit=False):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -415,14 +415,14 @@ class SlotsModel(object):
         features = db.engine.execute(req).fetchall()
 
         return filter(
-            lambda x: not on_restriction(x.rules, checkin, duration),
+            lambda x: not on_restriction(x.rules, checkin, duration, permit),
             features
         )
 
     @staticmethod
     def get_boundbox(
-            nelat, nelng, swlat, swlng, checkin=None, duration=0.5, type=None,
-            invert=False):
+            nelat, nelng, swlat, swlng, checkin=None, duration=0.25, type=None,
+            permit=False, invert=False):
         """
         Retrieve all slots inside a given boundbox.
         """
@@ -447,9 +447,9 @@ class SlotsModel(object):
 
         slots = db.engine.execute(req).fetchall()
         if checkin and invert:
-            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration)), slots)
+            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration), permit), slots)
         elif checkin:
-            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration)), slots)
+            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration), permit), slots)
         if type == 1:
             slots = filter(lambda x: "permit" in [y["restrict_typ"] for y in x.rules], slots)
         elif type == 2:
