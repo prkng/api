@@ -112,6 +112,9 @@ class ButtonLocation(fields.Raw):
         description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
                        containing a list of time ranges when the restriction apply''',
         required=True),
+    'permit_no': fields.String(
+        description='city parking permit number applicable for this slot',
+        required=True),
     'special_days': fields.String(required=True),
     'restrict_typ': fields.String(
         description='special restriction details',

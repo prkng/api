@@ -319,7 +319,7 @@ WITH tmp AS (
 ),
 selection as (
 SELECT
-    t.id
+    distinct on (t.id) t.id
     , min(signposts) as signposts
     , min(isleft) as isleft
     , min(name) as way_name
@@ -334,7 +334,8 @@ SELECT
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
-            'restrict_typ', r.restrict_typ
+            'restrict_typ', r.restrict_typ,
+            'permit_no', z.number
         )::jsonb
     ))::jsonb as rules
     , CASE
@@ -344,7 +345,8 @@ SELECT
             ST_OffsetCurve(min(t.geom), -{offset}, 'quad_segs=4 join=round')::geometry(linestring, 3857)
       END as geom
 FROM tmp t
-JOIN rules r on t.code = r.code
+JOIN rules r ON t.code = r.code
+LEFT JOIN permit_zones z ON r.restrict_typ = 'permit' AND ST_Intersects(t.geom, z.geom)
 GROUP BY t.id
 ) INSERT INTO slots (signposts, rules, geom, geojson, button_location, way_name)
 SELECT
