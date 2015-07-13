@@ -6,7 +6,7 @@ from itertools import groupby
 from aniso8601 import parse_datetime
 
 
-def on_restriction(rules, checkin, duration):
+def on_restriction(rules, checkin, duration, permit=False):
     """
     Returns True if restrictions are consistent with the checkin
     and duration given in argument. False otherwise
@@ -41,6 +41,10 @@ def on_restriction(rules, checkin, duration):
 
         if not season_match:
             # not concerned, going to the next rule
+            continue
+
+        if rule['restrict_typ'] == 'permit' and (permit == 'all' or str(permit) == rule['permit_no']):
+            # this is a permit rule and we like permits
             continue
 
         max_time_ok = True
