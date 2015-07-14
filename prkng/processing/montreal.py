@@ -6,7 +6,8 @@ from __future__ import unicode_literals
 create_sign = """
 DROP TABLE IF EXISTS sign;
 CREATE TABLE sign (
-    id integer PRIMARY KEY
+    id serial PRIMARY KEY
+    , sid integer NOT NULL
     , geom geometry(Point, 3857)
     , direction smallint -- direction the rule applies (0: both side, 1: left, 2: right)
     , signpost integer NOT NULL
@@ -22,7 +23,7 @@ CREATE TABLE sign (
 insert_sign = """
 INSERT INTO sign
 (
-    id
+    sid
     , geom
     , direction
     , signpost
