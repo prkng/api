@@ -43,7 +43,7 @@ def on_restriction(rules, checkin, duration, permit=False):
             # not concerned, going to the next rule
             continue
 
-        if rule['restrict_typ'] == 'permit' and (permit == 'all' or str(permit) == str(rule['permit_no'])):
+        if rule.get('restrict_typ') == 'permit' and (permit == 'all' or str(permit) == str(rule.get('permit_no'))):
             # this is a permit rule and we like permits
             continue
 
@@ -138,7 +138,7 @@ def group_rules(rules):
     results = []
     days = ('lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim')
 
-    for code, group in groupby(rules, lambda x: x.code):
+    for code, group in groupby(rules, lambda x: (x.code, x.season_start, x.season_end)):
 
         day_dict = defaultdict(list)
 

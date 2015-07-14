@@ -18,7 +18,7 @@ create_rules = """
 DROP TABLE IF EXISTS rules;
 CREATE TABLE rules (
     id serial PRIMARY KEY
-    , code varchar UNIQUE
+    , code varchar
     , description varchar
     , season_start varchar DEFAULT ''
     , season_end varchar DEFAULT ''

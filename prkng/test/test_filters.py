@@ -15,7 +15,7 @@ def rules():
         'id', 'code', 'description', 'season_start', 'season_end',
         'time_max_parking', 'time_start', 'time_end', 'time_duration',
         'lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim', 'daily',
-        'special_days', 'restrict_typ'
+        'special_days', 'restrict_typ', 'permit_no'
     ))
 
     return [
@@ -38,7 +38,8 @@ def rules():
             dim=None,
             daily=1.0,
             special_days=None,
-            restrict_typ=None
+            restrict_typ=None,
+            permit_no=None
         ),
         rule(
             id=9,
@@ -59,7 +60,8 @@ def rules():
             dim=None,
             daily=None,
             special_days=None,
-            restrict_typ=None
+            restrict_typ=None,
+            permit_no=None
         ),
         rule(
             id=10,
@@ -80,7 +82,8 @@ def rules():
             dim=None,
             daily=None,
             special_days=None,
-            restrict_typ=None
+            restrict_typ=None,
+            permit_no=None
         ),
         rule(
             id=1672,
@@ -101,7 +104,8 @@ def rules():
             dim=None,
             daily=None,
             special_days=None,
-            restrict_typ=None
+            restrict_typ=None,
+            permit_no=None
         ),
         rule(
             id=443,
@@ -122,7 +126,8 @@ def rules():
             dim=None,
             daily=1.0,
             special_days=None,
-            restrict_typ=None
+            restrict_typ=None,
+            permit_no=None
         )]
 
 
