@@ -1,11 +1,6 @@
 "code","description","season_start","season_end","time_max_parking","time_start","time_end","time_duration","lun","mar","mer","jeu","ven","sam","dim","daily","special_days","restrict_typ"
-"PP-JA","HORAIRE DE STATIONNEMENT TARIFE 09h-24h (PARCOJOUR)",,,,9,24,15,,,,,,,,1,,"paid"
-"GS-A-06","RAPPEL...",,,,0,24,24,,,,,,,,1,,"paid"
-"PP-AJ","HORAIRE DE STATIONNEMENT TARIFE 7h-22h",,,,7,22,15,,,,,,,,1,,"paid"
 "PV-JF","P 60 min 08h-18h LUN. AU VEN.",,,60,8,18,10,1,1,1,1,1,,,,,
-"D-PH","PARCOMETRE",,,,0,24,24,,,,,,,,1,,"paid"
 "PV-OT","P 60 min 7h-18h LUN A VEN",,,60,7,18,11,1,1,1,1,1,,,,,
-"GS-V","SORTIE",,,,,,0,,,,,,,,1,,"paid"
 "SLR-ST-105","8H À 12H MAR JEU 13H À 17H LUN MER VEN",,,,13,17,4,1,,1,,1,,,,,
 "SLR-ST-105","8H À 12H MAR JEU 13H À 17H LUN MER VEN",,,,8,12,4,,1,,1,,,,,,
 "SLR-ST-106","8H À 12H MAR JEU 13H À 18H LUN MER VEN",,,,13,18,5,1,,1,,1,,,,,
@@ -20,7 +15,6 @@
 "SLR-ST-112","18H MAR À 18H MER - 18H JEU À 18H VEN - 18H SAM À 18H LUN",,,,18,,48,,,,,,1,,,,
 "SLR-ST-135","30 MIN - MAR MER VEN - 9H À 16H30 - LUN JEU - 12H À 16H30",,,30,12,"16.5","4.5",1,,,1,,,,,,
 "SLR-ST-135","30 MIN - MAR MER VEN - 9H À 16H30 - LUN JEU - 12H À 16H30",,,30,9,"16.5","7.5",,1,1,,1,,,,,
-"GS-A-07","STATIONNEMENT PAYANT...",,,,0,24,24,,,,,,,,1,,"paid"
 "SLR-ST-172","120 MIN - LUN 17H À MAR 17H - MER 17H À JEU 17H - VEN 17H À SAM 17H",,,120,17,,24,1,,,,,,,,,
 "SLR-ST-172","120 MIN - LUN 17H À MAR 17H - MER 17H À JEU 17H - VEN 17H À SAM 17H",,,120,17,,24,,,,,1,,,,,
 "SLR-ST-172","120 MIN - LUN 17H À MAR 17H - MER 17H À JEU 17H - VEN 17H À SAM 17H",,,120,17,,24,,,1,,,,,,,
@@ -155,7 +149,6 @@
 "SB-LI-A","\P 19h-20h LUN. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,19,20,1,1,,,1,,,,,,
 "SB-LJ","\P 12h-13h LUN. MER. 1 MARS AU 1 DEC.",03-01,12-01,,12,13,1,1,,1,,,,,,,
 "SB-LJ-A","\P 12h-13h LUN. MER. 1 AVRIL AU 1 DEC.",04-01,12-01,,12,13,1,1,,1,,,,,,,
-"PP-AA","HORAIRE DE STATIONNEMENT TARIFE (PARCOFLEX)",,,,0,24,24,,,,,,,,1,,"paid"
 "SB-LK","\P 12h30-13h30 LUN. MER. 1 MARS AU 1 DEC.",03-01,12-01,,"12.5","13.5",1,1,,1,,,,,,,
 "SB-LK-A","\P 12h30-13h30 LUN. MER. 1 AVRIL AU 1 DEC.",04-01,12-01,,"12.5","13.5",1,1,,1,,,,,,,
 "SB-LK-A+F","\P 12h30-13h30 LUN. MER. 1 AVRIL AU 1 DEC.",04-01,12-01,,"12.5","13.5",1,1,,1,,,,,,,
@@ -193,7 +186,6 @@
 "SB-MR-A","\P 16h-17h MAR. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,16,17,1,,1,,1,,,,,,
 "SB-MR-A+F","\P 16h-17h MAR. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,16,17,1,,1,,1,,,,,,
 "SB-MS","\P 13h-14h MAR. JEU. 1 MARS AU 1 DEC.",03-01,12-01,,13,14,1,,1,,1,,,,,,
-"GS-A-10","FL. 2 - P2",,,,,,0,,,,,,,,1,,"paid"
 "SB-MT","\P 14h-15h MAR. JEU. 1 MARS AU 1 DEC.",03-01,12-01,,14,15,1,,1,,1,,,,,,
 "SB-MT-A+F","\P 14h-15h MAR. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,14,15,1,,1,,1,,,,,,
 "SB-MU","\P 07h-08h LUN. JEU. 1 MARS AU 1 DEC.",03-01,12-01,,7,8,1,1,,,1,,,,,,
@@ -1962,7 +1954,6 @@
 "SD-VZ","\P 07h-09h",,,,7,9,2,,,,,,,,1,,
 "PX-JD","PANONCEAU 09h-19h",,,,9,19,10,,,,,,,,1,,
 "PX-JE","PANONCEAU ""JOURS D'ECOLE""",,,,,,,,,,,,,,,"school",
-"PP-AQ","STATIONNEMENT TARIFÉ",,,,0,24,24,,,,,,,,1,,"paid"
 "SU-NX-A","\P 01h-02h DIMANCHE 1 AVRIL AU 1 DEC.",04-01,12-01,,1,2,1,,,,,,,1,,,
 "SLR-PR-33","7h À  9h LUN À VEN SAUF AUTOBUS SCOLAIRE",,,,7,9,2,1,1,1,1,1,,,,,"schoolbus"
 "SV-AZ","\P 10h-11h LUN A VEN",,,,10,11,1,1,1,1,1,1,,,,,
@@ -2091,7 +2082,6 @@
 "PV-QB","P 15 MIN 07h-10h ET 15h30-18h LUN A VEN",,,15,"15.5",18,"2.5",1,1,1,1,1,,,,,
 "PX-BD","PANONCEAU 1 MAI AU 1 OCT.",05-01,10-01,,,,,,,,,,,,1,,
 "SU-UY","\P 17h30-18h30 JEUDI 1 MARS AU 1 DEC.",03-01,12-01,,"17.5","18.5",,,,,1,,,,,,
-"PP-QA","HORAIRE DE STATIONNEMENT TARIFE 09h-18h LUN A VEN (PARCOJOUR)",,,,9,18,9,1,1,1,1,1,,,,,"paid"
 "PX-JQ","PANONCEAU 09h30-16h",,,,"9.5",16,"6.5",,,,,,,,1,,
 "SB-MD-A","\P 09h30-10h30 MAR. JEU. 1 AVRIL AU 1 DEC.",04-01,12-01,,"9.5","10.5",1,,1,,1,,,,,,
 "SL-PC","\P LIVRAISON SEULEMENT 12h-17h LUN. AU VEN.",,,,12,17,5,1,1,1,1,1,,,,,"delivery"
@@ -2200,3 +2190,6 @@
 "RG-T-66","PANONCEAU EXCEPTE AUTOBUS   (FOND NOIR)",,,,,,,,,,,,,,,,
 "OUT-SPN-06","P 30 MIN 8h30 - 17h LUN À VEN",,,30,"8.5",17,"8.5",1,1,1,1,1,,,,,
 "RH-T-47","PANONCEAU 15h-19h LUNDI AU VENDREDI",,,,15,19,4,1,1,1,1,1,,,,,
+"MTLPAID","STAT. PAYANT 9h - 21h LUN À VEN, 9h - 18h SAM, 13h - 18h DIM",,,,9,21,12,1,1,1,1,1,,,,,paid
+"MTLPAID","STAT. PAYANT 9h - 21h LUN À VEN, 9h - 18h SAM, 13h - 18h DIM",,,,9,18,9,,,,,,1,,,,paid
+"MTLPAID","STAT. PAYANT 9h - 21h LUN À VEN, 9h - 18h SAM, 13h - 18h DIM",,,,13,18,5,,,,,,,1,,,paid

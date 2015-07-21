@@ -24,7 +24,7 @@ db = PostgresWrapper(
     "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
 # distance from road to slot
-LINE_OFFSET = 4
+LINE_OFFSET = 6
 
 
 def process_quebec():
@@ -100,6 +100,14 @@ def process_quebec():
     db.create_index('slots', 'geom', index_type='gist')
     db.create_index('slots', 'rules', index_type='gin')
     db.vacuum_analyze('public', 'slots')
+
+    info("Creating and overlaying paid slots")
+    db.query(qbc.create_paid_signpost)
+    db.query(qbc.aggregate_paid_signposts.format(offset=LINE_OFFSET))
+    db.query(qbc.overlay_paid_rules)
+    db.query(qbc.create_paid_slots_standalone)
+
+    db.query(qbc.create_client_data)
 
     db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
     db.create_index('quebec_slots_debug', 'pkid')
@@ -211,6 +219,9 @@ def cleanup_table():
     db.query("DROP TABLE nextpoints")
     db.query("DROP TABLE quebec_nextpoints")
     db.query("DROP TABLE quebec_slots_likely")
+    db.query("DROP TABLE quebec_paid_slots_raw")
+    db.query("DROP TABLE quebec_bornes_raw")
+    db.query("DROP TABLE quebec_bornes_clustered")
 
 
 def process_osm():
