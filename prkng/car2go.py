@@ -100,10 +100,10 @@ def update():
     queries = []
 
     # grab data from car2go api
-    raw = urllib2.urlopen("http://www.car2go.com/api/v2.0/vehicles?loc=montreal&format=json")
+    raw = urllib2.urlopen("http://www.car2go.com/api/v2.1/vehicles?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
     data = json.loads(raw.read())["placemarks"]
 
-    raw = urllib2.urlopen("http://www.car2go.com/api/v2.0/parkingspots?loc=montreal&format=json")
+    raw = urllib2.urlopen("http://www.car2go.com/api/v2.1/parkingspots?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
     lot_data = json.loads(raw.read())["placemarks"]
     lots = [x["name"] for x in lot_data]
 
@@ -120,7 +120,6 @@ def update():
     # create or update car2go tracking with new data
     for x in data:
         query = None
-        x["coordinates"] = json.loads(x["coordinates"])
 
         # if the address matches a car2go reserved lot, don't bother with a slot
         if x["address"] in lots:
