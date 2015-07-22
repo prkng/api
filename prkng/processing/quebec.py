@@ -536,7 +536,8 @@ WITH exclusions AS (
                 'agenda', z.agenda,
                 'time_max_parking', z.time_max_parking,
                 'special_days', z.special_days,
-                'restrict_typ', z.restrict_typ
+                'restrict_typ', z.restrict_typ,
+                'paid_hourly_rate', 2.25
             )::jsonb]
         )::jsonb AS rules,
         CASE ST_GeometryType(ur.geom)

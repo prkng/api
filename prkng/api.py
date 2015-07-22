@@ -116,6 +116,8 @@ class ButtonLocation(fields.Raw):
     'restrict_typ': fields.String(
         description='special restriction details',
         required=True),
+    'paid_hourly_rate': fields.Float(
+        description='hourly cost for paid parking here (if applicable)'),
     'button_location': ButtonLocation(required=True)
 })
 class SlotsField(fields.Raw):

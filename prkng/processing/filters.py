@@ -39,7 +39,7 @@ def on_restriction(rules, checkin, duration):
             month
         )
 
-        if not season_match:
+        if not season_match or rule['restrict_typ'] == 'paid':
             # not concerned, going to the next rule
             continue
 
