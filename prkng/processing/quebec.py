@@ -15,6 +15,19 @@ CREATE TABLE quebec_sign (
 )
 """
 
+create_bornes_raw = """
+DROP TABLE IF EXISTS quebec_bornes_raw;
+CREATE TABLE quebec_bornes_raw (
+    id serial PRIMARY KEY,
+    no_borne integer,
+    nom_topog varchar,
+    isleft integer,
+    geom geometry,
+    road_id integer,
+    road_pos float
+)
+"""
+
 # insert quebec virtual signposts for paid slots
 create_paid_signpost = """
 WITH bornes AS (

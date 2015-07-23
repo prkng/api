@@ -102,6 +102,7 @@ def process_quebec():
     db.vacuum_analyze('public', 'slots')
 
     info("Creating and overlaying paid slots")
+    db.query(qbc.create_bornes_raw)
     db.query(qbc.create_paid_signpost)
     db.query(qbc.aggregate_paid_signposts.format(offset=LINE_OFFSET))
     db.query(qbc.overlay_paid_rules)

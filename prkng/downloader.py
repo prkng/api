@@ -215,12 +215,13 @@ class Quebec(DataSource):
         super(Quebec, self).__init__()
         self.city = 'quebec'
         self.url = "http://donnees.ville.quebec.qc.ca/Handler.ashx?id=7&f=SHP"
+        self.url_payant = "http://donnees.ville.quebec.qc.ca/Handler.ashx?id=8&f=SHP"
 
     def download(self):
         """
         Download and unzip file
         """
-        Logger.info("Downloading {} data".format(self.name))
+        Logger.info("Downloading {} parking data".format(self.name))
         zipfile = download_progress(
             self.url,
             "quebec_latest.zip",
@@ -230,6 +231,21 @@ class Quebec(DataSource):
         Logger.info("Unzipping")
         with ZipFile(zipfile) as zip:
             self.filename = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                name for name in zip.namelist()
+                if name.lower().endswith('.shp')
+            ][0])
+            zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
+
+        Logger.info("Downloading {} paid parking data".format(self.name))
+        zipfile = download_progress(
+            self.url_payant,
+            "quebec_paid_latest.zip",
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+
+        Logger.info("Unzipping")
+        with ZipFile(zipfile) as zip:
+            self.filename_payant = join(CONFIG['DOWNLOAD_DIRECTORY'], [
                 name for name in zip.namelist()
                 if name.lower().endswith('.shp')
             ][0])
@@ -252,6 +268,14 @@ class Quebec(DataSource):
         self.db.create_index('quebec_panneau', 'lect_met')
         self.db.vacuum_analyze("public", "quebec_panneau")
 
+        check_call(
+            "shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I "
+            "{filename} quebec_bornes | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=self.filename_payant, **CONFIG),
+            shell=True
+        )
+
     def load_rules(self):
         """
         load parking rules translation
@@ -260,7 +284,6 @@ class Quebec(DataSource):
 
         filename = script("rules_quebec.csv")
 
-        Logger.info("Loading parking rules for {}".format(self.name))
         Logger.debug("loading file '%s' with script '%s'" %
                      (filename, script('quebec_load_rules.sql')))
 
