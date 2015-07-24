@@ -76,6 +76,7 @@ class Montreal(DataSource):
         )
 
         self.jsonfiles = []
+        self.paid_zone_shapefile = script('paid_montreal_zones.kml')
 
     def download(self):
         self.download_signs()
@@ -171,6 +172,14 @@ class Montreal(DataSource):
             shell=True
         )
         self.db.vacuum_analyze("public", "montreal_geobase")
+
+        check_call(
+            'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user={PG_USERNAME}  '
+            'password={PG_PASSWORD} port={PG_PORT} host={PG_HOST}" -overwrite '
+            '-s_srs EPSG:4326 -t_srs EPSG:3857 -lco GEOMETRY_NAME=geom  '
+            '-nln montreal_paid_zones {}'.format(self.paid_zone_shapefile, **CONFIG),
+            shell=True
+        )
 
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %

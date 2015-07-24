@@ -206,6 +206,14 @@ def process_montreal():
     db.create_index('slots_debug', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'slots_debug')
 
+    info("Overlaying paid slots")
+    with open(script('paid_montreal.csv'), 'r') as infile:
+        db.copy_from('public', 'montreal_paid_temp', ('signposts',),
+            [line.replace('\"', '') for line in infile.readlines])
+    db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
+    db.query(mrl.import_paid_slot_data)
+    db.query(mrl.overlay_paid_rules)
+
 
 def cleanup_table():
     """
@@ -218,6 +226,7 @@ def cleanup_table():
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE nextpoints")
+    db.query("DROP TABLE montreal_paid_temp")
     db.query("DROP TABLE quebec_nextpoints")
     db.query("DROP TABLE quebec_slots_likely")
     db.query("DROP TABLE quebec_paid_slots_raw")
