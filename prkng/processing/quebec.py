@@ -573,13 +573,6 @@ INSERT INTO slots (signposts, rules, way_name, geom)
     WHERE ST_Length(nn.geom) >= 3
 """
 
-create_client_data = """
-UPDATE slots SET
-    geojson = ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
-    button_location = json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
-        'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb
-"""
-
 create_slots_for_debug = """
 DROP TABLE IF EXISTS quebec_slots_debug;
 CREATE TABLE quebec_slots_debug as

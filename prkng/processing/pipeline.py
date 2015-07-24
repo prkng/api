@@ -108,8 +108,6 @@ def process_quebec():
     db.query(qbc.overlay_paid_rules)
     db.query(qbc.create_paid_slots_standalone)
 
-    db.query(qbc.create_client_data)
-
     db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
     db.create_index('quebec_slots_debug', 'pkid')
     db.create_index('quebec_slots_debug', 'geom', index_type='gist')
@@ -303,7 +301,7 @@ def run():
     Logger.info("Shorten final slots that intersects with slots or roads")
     db.query(common.cut_slots_crossing_roads)
     db.query(common.cut_slots_crossing_slots)
-    db.query(common.update_geojson_slots)
+    db.query(common.create_client_data)
     db.vacuum_analyze('public', 'slots')
 
     if not CONFIG['DEBUG']:

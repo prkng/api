@@ -193,6 +193,9 @@ where exists (
 )
 """
 
-update_geojson_slots = """
-UPDATE slots set geojson = ST_AsGeoJSON(st_transform(geom, 4326))::jsonb
+create_client_data = """
+UPDATE slots SET
+    geojson = ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
+    button_location = json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
+        'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb
 """
