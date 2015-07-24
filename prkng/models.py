@@ -397,8 +397,14 @@ class SlotsModel(object):
         checkin = checkin or datetime.now()
 
         req = """
-        SELECT {properties}
-        FROM slots
+        SELECT 1 FROM service_areas
+        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
+        """.format(x=x, y=y)
+        if not db.engine.execute(req).first():
+            return False
+
+        req = """
+        SELECT {properties} FROM slots
         WHERE
             ST_Dwithin(
                 st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -426,16 +432,23 @@ class SlotsModel(object):
         """
         Retrieve all slots inside a given boundbox.
         """
+
         req = """
-        SELECT {properties}
-        FROM slots
+        SELECT 1 FROM service_areas
+        WHERE ST_Intersects(geom, ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857))
+        """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)
+        if not db.engine.execute(req).first():
+            return False
+
+        req = """
+        SELECT {properties} FROM slots
         WHERE
             ST_intersects(
                 ST_Transform(
                     ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
                     3857
                 ),
-                geom
+                slots.geom
             )
         """.format(
             properties=','.join(SlotsModel.properties),

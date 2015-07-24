@@ -361,6 +361,52 @@ FROM selection,
 LATERAL st_transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) as center
 """
 
+overlay_paid_rules = """
+WITH tmp AS (
+  SELECT
+      DISTINCT ON (s.id) s.id,
+      jsonb_array_elements(rules) AS rules_array,
+      CASE
+        WHEN mpzt.name LIKE '%Zone 1%' THEN 3.00
+        WHEN mpzt.name LIKE '%Zone 2%' THEN 2.50
+        WHEN mpzt.name LIKE '%Zone 3%' THEN 2.00
+        WHEN mpzt.name LIKE '%Zone 4%' THEN 1.50
+        ELSE 1.00
+      END AS zone_rate
+    FROM slots s
+    JOIN service_areas sa ON ST_Intersects(s.geom, sa.geom) AND sa.name = 'montreal'
+    LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
+    JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
+    GROUP BY s.id, mpzt.name
+), tmp_rules AS (
+  SELECT
+    id, array_agg(rules_array) AS rules
+  FROM tmp
+  GROUP BY id
+)
+UPDATE slots s
+  SET rules = array_to_json(
+    array_append(
+      r.rules,
+      json_build_object(
+          'code', z.code,
+          'description', z.description,
+          'address', s.way_name,
+          'season_start', z.season_start,
+          'season_end', z.season_end,
+          'agenda', z.agenda,
+          'time_max_parking', z.time_max_parking,
+          'special_days', z.special_days,
+          'restrict_typ', z.restrict_typ,
+          'paid_hourly_rate', g.zone_rate
+      )::jsonb)
+    )::jsonb
+  FROM tmp g, tmp_rules r, rules z
+  WHERE s.id = g.id
+    AND r.id = g.id
+    AND z.code = 'MTLPAID'
+"""
+
 create_slots_for_debug = """
 DROP TABLE IF EXISTS slots_debug;
 CREATE TABLE slots_debug as

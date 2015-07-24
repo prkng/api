@@ -101,6 +101,15 @@ def process_quebec():
     db.create_index('slots', 'rules', index_type='gin')
     db.vacuum_analyze('public', 'slots')
 
+    info("Creating and overlaying paid slots")
+    db.query(qbc.create_bornes_raw)
+    db.query(qbc.create_paid_signpost)
+    db.query(qbc.aggregate_paid_signposts.format(offset=LINE_OFFSET))
+    db.query(qbc.overlay_paid_rules)
+    db.query(qbc.create_paid_slots_standalone)
+
+    db.query(qbc.create_client_data)
+
     db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
     db.create_index('quebec_slots_debug', 'pkid')
     db.create_index('quebec_slots_debug', 'geom', index_type='gist')
@@ -197,6 +206,14 @@ def process_montreal():
     db.create_index('slots_debug', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'slots_debug')
 
+    info("Overlaying paid slots")
+    with open(script('paid_montreal.csv'), 'r') as infile:
+        db.copy_from('public', 'montreal_paid_temp', ('signposts',),
+            [line.replace('\"', '') for line in infile.readlines])
+    db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
+    db.query(mrl.import_paid_slot_data)
+    db.query(mrl.overlay_paid_rules)
+
 
 def cleanup_table():
     """
@@ -209,8 +226,12 @@ def cleanup_table():
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE nextpoints")
+    db.query("DROP TABLE montreal_paid_temp")
     db.query("DROP TABLE quebec_nextpoints")
     db.query("DROP TABLE quebec_slots_likely")
+    db.query("DROP TABLE quebec_paid_slots_raw")
+    db.query("DROP TABLE quebec_bornes_raw")
+    db.query("DROP TABLE quebec_bornes_clustered")
     db.query("DROP TABLE permit_zones")
     db.query("DROP TABLE service_areas_mask")
 

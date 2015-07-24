@@ -26,6 +26,9 @@ def on_restriction(rules, checkin, duration, permit=False):
 
     # analyze each rule and stop iteration on conflict
     for rule in rules:
+        if rule['restrict_typ'] == 'paid':
+            # not concerned, going to the next rule
+            continue
 
         # first test season day/month
         start_month, start_day = ('-' or rule['season_start']).split('-')

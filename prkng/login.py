@@ -77,7 +77,7 @@ def email_update(
     auth_id = 'email${}'.format(user.id)
     ua = UserAuth.exists(auth_id)
     if ua and password:
-        UserAuth.change_password(auth_id, password)
+        UserAuth.update_password(auth_id, password)
     if ua:
         UserAuth.update(auth_id, birthyear)
 
@@ -247,7 +247,7 @@ def google_signin(access_token):
             name=user.name,
             auth_id=auth_id,
             email=user.email,
-            auth_type='facebook',
+            auth_type='google',
             fullprofile=me
         )
     else:

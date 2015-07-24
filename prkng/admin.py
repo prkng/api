@@ -229,6 +229,8 @@ def get_slots():
         int(request.args.get('type', 0)),
         request.args.get('invert') in [True, "true"]
     )
+    if res == False:
+        return jsonify(status="no feature found"), 404
 
     slots = [
         {key: value for key, value in row.items()}

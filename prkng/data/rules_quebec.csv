@@ -116,7 +116,6 @@ PS3113,"Stat. 60 min 9h - 12h, 13h30 - 17h LUN À VEN (fl. dou.) EXCEPTÉ PERMIS
 PS3113,"Stat. 60 min 9h - 12h, 13h30 - 17h LUN À VEN (fl. dou.) EXCEPTÉ PERMIS ZONE A3-3",,,60,13.5,17,3.5,1,1,1,1,1,,,,,permit,A3-3
 PS3017,Stat. 120 min 8h - 18h MAR-JEU EXCEPTÉ VÉH. ZONE A3-2 (fl. ga.) (orange),,,120,8,18,10,,1,,1,,,,,,permit,A3-2
 PP2272,Stat. int. 1 mai au 15 oct (fl. droite),05-01,10-15,,,,,,,,,,,,1,,,
-PS1342,Stat. PARCOMÈTRE EN AUTRE TEMPS (fl. dr.),,,,,,,,,,,,,,1,,paid,
 PS2451,"Stat. 30 min 9h - 12h, 13h30 - 17h LUN À VEN (fl. ga.) EXCEPTÉ PREMIS ZONE 6  (gris)",,,30,9,12,3,1,1,1,1,1,,,,,permit,06
 PS2451,"Stat. 30 min 9h - 12h, 13h30 - 17h LUN À VEN (fl. ga.) EXCEPTÉ PREMIS ZONE 6  (gris)",,,30,13.5,17,3.5,1,1,1,1,1,,,,,permit,06
 PS2634,Stat. 90 min LUN À VEN (fl. ga.),,,90,,,,1,1,1,1,1,,,,,,
@@ -1344,3 +1343,5 @@ PP1448,Stat. int. 8h - 16h MAR-JEU 15 NOV AU 31 MARS (fl. dr.),11-15,03-31,,8,16
 PP2691,Stat. int. 7h - 9h MER-SAM (fl. ga.),,,,7,9,2,,,1,,,1,,,,,
 PP2326,Stat. int. MAR-JEU-SAM (fl. dou.),,,,,,,,1,,1,,1,,,,,
 PS2532,Stat. 90 min 9h - 18h LUN À VEN (fl. dr.),,,90,9,18,9,1,1,1,1,1,,,,,,
+QCPAID,"Stat. payant 9h - 21h LUN À SAM, 10h - 21h DIM",,,,9,21,12,1,1,1,1,1,1,,,,paid,
+QCPAID,"Stat. payant 9h - 21h LUN À SAM, 10h - 21h DIM",,,,10,21,11,,,,,,,1,,,paid,

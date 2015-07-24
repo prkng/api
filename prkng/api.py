@@ -120,6 +120,8 @@ class ButtonLocation(fields.Raw):
     'restrict_typ': fields.String(
         description='special restriction details',
         required=True),
+    'paid_hourly_rate': fields.Float(
+        description='hourly cost for paid parking here (if applicable)'),
     'button_location': ButtonLocation(required=True)
 })
 class SlotsField(fields.Raw):
@@ -270,8 +272,7 @@ class SlotsResource(Resource):
             args['checkin'],
             args['permit']
         )
-
-        if not res:
+        if res == False:
             api.abort(404, "no feature found")
 
         return FeatureCollection([
@@ -390,8 +391,8 @@ register_parser = api.parser()
 register_parser.add_argument('email', required=True, type=str, location='form', help='user email')
 register_parser.add_argument('password', required=True, type=str, location='form', help='user password')
 register_parser.add_argument('name', required=True, type=unicode, location='form', help='user name')
-register_parser.add_argument('gender', required=True, type=str, location='form', help='gender')
-register_parser.add_argument('birthyear', required=True, type=int, location='form', help='birth year')
+register_parser.add_argument('gender', type=str, location='form', help='gender')
+register_parser.add_argument('birthyear', type=str, location='form', help='birth year')
 register_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
@@ -538,7 +539,7 @@ update_profile_parser.add_argument('email', type=str, location='form', help='use
 update_profile_parser.add_argument('password', type=str, location='form', help='user password')
 update_profile_parser.add_argument('name', type=unicode, location='form', help='user name')
 update_profile_parser.add_argument('gender', type=str, location='form', help='gender')
-update_profile_parser.add_argument('birthyear', type=int, location='form', help='birth year')
+update_profile_parser.add_argument('birthyear', type=str, location='form', help='birth year')
 update_profile_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
