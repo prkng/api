@@ -210,7 +210,7 @@ def process_montreal():
         COPY montreal_paid_temp (signposts)
         FROM '{}'
         WITH CSV
-    """.format(os.path.join(os.path.dirname(__file__), '../data/paid_montreal.csv'))
+    """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/paid_montreal.csv')))
     db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
     db.query(mrl.overlay_paid_rules)
 

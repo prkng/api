@@ -451,45 +451,44 @@ WITH segments AS (
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
         GROUP BY s.id
     ) AS foo
+    WHERE ST_Length(ST_Intersection(geom, exclude)) >= 4
     GROUP BY id, geom, exclude, signposts, way_name, orig_rules
     ORDER BY id
 ), update_normal AS (
     DELETE FROM slots
     USING segments
     WHERE slots.id = segments.id
-), new_paids AS (
-    INSERT INTO slots (signposts, rules, way_name, geom)
-        SELECT
-            g.signposts,
-            array_to_json(array_append(g.rules,
-                json_build_object(
-                    'code', z.code,
-                    'description', z.description,
-                    'address', g.way_name,
-                    'season_start', z.season_start,
-                    'season_end', z.season_end,
-                    'agenda', z.agenda,
-                    'time_max_parking', z.time_max_parking,
-                    'special_days', z.special_days,
-                    'restrict_typ', z.restrict_typ,
-                    'paid_hourly_rate', 2.25
-                )::jsonb)
-            )::jsonb,
-            g.way_name,
-            CASE ST_GeometryType(g.geom_paid)
-                WHEN 'ST_LineString' THEN
-                    g.geom_paid
-                ELSE
-                    (ST_Dump(g.geom_paid)).geom
-            END
-        FROM segments g
-        JOIN rules z ON z.code = 'QCPAID'
-), new_normals AS (
+), new_slots AS (
     SELECT
-        g.id,
         g.signposts,
         g.way_name,
-        g.orig_rules,
+        array_to_json(array_append(g.rules,
+            json_build_object(
+                'code', z.code,
+                'description', z.description,
+                'address', g.way_name,
+                'season_start', z.season_start,
+                'season_end', z.season_end,
+                'agenda', z.agenda,
+                'time_max_parking', z.time_max_parking,
+                'special_days', z.special_days,
+                'restrict_typ', z.restrict_typ,
+                'paid_hourly_rate', 2.25
+            )::jsonb)
+        )::jsonb AS rules,
+        CASE ST_GeometryType(g.geom_paid)
+            WHEN 'ST_LineString' THEN
+                g.geom_paid
+            ELSE
+                (ST_Dump(g.geom_paid)).geom
+        END AS geom
+    FROM segments g
+    JOIN rules z ON z.code = 'QCPAID'
+    UNION
+    SELECT
+        g.signposts,
+        g.way_name,
+        g.orig_rules AS rules,
         CASE ST_GeometryType(g.geom_normal)
             WHEN 'ST_LineString' THEN
                 g.geom_normal
@@ -501,11 +500,11 @@ WITH segments AS (
 INSERT INTO slots (signposts, rules, way_name, geom)
     SELECT
         nn.signposts,
-        nn.orig_rules,
+        nn.rules,
         nn.way_name,
         nn.geom
-    FROM new_normals nn
-    WHERE ST_Length(nn.geom) >= 3
+    FROM new_slots nn
+    WHERE ST_Length(nn.geom) >= 4
 """
 
 create_paid_slots_standalone = """
@@ -524,14 +523,12 @@ WITH exclusions AS (
     GROUP BY id, way_name
 ), update_raw AS (
     SELECT
-        qps.id,
         ex.way_name,
         ST_Difference(qps.geom, ex.exclude) AS geom
     FROM quebec_paid_slots_raw qps
     JOIN exclusions ex ON ex.id = qps.id
     UNION
     SELECT
-        qps.id,
         r.name,
         qps.geom
     FROM quebec_paid_slots_raw qps
@@ -570,7 +567,7 @@ INSERT INTO slots (signposts, rules, way_name, geom)
         nn.way_name,
         nn.geom
     FROM new_paid nn
-    WHERE ST_Length(nn.geom) >= 3
+    WHERE ST_Length(nn.geom) >= 4
 """
 
 create_slots_for_debug = """
