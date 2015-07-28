@@ -5,6 +5,7 @@
 from __future__ import unicode_literals
 
 import json
+import os
 
 from prkng.logger import Logger
 from prkng import create_app
@@ -205,11 +206,12 @@ def process_montreal():
     db.vacuum_analyze('public', 'slots_debug')
 
     info("Overlaying paid slots")
-    with open(script('paid_montreal.csv'), 'r') as infile:
-        db.copy_from('public', 'montreal_paid_temp', ('signposts',),
-            [line.replace('\"', '') for line in infile.readlines])
+    db.query("""
+        COPY montreal_paid_temp (signposts)
+        FROM '{}'
+        WITH CSV
+    """.format(os.path.join(os.path.dirname(__file__), '../data/paid_montreal.csv'))
     db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
-    db.query(mrl.import_paid_slot_data)
     db.query(mrl.overlay_paid_rules)
 
 

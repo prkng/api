@@ -44,9 +44,9 @@ setup(
     name=PROJECT_NAME,
     version=find_version('prkng', '__init__.py'),
     description="prkng API",
-    url='http://api.prk.ng/',
-    author='Oslandia',
-    author_email='infos@oslandia.com',
+    url='https://api.prk.ng/',
+    author='Prkng Inc',
+    author_email='hey@prk.ng',
     license='',
     classifiers=[
         'Development Status :: 3 - Alpha',

@@ -317,6 +317,49 @@ def test_on_restrictions_flexible():
     assert on_restriction(rule_view, '2015-04-28T08:30', 1) == True
 
 
+def test_on_restrictions_permit():
+    rule_view = [
+        {
+            'restrict_typ': None,
+            'code': 'AV-AB',
+            'description': 'A 08h-09h30 LUN. AU VEN.',
+            'time_max_parking': None,
+            'season_end': None,
+            'agenda': {'1': [[8.0, 9.5]],
+                       '3': [[8.0, 9.5]],
+                       '2': [[8.0, 9.5]],
+                       '5': [[8.0, 9.5]],
+                       '4': [[8.0, 9.5]],
+                       '7': [], '6': []},
+            'special_days': None,
+            'season_start': None,
+            'season_end': None
+        },
+        {
+            'restrict_typ': 'permit',
+            'permit_no': 151,
+            'code': 'R-PF',
+            'description': 'P RESERVE S3R 09h-23h',
+            'time_max_parking': None,
+            'season_end': None,
+            'agenda': {'1': [[9.0, 23.0]],
+                       '2': [[9.0, 23.0]],
+                       '3': [[9.0, 23.0]],
+                       '4': [[9.0, 23.0]],
+                       '5': [[9.0, 23.0]],
+                       '6': [[9.0, 23.0]],
+                       '7': [[9.0, 23.0]]},
+            'special_days': None,
+            'season_start': None,
+            'season_end': None
+        }
+    ]
+
+    assert on_restriction(rule_view, '2015-02-09T12:00', 1, 151) == False
+    assert on_restriction(rule_view, '2015-02-09T08:15', 1, 151) == True
+    assert on_restriction(rule_view, '2015-02-09T12:00', 1) == True
+
+
 def test_season_matching():
     assert season_matching(1, 1, 1, 4, 1, 4) == True
     assert season_matching(1, 1, 1, 4, 1, 1) == True

@@ -464,8 +464,10 @@ class SlotsModel(object):
         elif checkin:
             slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration), permit), slots)
         if type == 1:
-            slots = filter(lambda x: "permit" in [y["restrict_typ"] for y in x.rules], slots)
+            slots = filter(lambda x: "paid" in [y["restrict_typ"] for y in x.rules], slots)
         elif type == 2:
+            slots = filter(lambda x: "permit" in [y["restrict_typ"] for y in x.rules], slots)
+        elif type == 3:
             slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
 
         return slots

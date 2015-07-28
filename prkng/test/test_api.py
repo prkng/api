@@ -47,6 +47,17 @@ def app(request):
         g.user = User.add_user(email='test@test', name='test_user')
         client.get("/test_auto_login")
 
+    db.engine.execute("""
+        DROP TABLE IF EXISTS service_areas;
+        CREATE TABLE service_areas AS
+            SELECT 'montreal' AS name,
+             'POLYGON((4.28302949061661931 42.34791957104560112,
+                4.28302949061661931 44.39724932975872917,
+                1.43423592493298013 44.44228954423594047,
+                1.31037533512064774 42.483040214477235,
+                4.28302949061661931 42.34791957104560112))'::GEOMETRY AS geom
+    """)
+
     # add some checkins
     db.engine.execute("truncate table checkins")
     for num in range(3):

@@ -93,6 +93,7 @@ def backup():
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
     if not os.path.exists(backup_dir):
         os.mkdir(backup_dir)
+    Logger.info('Creating backup...')
     check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name), **CONFIG),
         shell=True)
     Logger.info('Backup created and stored as {}'.format(os.path.join(backup_dir, file_name)))

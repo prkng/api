@@ -100,7 +100,7 @@ UPDATE corrections c
   SET code = s.code, description = s.description
   FROM s
   WHERE c.id = s.id
-  AND c.code <> s.code
+    AND c.code <> s.code
 """
 
 process_corrections = """
@@ -126,8 +126,8 @@ WITH r AS (
 UPDATE slots s
   SET rules = r.rules
   FROM r
-  WHERE SORT(s.signposts) = SORT(r.signposts)
-  AND s.rules <> r.rules
+  WHERE s.signposts = r.signposts
+    AND s.rules <> r.rules
 """
 
 create_slots = """

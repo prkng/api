@@ -104,7 +104,6 @@ class PostgresWrapper(object):
         """
         Free spaces for given table and collect statistics
 
-        :param connection: pg connection instance
         :param schema: schema name
         :param table: table name
 

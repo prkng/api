@@ -190,6 +190,24 @@ This command will process all data and generate parking slots (will erase any ol
 Launch a development server.
 Go to your browser and check `<http://localhost:5000>`_
 
+.. code-block:: bash
+
+    $ prkng car2go
+
+Fetch from the car2go API and update local data.
+
+.. code-block:: bash
+
+    $ prkng update-areas
+
+Re-imports the service area shapefiles from the `data` directory, stores metadata and uploads statics to S3.
+
+.. code-block:: bash
+
+    $ prkng backup
+
+Creates a compressed and timestamped backup of the main database in the `backup` subdirectory.
+
 
 Production mode
 ===============
@@ -275,7 +293,7 @@ Launch the application ::
             proxy_set_header X-NginX-Proxy true;
             proxy_redirect off;
             include uwsgi_params;
-            uwsgi_pass prkng_api;        
+            uwsgi_pass prkng_api;
         }
 
         location ^~ /admin/assets/ {

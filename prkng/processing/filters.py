@@ -26,7 +26,7 @@ def on_restriction(rules, checkin, duration, permit=False):
 
     # analyze each rule and stop iteration on conflict
     for rule in rules:
-        if rule['restrict_typ'] == 'paid':
+        if rule.get('restrict_typ') == 'paid':
             # not concerned, going to the next rule
             continue
 
@@ -141,7 +141,7 @@ def group_rules(rules):
     results = []
     days = ('lun', 'mar', 'mer', 'jeu', 'ven', 'sam', 'dim')
 
-    for code, group in groupby(rules, lambda x: (x.code, x.season_start, x.season_end)):
+    for code, group in groupby(rules, lambda x: (x.code, x.season_start, x.season_end, x.time_max_parking)):
 
         day_dict = defaultdict(list)
 
