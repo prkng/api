@@ -604,6 +604,8 @@ report_parser.add_argument(
 )
 report_parser.add_argument('image_url', type=str, required=True,
     location='form', help='report image URL')
+report_parser.add_argument('notes', type=str,
+    location='form', help='report notes')
 
 
 @api.route('/report')
@@ -615,5 +617,5 @@ class Report(Resource):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
         Reports.add(g.user.id, args.get("slot_id", None), args["longitude"],
-            args["latitude"], args.get("image_url", ""))
+            args["latitude"], args.get("image_url", ""), args.get("notes", ""))
         return "Resource created", 201

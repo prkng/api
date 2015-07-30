@@ -652,9 +652,9 @@ class City(object):
 
 class Reports(object):
     @staticmethod
-    def add(user_id, slot_id, lng, lat, url):
+    def add(user_id, slot_id, lng, lat, url, notes):
         db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
-            long=lng, lat=lat, image_url=url))
+            long=lng, lat=lat, image_url=url, notes=notes))
 
     @staticmethod
     def get(id):
