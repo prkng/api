@@ -96,11 +96,11 @@ def process_quebec():
     db.create_index('quebec_nextpoints', 'direction')
     db.vacuum_analyze('public', 'quebec_nextpoints')
 
-    db.query(qbc.insert_slots.format(offset=LINE_OFFSET))
-    db.create_index('slots', 'id')
-    db.create_index('slots', 'geom', index_type='gist')
-    db.create_index('slots', 'rules', index_type='gin')
-    db.vacuum_analyze('public', 'slots')
+    db.query(qbc.insert_slots_temp.format(offset=LINE_OFFSET))
+    db.create_index('slots_temp', 'id')
+    db.create_index('slots_temp', 'geom', index_type='gist')
+    db.create_index('slots_temp', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'slots_temp')
 
     info("Creating and overlaying paid slots")
     db.query(qbc.create_bornes_raw)
@@ -109,10 +109,11 @@ def process_quebec():
     db.query(qbc.overlay_paid_rules)
     db.query(qbc.create_paid_slots_standalone)
 
-    db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
-    db.create_index('quebec_slots_debug', 'pkid')
-    db.create_index('quebec_slots_debug', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'quebec_slots_debug')
+    if CONFIG['DEBUG']:
+        db.query(qbc.create_slots_for_debug.format(offset=LINE_OFFSET))
+        db.create_index('quebec_slots_debug', 'pkid')
+        db.create_index('quebec_slots_debug', 'geom', index_type='gist')
+        db.vacuum_analyze('public', 'quebec_slots_debug')
 
 
 def process_montreal():
@@ -194,16 +195,13 @@ def process_montreal():
     db.create_index('nextpoints', 'direction')
     db.vacuum_analyze('public', 'nextpoints')
 
-    db.query(mrl.insert_slots.format(offset=LINE_OFFSET))
-    db.create_index('slots', 'id')
-    db.create_index('slots', 'geom', index_type='gist')
-    db.create_index('slots', 'rules', index_type='gin')
-    db.vacuum_analyze('public', 'slots')
+    db.query(mrl.insert_slots_temp.format(offset=LINE_OFFSET))
 
-    db.query(mrl.create_slots_for_debug.format(offset=LINE_OFFSET))
-    db.create_index('slots_debug', 'pkid')
-    db.create_index('slots_debug', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'slots_debug')
+    if CONFIG['DEBUG']:
+        db.query(mrl.create_slots_for_debug.format(offset=LINE_OFFSET))
+        db.create_index('slots_debug', 'pkid')
+        db.create_index('slots_debug', 'geom', index_type='gist')
+        db.vacuum_analyze('public', 'slots_debug')
 
     info("Overlaying paid slots")
     db.query("""
@@ -234,6 +232,7 @@ def cleanup_table():
     db.query("DROP TABLE quebec_bornes_clustered")
     db.query("DROP TABLE permit_zones")
     db.query("DROP TABLE service_areas_mask")
+    db.query("DROP TABLE slots_temp")
 
 
 def process_osm():
@@ -291,6 +290,7 @@ def run():
     # create common tables
     db.query(common.create_rules)
     db.create_index('rules', 'code')
+    db.query(common.create_slots_temp)
     db.query(common.create_slots)
     db.query(common.create_corrections)
     process_montreal()
@@ -300,9 +300,15 @@ def run():
     db.query(common.process_corrected_rules)
     db.query(common.process_corrections)
 
-    Logger.info("Shorten final slots that intersects with slots or roads")
+    Logger.info("Shorten slots that intersect with roads or other slots")
     db.query(common.cut_slots_crossing_roads)
     db.query(common.cut_slots_crossing_slots)
+
+    Logger.info("Aggregating like slots")
+    db.create_index('slots', 'id')
+    db.create_index('slots', 'geom', index_type='gist')
+    db.create_index('slots', 'rules', index_type='gin')
+    db.query(common.aggregate_like_slots)
     db.query(common.create_client_data)
     db.vacuum_analyze('public', 'slots')
 

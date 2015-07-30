@@ -94,8 +94,6 @@ DO
 $$
 DECLARE
   borne record;
-  id_a integer;
-  id_b integer;
   id_match integer;
 BEGIN
   DROP TABLE IF EXISTS quebec_bornes_clustered;
@@ -274,6 +272,7 @@ CREATE TABLE quebec_slots_likely(
     id serial
     , signposts integer[]
     , rid integer  -- road id
+    , position float
     , geom geometry(linestring, 3857)
 );
 """
@@ -315,10 +314,11 @@ UNION ALL
         , signpost
     FROM point_list
 )
-INSERT INTO quebec_slots_likely (signposts, rid, geom)
+INSERT INTO quebec_slots_likely (signposts, rid, position, geom)
 SELECT
     ARRAY[loc1.signpost, loc2.signpost]
     , w.id
+    , loc1.position as position
     , st_line_substring(w.geom, loc1.position, loc2.position) as geom
 FROM loc_with_idx loc1
 JOIN loc_with_idx loc2 using (rid)
@@ -362,7 +362,7 @@ JOIN quebec_slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 from tmp)
 """
 
-insert_slots = """
+insert_slots_temp = """
 WITH tmp AS (
     -- select north and south from signpost
     SELECT
@@ -370,6 +370,7 @@ WITH tmp AS (
         , s.code
         , s.description
         , s.direction
+        , spo.road_id
         , spo.isleft
         , rb.name
     FROM quebec_slots_likely sl
@@ -388,6 +389,7 @@ WITH tmp AS (
         , s.code
         , s.description
         , s.direction
+        , spo.road_id
         , spo.isleft
         , rb.name
     FROM quebec_slots_likely sl
@@ -401,6 +403,8 @@ SELECT
     distinct on (t.id) t.id
     , min(signposts) as signposts
     , min(isleft) as isleft
+    , min(road_id) as rid
+    , min(position) as position
     , min(name) as way_name
     , array_to_json(
         array_agg(distinct
@@ -426,9 +430,11 @@ SELECT
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots (signposts, rules, geom, way_name)
+) INSERT INTO slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT
-    signposts
+    rid
+    , position
+    , signposts
     , rules
     , geom::geometry(linestring, 3857)
     , way_name
@@ -446,7 +452,7 @@ WITH segments AS (
             s.id, s.geom, s.signposts, s.way_name, s.rules AS orig_rules,
             jsonb_array_elements(s.rules) AS rules,
             ST_Union(ST_Buffer(qps.geom, 1, 'endcap=flat join=round')) AS exclude
-        FROM slots s
+        FROM slots_temp s
         JOIN quebec_paid_slots_raw qps ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
         GROUP BY s.id
@@ -455,9 +461,9 @@ WITH segments AS (
     GROUP BY id, geom, exclude, signposts, way_name, orig_rules
     ORDER BY id
 ), update_normal AS (
-    DELETE FROM slots
+    DELETE FROM slots_temp
     USING segments
-    WHERE slots.id = segments.id
+    WHERE slots_temp.id = segments.id
 ), new_slots AS (
     SELECT
         g.signposts,
@@ -497,7 +503,7 @@ WITH segments AS (
         END AS geom
     FROM segments g
 )
-INSERT INTO slots (signposts, rules, way_name, geom)
+INSERT INTO slots_temp (signposts, rules, way_name, geom)
     SELECT
         nn.signposts,
         nn.rules,
@@ -517,7 +523,7 @@ WITH exclusions AS (
             r.name AS way_name,
             ST_Buffer(s.geom, 1, 'endcap=flat join=round') AS exclude
         FROM quebec_paid_slots_raw qps
-        JOIN slots s ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
+        JOIN slots_temp s ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
     ) AS foo
     GROUP BY id, way_name
@@ -560,7 +566,7 @@ WITH exclusions AS (
     FROM update_raw ur
     JOIN rules z ON z.code = 'QCPAID'
 )
-INSERT INTO slots (signposts, rules, way_name, geom)
+INSERT INTO slots_temp (signposts, rules, way_name, geom)
     SELECT
         ARRAY[0,0],
         nn.rules,

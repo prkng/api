@@ -130,11 +130,13 @@ UPDATE slots s
     AND s.rules <> r.rules
 """
 
-create_slots = """
-DROP TABLE IF EXISTS slots;
-CREATE TABLE slots
+create_slots_temp = """
+DROP TABLE IF EXISTS slots_temp;
+CREATE TABLE slots_temp
 (
   id serial PRIMARY KEY,
+  rid integer,
+  position float,
   signposts integer[],
   rules jsonb,
   way_name varchar,
@@ -144,8 +146,54 @@ CREATE TABLE slots
 )
 """
 
+create_slots = """
+DROP TABLE IF EXISTS slots;
+CREATE TABLE slots
+(
+  id serial PRIMARY KEY,
+  rid integer,
+  signposts integer[],
+  rules jsonb,
+  way_name varchar,
+  geom geometry(LineString,3857),
+  geojson jsonb,
+  button_location jsonb
+)
+"""
+
+aggregate_like_slots = """
+DO
+$$
+DECLARE
+  slot record;
+  id_match integer;
+BEGIN
+  FOR slot IN SELECT * FROM slots_temp ORDER BY rid, position LOOP
+    SELECT id FROM slots s
+      WHERE slot.rid = s.rid
+        AND ST_Touches(slot.geom, s.geom)
+        AND slot.rules = s.rules
+      LIMIT 1 INTO id_match;
+
+    IF id_match IS NULL THEN
+      INSERT INTO slots (rid, signposts, rules, geom, way_name) VALUES
+        (slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
+    ELSE
+      UPDATE slots SET geom =
+        (CASE WHEN ST_Intersection(slot.geom, geom) = ST_EndPoint(geom)
+            THEN ST_MakeLine(geom, slot.geom)
+            ELSE ST_MakeLine(slot.geom, geom)
+        END),
+        signposts = (signposts || ARRAY[slot.signposts])
+      WHERE slots.id = id_match;
+    END IF;
+  END LOOP;
+END;
+$$ language plpgsql;
+"""
+
 cut_slots_crossing_slots = """
-UPDATE slots s set geom = (
+UPDATE slots_temp s set geom = (
 with tmp as (
 select
     array_sort(
@@ -153,7 +201,7 @@ select
             ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
         )
     ) as locations
-from slots o
+from slots_temp o
 where st_crosses(s.geom, o.geom) and s.id != o.id
 and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
 )
@@ -162,7 +210,7 @@ select
 from tmp, get_max_range(tmp.locations) as locs
 )
 where exists (
-    select 1 from slots a
+    select 1 from slots_temp a
     where st_crosses(s.geom, a.geom)
           and s.id != a.id
           and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
@@ -170,7 +218,7 @@ where exists (
 """
 
 cut_slots_crossing_roads = """
-UPDATE slots s set geom = (
+UPDATE slots_temp s set geom = (
 with tmp as (
 select
     array_sort(

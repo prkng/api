@@ -1,3 +1,6 @@
+backup/
+prkng.cfg
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -28,7 +31,6 @@ var/
 *.spec
 
 # Installer logs
-
 pip-log.txt
 pip-delete-this-directory.txt
 
@@ -47,4 +49,3 @@ coverage.xml
 
 # Sphinx documentation
 doc/_build/
-

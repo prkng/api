@@ -198,6 +198,7 @@ CREATE TABLE slots_likely(
     id serial
     , signposts integer[]
     , rid integer  -- road id
+    , position float
     , geom geometry(linestring, 3857)
 );
 """
@@ -239,10 +240,11 @@ UNION ALL
         , signpost
     FROM point_list
 )
-INSERT INTO slots_likely (signposts, rid, geom)
+INSERT INTO slots_likely (signposts, rid, position, geom)
 SELECT
     ARRAY[loc1.signpost, loc2.signpost]
     , w.id
+    , loc1.position as position
     , st_line_substring(w.geom, loc1.position, loc2.position) as geom
 FROM loc_with_idx loc1
 JOIN loc_with_idx loc2 using (rid)
@@ -286,7 +288,7 @@ JOIN slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 from tmp)
 """
 
-insert_slots = """
+insert_slots_temp = """
 WITH tmp AS (
     -- select north and south from signpost
     SELECT
@@ -323,6 +325,8 @@ SELECT
     distinct on (t.id) t.id
     , min(signposts) as signposts
     , min(isleft) as isleft
+    , min(rid) as rid
+    , min(position) as position
     , min(name) as way_name
     , array_to_json(
         array_agg(distinct
@@ -349,16 +353,15 @@ FROM tmp t
 JOIN rules r ON t.code = r.code
 LEFT JOIN permit_zones z ON r.restrict_typ = 'permit' AND ST_Intersects(t.geom, z.geom)
 GROUP BY t.id
-) INSERT INTO slots (signposts, rules, geom, geojson, button_location, way_name)
+) INSERT INTO slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT
-    signposts
+    rid
+    , position
+    , signposts
     , rules
     , geom
-    , ST_AsGeoJSON(st_transform(geom, 4326))::jsonb as geojson
-    , json_build_object('long', st_x(center), 'lat', st_y(center))::jsonb
     , way_name
-FROM selection,
-LATERAL st_transform(ST_Line_Interpolate_Point(geom, 0.5), 4326) as center
+FROM selection
 """
 
 overlay_paid_rules = """
@@ -373,7 +376,7 @@ WITH tmp AS (
         WHEN mpzt.name LIKE '%Zone 4%' THEN 1.50
         ELSE 1.00
       END AS zone_rate
-    FROM slots s
+    FROM slots_temp s
     JOIN service_areas sa ON ST_Intersects(s.geom, sa.geom) AND sa.name = 'montreal'
     LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
     JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
@@ -384,7 +387,7 @@ WITH tmp AS (
   FROM tmp
   GROUP BY id
 )
-UPDATE slots s
+UPDATE slots_temp s
   SET rules = array_to_json(
     array_append(
       r.rules,
