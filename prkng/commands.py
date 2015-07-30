@@ -99,9 +99,29 @@ def backup():
     Logger.info('Backup created and stored as {}'.format(os.path.join(backup_dir, file_name)))
 
 
+@click.command()
+def maintenance():
+    """
+    Toggle maintenance mode (set NGINX to return 503s for everything)
+    """
+    if not os.path.exists('/etc/nginx/sites-available/prkng'):
+        Logger.error('Could not set maintenance mode.')
+    if os.path.realpath('/etc/nginx/sites-enabled/prkng') == '/etc/nginx/sites-available/prkng':
+        os.unlink('/etc/nginx/sites-enabled/prkng')
+        os.symlink('/etc/nginx/sites-available/prkng-maint', '/etc/nginx/sites-enabled/prkng')
+        Logger.info('Maintenance mode ON')
+    else:
+        os.unlink('/etc/nginx/sites-enabled/prkng')
+        os.symlink('/etc/nginx/sites-available/prkng-maint', '/etc/nginx/sites-enabled/prkng')
+        Logger.info('Maintenance mode OFF')
+    check_call('service nginx reload')
+
+
+
 main.add_command(serve)
 main.add_command(update)
 main.add_command(process)
 main.add_command(update_areas)
 main.add_command(car2go)
 main.add_command(backup)
+main.add_command(maintenance)
