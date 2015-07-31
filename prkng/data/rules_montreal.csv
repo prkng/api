@@ -1261,7 +1261,9 @@
 "R-VP","\P RESERVE VEHICULES DU SERVICE DE LA POLICE",,,,0,24,24,,,,,,,,1,,"police"
 "AV-PP","\A 15h-18h30 LUN. AU VEN.",,,,15,"18.5","3.5",1,1,1,1,1,,,,,
 "OUT-ADN-27","\A 8h - 9h MER ET VEN 1er AVRIL - 30 NOV",04-01,11-30,,8,9,1,,1,,,1,,,,,
-"OUT-SDA-03","\P 8h JEUDI A 8h LUNDI",,,,8,,96,,,,1,,,,,,
+"OUT-SDA-03","\P 8h JEUDI A 8h LUNDI",,,,8,24,16,,,,1,,,,,,
+"OUT-SDA-03","\P 8h JEUDI A 8h LUNDI",,,,0,24,24,,,,,1,1,1,,,
+"OUT-SDA-03","\P 8h JEUDI A 8h LUNDI",,,,0,8,8,1,,,,,,,,,
 "R-RB","\P RESERVE S3R 17h30-23h",,,,"17.5",23,"5.5",,,,,,,,1,,"permit"
 "PE-JC","P 15 MIN. 07h30-17h30 JOURS D'ECOLE",,,15,"7.5","17.5",10,,,,,,,,,"school",
 "PB-JA","P 02h 09h-21h SAMEDI ET DIMANCHE",,,,9,21,12,,,,,,1,1,,,
@@ -1303,7 +1305,9 @@
 "R-RA","\P RESERVE S3R 09h30-23h",,,,"9.5",23,"13.5",,,,,,,,1,,"permit"
 "R-RE","\P RESERVE S3R 18h-23h LUN.AU VEN., 9h-23h SAM.ET DIM.",,,,18,23,5,1,1,1,1,1,,,,,"permit"
 "R-RE","\P RESERVE S3R 18h-23h LUN.AU VEN., 9h-23h SAM.ET DIM.",,,,9,23,14,,,,,,1,1,,,"permit"
-"OUT-SDA-01","\P 19h DIMANCHE A 19h MERCREDI",,,,19,,72,,,,,,,1,,,
+"OUT-SDA-01","\P 19h DIMANCHE A 19h MERCREDI",,,,19,24,5,,,,,,,1,,,
+"OUT-SDA-01","\P 19h DIMANCHE A 19h MERCREDI",,,,0,24,24,1,1,,,,,,,,
+"OUT-SDA-01","\P 19h DIMANCHE A 19h MERCREDI",,,,0,19,19,,,1,,,,,,,
 "PD-TT","P 60 min",,,60,0,24,24,,,,,,,,1,,
 "R-RY","\P EXCEPTE S3R 9h-23h LUN A VEN",,,,9,23,14,1,1,1,1,1,,,,,"permit"
 "AV-QE","\A 08h-09h30  16h-18h LUN. AU VEN.",,,,8,"9.5","1.5",1,1,1,1,1,,,,,
@@ -1354,7 +1358,9 @@
 "R-QZ","\P RESERVE S3R 09h-18h",,,,9,18,9,,,,,,,,1,,"permit"
 "OUT-SDN-06","\P 12h - 16h MARDI 1ER AVRIL - 30 NOV",04-01,11-30,,12,16,4,,1,,,,,,,,
 "R-PD-2S","\P RESERVE S3R 09h-21h  (2 SECTEURS)",,,,9,21,12,,,,,,,,1,,"permit"
-"OUT-SDA-02","\P 19h MERCREDI A 19h DIMANCHE",,,,19,,96,,,1,,,,,,,
+"OUT-SDA-02","\P 19h MERCREDI A 19h DIMANCHE",,,,19,24,5,,,1,,,,,,,
+"OUT-SDA-02","\P 19h MERCREDI A 19h DIMANCHE",,,,0,24,24,,,,1,1,1,,,,
+"OUT-SDA-02","\P 19h MERCREDI A 19h DIMANCHE",,,,0,19,19,,,,,,,1,,,
 "PS-JR","P 60 min 09h30-16h LUN. AU SAM.",,,60,"9.5",16,"6.5",1,1,1,1,1,1,,,,
 "R-PU","\P RESERVE S3R 15h30-21h LUNDI AU VENDREDI",,,,"15.5",21,"5.5",1,1,1,1,1,,,,,"permit"
 "R-PH-2S","\P EXCEPTE S3R 15h-09h   (2 SECTEURS)",,,,15,,18,,,,,,,,1,,"permit"
@@ -1412,7 +1418,9 @@
 "OUT-SDN-09-1","\P 10h - 12h MERCREDI 1er AVRIL - 30 NOV",04-01,11-30,,10,12,2,,,1,,,,,,,
 "OUT-SDN-18","\P 10h - 12h VENDREDI 1ER AVRIL - 30 NOV",04-01,11-30,,10,12,2,,,,,1,,,,,
 "OUT-SDN-04","\P 12h - 16h LUNDI 1ER AVRIL - 30 NOV",04-01,11-30,,12,16,4,1,,,,,,,,,
-"OUT-SDA-04","\P 8h LUNDI A 8h JEUDI",,,,8,,72,1,,,,,,,,,
+"OUT-SDA-04","\P 8h LUNDI A 8h JEUDI",,,,8,24,16,1,,,,,,,,,
+"OUT-SDA-04","\P 8h LUNDI A 8h JEUDI",,,,0,24,24,,1,1,,,,,,,
+"OUT-SDA-04","\P 8h LUNDI A 8h JEUDI",,,,0,8,8,,,,1,,,,,,
 "OUT-SDN-05","\P 8h - 12h MARDI 1ER AVRIL - 30 NOV",04-01,11-30,,8,12,4,,1,,,,,,,,
 "OUT-SPH-05","P 2h 8h - 22h LUN À VEN",,,120,8,22,14,1,1,1,1,1,,,,,
 "OUT-SPH-09","P 2h 19h A 22h MER, 8h A 22h JEU et 8h A 19h VEN",,,120,19,22,3,,,1,,,,,,,
@@ -1888,7 +1896,9 @@
 "RD-JJ","\P RESERVE HANDICAPES DE 10h00 A 16h00, LUN. SAM.",,,,10,16,6,1,,,,,1,,,,"handicap"
 "R-BX","\P STATIONNEMENT INTERDIT 14h - 18h30 MERCREDI EXCEPTE BIBLIOBUS",,,,14,"18.5","4.5",,,1,,,,,,,"bibliobus"
 "PV-DT","P DEBARCADERE 06h-09h LUN A VEN",,,3,6,9,3,1,1,1,1,1,,,,,"dropoff"
-"OUT-SDA-02-A","\P   19h mercredi À  19h dimanche   30 nov - 1er avril",11-30,04-01,,19,,96,,,1,,,,,,,
+"OUT-SDA-02-A","\P   19h mercredi À  19h dimanche   30 nov - 1er avril",11-30,04-01,,19,24,5,,,1,,,,,,,
+"OUT-SDA-02-A","\P   19h mercredi À  19h dimanche   30 nov - 1er avril",11-30,04-01,,0,24,24,,,,1,1,1,,,,
+"OUT-SDA-02-A","\P   19h mercredi À  19h dimanche   30 nov - 1er avril",11-30,04-01,,0,19,19,,,,,,,1,,,
 "R-XK","\P EXCEPTE S3R 09h-17h MAR. MER. JEU.",,,,9,17,8,,1,1,1,,,,,,"permit"
 "OUT-SRV-16","\P EXCEPTÉ DETENTEURS DE PERMIS SECTEUR XX",,,,0,24,24,,,,,,,,1,,"permit"
 "OUT-SRV-14","\P EXCEPTÉ DETENTEURS DE PERMIS SECTEUR XX 8h - 19h JEUDI AU DIMANCHE",,,,8,19,11,,,,1,1,1,1,,,"permit"
