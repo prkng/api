@@ -348,7 +348,7 @@ user_model = api.model('User', {
 })
 
 
-checkin_model = api.model('User', {
+checkin_model = api.model('Checkin', {
     'created': fields.String(),
     'long': fields.String(),
     'lat': fields.String(),

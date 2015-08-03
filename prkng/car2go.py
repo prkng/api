@@ -100,10 +100,10 @@ def update():
     queries = []
 
     # grab data from car2go api
-    raw = urllib2.urlopen("http://www.car2go.com/api/v2.1/vehicles?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
+    raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/vehicles?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
     data = json.loads(raw.read())["placemarks"]
 
-    raw = urllib2.urlopen("http://www.car2go.com/api/v2.1/parkingspots?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
+    raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
     lot_data = json.loads(raw.read())["placemarks"]
     lots = [x["name"] for x in lot_data]
 
@@ -115,7 +115,7 @@ def update():
     their_vins = [x["vin"] for x in data]
     for x in parked_vins:
         if not x in their_vins:
-            queries.append("UPDATE car2go SET parked = false WHERE vin = '{}'".format(x))
+            queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE vin = '{}'".format(x))
 
     # create or update car2go tracking with new data
     for x in data:

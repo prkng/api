@@ -796,3 +796,28 @@ class Car2Go(object):
             {key: value for key, value in row.items()}
             for row in res
         ]
+
+    @staticmethod
+    def get_free_spaces():
+        """
+        Get slots with car2gos that have recently left
+        """
+        start = datetime.datetime.now()
+        finish = start - datetime.timedelta(minutes=5)
+        res = db.engine.execute("""
+            SELECT
+                s.id,
+                s.way_name,
+                s.geom,
+                to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
+            FROM slots s
+            JOIN car2go c ON c.slot_id = s.id
+            WHERE c.in_lot   = false
+                AND c.parked = false
+                AND c.since  > '{}'
+                AND c.since  < '{}'
+        """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
