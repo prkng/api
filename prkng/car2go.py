@@ -1,4 +1,5 @@
 # -*- coding: utf-8 -*-
+import datetime
 import json
 import os
 import urllib2
@@ -27,6 +28,15 @@ CREATE TABLE IF NOT EXISTS car2go
   slot_id integer,
   parked boolean DEFAULT true,
   in_lot boolean DEFAULT false
+)
+"""
+
+create_free_spaces_table = """
+CREATE TABLE IF NOT EXISTS free_spaces
+(
+  id serial PRIMARY KEY,
+  time timestamp DEFAULT NOW(),
+  slot_ids integer[]
 )
 """
 
@@ -88,6 +98,27 @@ def get_checkins():
     """
     cars = Car2Go.get_all()
     return jsonify(cars=cars), 200
+
+
+def free_spaces():
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+
+    start = datetime.datetime.now()
+    finish = start - datetime.timedelta(minutes=5)
+
+    db.query(create_free_spaces_table)
+    db.query("""
+        INSERT INTO free_spaces (slot_ids)
+          SELECT array_agg(s.id) FROM slots s
+            JOIN car2go c ON c.slot_id = s.id
+            WHERE c.in_lot = false
+              AND c.parked = false
+              AND c.since  > '{}'
+              AND c.since  < '{}'
+    """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
 
 
 def update():
