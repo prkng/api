@@ -89,15 +89,6 @@ def get_checkins():
     cars = Car2Go.get_all()
     return jsonify(cars=cars), 200
 
-@car2go.route('/api/freeds', methods=['GET'])
-@auth_required()
-def get_freed_spaces():
-    """
-    Get car2go freed spaces
-    """
-    cars = Car2Go.get_free_spaces()
-    return jsonify(freeds=freeds), 200
-
 
 def update():
     CONFIG = create_app().config

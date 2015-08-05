@@ -12,7 +12,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadS
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
 
-from prkng.models import Checkins, Reports, City, Corrections, SlotsModel
+from prkng.models import Car2Go, Checkins, Reports, City, Corrections, SlotsModel
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -238,3 +238,13 @@ def get_slots():
     ]
 
     return jsonify(slots=slots), 200
+
+
+@admin.route('/api/frees', methods=['GET'])
+@auth_required()
+def get_freed_spaces():
+    """
+    Get car2go freed spaces
+    """
+    frees = Car2Go.get_free_spaces(request.args.get('minutes', 5))
+    return jsonify(frees=frees), 200

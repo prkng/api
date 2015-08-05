@@ -4,7 +4,7 @@
 """
 from __future__ import unicode_literals
 from base64 import encodestring
-from datetime import datetime
+from datetime import datetime, timedelta
 from passlib.hash import pbkdf2_sha256
 from time import time
 
@@ -798,17 +798,20 @@ class Car2Go(object):
         ]
 
     @staticmethod
-    def get_free_spaces():
+    def get_free_spaces(minutes=5):
         """
         Get slots with car2gos that have recently left
         """
-        start = datetime.datetime.now()
-        finish = start - datetime.timedelta(minutes=5)
+        start = datetime.now()
+        finish = start - timedelta(minutes=int(minutes))
         res = db.engine.execute("""
             SELECT
                 s.id,
                 s.way_name,
-                s.geom,
+                s.geojson,
+                s.rules,
+                s.button_location->>'lat' AS lat,
+                s.button_location->>'long' AS long,
                 to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
             FROM slots s
             JOIN car2go c ON c.slot_id = s.id
