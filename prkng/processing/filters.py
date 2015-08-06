@@ -26,7 +26,7 @@ def on_restriction(rules, checkin, duration, permit=False):
 
     # analyze each rule and stop iteration on conflict
     for rule in rules:
-        if rule.get('restrict_typ') == 'paid':
+        if rule.get('restrict_typ') in ['paid', 'angled']:
             # not concerned, going to the next rule
             continue
 

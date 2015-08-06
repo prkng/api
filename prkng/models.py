@@ -835,3 +835,78 @@ class Car2Go(object):
             {key: value for key, value in row.items()}
             for row in res
         ]
+
+
+class Analytics(object):
+    @staticmethod
+    def get_user_data():
+        today = db.engine.execute("""
+            SELECT count(id)
+            FROM users
+            WHERE created >= current_date
+              AND created <= current_date + 1
+        """).first()[0]
+        week = db.engine.execute("""
+            SELECT
+              a.date, count(u.id)
+            FROM (
+              SELECT
+                to_char(date_trunc('day', (current_date - offs)), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+              FROM generate_series(0, 365, 1) offs
+            ) a
+            LEFT OUTER JOIN users u
+              ON (a.date = to_char(date_trunc('day', u.created), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            OFFSET 1 LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
+
+    @staticmethod
+    def get_active_user_data():
+        today = db.engine.execute("""
+            SELECT count(DISTINCT u.id)
+            FROM users u
+            JOIN checkins c ON u.id = c.user_id
+            WHERE c.created >= current_date
+              AND c.created <= current_date + 1
+        """).first()[0]
+        week = db.engine.execute("""
+            SELECT
+              a.date, count(DISTINCT c.user_id)
+            FROM (
+              SELECT
+                to_char(date_trunc('day', (current_date - offs)), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+              FROM generate_series(0, 365, 1) offs
+            ) a
+            LEFT OUTER JOIN checkins c
+              ON (a.date = to_char(date_trunc('day', c.created), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            OFFSET 1 LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
+
+    @staticmethod
+    def get_checkin_data():
+        today = db.engine.execute("""
+            SELECT count(id)
+            FROM checkins
+            WHERE created >= current_date
+              AND created <= current_date + 1
+        """).first()[0]
+        week = db.engine.execute("""
+            SELECT
+              a.date, count(c.id)
+            FROM (
+              SELECT
+                to_char(date_trunc('day', (current_date - offs)), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+              FROM generate_series(0, 365, 1) offs
+            ) a
+            LEFT OUTER JOIN checkins c
+              ON (a.date = to_char(date_trunc('day', c.created), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            OFFSET 1 LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
