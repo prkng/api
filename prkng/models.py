@@ -616,7 +616,7 @@ class City(object):
             JOIN service_areas sa ON ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(r.long, r.lat), 4326), 3857), sa.geom)
             JOIN users u ON r.user_id = u.id
             LEFT JOIN slots s ON r.slot_id = s.id
-            LEFT JOIN corrections c ON SORT(s.signposts) = SORT(c.signposts)
+            LEFT JOIN corrections c ON s.signposts = c.signposts
             WHERE sa.name = '{}'
             GROUP BY r.id, u.id, s.way_name, s.rules
             """.format(city)).fetchall()
@@ -640,7 +640,7 @@ class City(object):
                 slots s,
                 jsonb_array_elements(s.rules) codes
             WHERE c.city = '{}'
-            AND SORT(c.signposts) = SORT(s.signposts)
+                AND c.signposts = s.signposts
             GROUP BY c.id, s.id
         """.format(city)).fetchall()
 
@@ -653,8 +653,13 @@ class City(object):
 class Reports(object):
     @staticmethod
     def add(user_id, slot_id, lng, lat, url, notes):
-        db.engine.execute(report_table.insert().values(user_id=user_id, slot_id=slot_id,
-            long=lng, lat=lat, image_url=url, notes=notes))
+        db.engine.execute("""
+            INSERT INTO reports (user_id, slot_id, way_name, long, lat, image_url, notes)
+            SELECT {user_id}, {slot_id}, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
+              FROM slots s
+              WHERE s.id = {slot_id}
+        """.format(user_id=user_id, slot_id=slot_id, lng=lng, lat=lat,
+            image_url=image_url, notes=notes))
 
     @staticmethod
     def get(id):
@@ -677,7 +682,7 @@ class Reports(object):
             FROM reports r
             JOIN users u ON r.user_id = u.id
             LEFT JOIN slots s ON r.slot_id = s.id
-            LEFT JOIN corrections c ON SORT(s.signposts) = SORT(c.signposts)
+            LEFT JOIN corrections c ON s.signposts = c.signposts
             WHERE r.id = {}
             GROUP BY r.id, u.id, s.way_name, s.rules
         """.format(id)).first()
@@ -687,7 +692,13 @@ class Reports(object):
     @staticmethod
     def set_progress(id, progress):
         res = db.engine.execute("""
-            UPDATE reports SET progress = {} WHERE id = {} RETURNING *
+            UPDATE reports r
+              SET progress = {}
+              FROM users u, slots s
+              WHERE r.id = {}
+                AND r.user_id = u.id
+                AND r.slot_id = s.id
+            RETURNING r.*, u.name, u.email, s.way_name
         """.format(progress, id)).first()
 
         return {key: value for key, value in res.items()}
@@ -747,7 +758,7 @@ class Corrections(object):
                 slots s,
                 jsonb_array_elements(s.rules) codes
             WHERE c.id = {}
-            AND SORT(s.signposts) = SORT(c.signposts)
+              AND s.signposts = c.signposts
             GROUP BY c.id, s.id
         """.format(id)).first()
         if not res:
