@@ -851,11 +851,11 @@ class Analytics(object):
               a.date, count(u.id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN users u
-              ON (a.date = to_char(date_trunc('day', u.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+              ON (a.date = to_char(date_trunc('day', u.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -876,11 +876,11 @@ class Analytics(object):
               a.date, count(DISTINCT c.user_id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -900,11 +900,11 @@ class Analytics(object):
               a.date, count(c.id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS date
+                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"Z"'))
+              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
