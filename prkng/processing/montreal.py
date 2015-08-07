@@ -17,6 +17,14 @@ CREATE TABLE sign (
 )
 """
 
+create_paid_temp = """
+DROP TABLE IF EXISTS montreal_paid_temp;
+CREATE TABLE montreal_paid_temp (
+    id serial PRIMARY KEY
+    , signposts integer[]
+)
+"""
+
 # insert montreal signs with associated postsigns
 # only treat fleche_pan 0, 2, 3 for direction
 # don't know what others mean

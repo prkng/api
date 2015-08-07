@@ -204,6 +204,7 @@ def process_montreal():
         db.vacuum_analyze('public', 'slots_debug')
 
     info("Overlaying paid slots")
+    db.query(mrl.create_paid_temp)
     db.query("""
         COPY montreal_paid_temp (signposts)
         FROM '{}'
@@ -231,7 +232,6 @@ def cleanup_table():
     db.query("DROP TABLE quebec_bornes_raw")
     db.query("DROP TABLE quebec_bornes_clustered")
     db.query("DROP TABLE permit_zones")
-    db.query("DROP TABLE service_areas_mask")
     db.query("DROP TABLE slots_temp")
 
 
@@ -296,10 +296,6 @@ def run():
     process_montreal()
     process_quebec()
 
-    Logger.info("Mapping corrections to new slots")
-    db.query(common.process_corrected_rules)
-    db.query(common.process_corrections)
-
     Logger.info("Shorten slots that intersect with roads or other slots")
     db.query(common.cut_slots_crossing_roads)
     db.query(common.cut_slots_crossing_slots)
@@ -311,6 +307,10 @@ def run():
     db.query(common.aggregate_like_slots)
     db.query(common.create_client_data)
     db.vacuum_analyze('public', 'slots')
+
+    Logger.info("Mapping corrections to new slots")
+    db.query(common.process_corrected_rules)
+    db.query(common.process_corrections)
 
     if not CONFIG['DEBUG']:
         cleanup_table()
