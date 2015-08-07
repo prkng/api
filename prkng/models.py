@@ -659,7 +659,7 @@ class Reports(object):
               FROM slots s
               WHERE s.id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id, lng=lng, lat=lat,
-            image_url=image_url, notes=notes))
+            image_url=url, notes=notes))
 
     @staticmethod
     def get(id):
