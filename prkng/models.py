@@ -658,7 +658,7 @@ class Reports(object):
             SELECT {user_id}, {slot_id}, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
               FROM slots s
               WHERE s.id = {slot_id}
-        """.format(user_id=user_id, slot_id=slot_id, lng=lng, lat=lat,
+        """.format(user_id=user_id, slot_id=slot_id or "NULL", lng=lng, lat=lat,
             image_url=url, notes=notes))
 
     @staticmethod
