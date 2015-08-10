@@ -843,8 +843,8 @@ class Analytics(object):
         today = db.engine.execute("""
             SELECT count(id)
             FROM users
-            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
-              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
+            WHERE (created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND (created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
@@ -868,8 +868,8 @@ class Analytics(object):
             SELECT count(DISTINCT u.id)
             FROM users u
             JOIN checkins c ON u.id = c.user_id
-            WHERE c.created >= (NOW() AT TIME ZONE 'US/Eastern')::date
-              AND c.created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
+            WHERE (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
@@ -892,8 +892,8 @@ class Analytics(object):
         today = db.engine.execute("""
             SELECT count(id)
             FROM checkins
-            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
-              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
+            WHERE (created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND (created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
