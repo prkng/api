@@ -843,19 +843,19 @@ class Analytics(object):
         today = db.engine.execute("""
             SELECT count(id)
             FROM users
-            WHERE created >= current_date AT TIME ZONE 'UTC-4'
-              AND created <= current_date AT TIME ZONE 'UTC-4' + INTERVAL '1 DAY'
+            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
               a.date, count(u.id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
+                to_char(date_trunc('day', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN users u
-              ON (a.date = to_char(date_trunc('day', u.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', u.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -868,19 +868,19 @@ class Analytics(object):
             SELECT count(DISTINCT u.id)
             FROM users u
             JOIN checkins c ON u.id = c.user_id
-            WHERE c.created >= current_date AT TIME ZONE 'UTC-4'
-              AND c.created <= current_date AT TIME ZONE 'UTC-4' + INTERVAL '1 DAY'
+            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
               a.date, count(DISTINCT c.user_id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
+                to_char(date_trunc('day', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -892,19 +892,19 @@ class Analytics(object):
         today = db.engine.execute("""
             SELECT count(id)
             FROM checkins
-            WHERE created >= current_date AT TIME ZONE 'UTC-4'
-              AND created <= current_date  AT TIME ZONE 'UTC-4' + INTERVAL '1 DAY'
+            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
               a.date, count(c.id)
             FROM (
               SELECT
-                to_char(date_trunc('day', (current_date AT TIME ZONE 'UTC-4' - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
+                to_char(date_trunc('day', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 DAY'))), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"') AS date
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'UTC-4'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
