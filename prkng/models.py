@@ -855,7 +855,7 @@ class Analytics(object):
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN users u
-              ON (a.date = to_char(date_trunc('day', u.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', (u.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -868,8 +868,8 @@ class Analytics(object):
             SELECT count(DISTINCT u.id)
             FROM users u
             JOIN checkins c ON u.id = c.user_id
-            WHERE created >= (NOW() AT TIME ZONE 'US/Eastern')::date
-              AND created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
+            WHERE c.created >= (NOW() AT TIME ZONE 'US/Eastern')::date
+              AND c.created <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]
         week = db.engine.execute("""
             SELECT
@@ -880,7 +880,7 @@ class Analytics(object):
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
@@ -904,7 +904,7 @@ class Analytics(object):
               FROM generate_series(0, 365, 1) offs
             ) a
             LEFT OUTER JOIN checkins c
-              ON (a.date = to_char(date_trunc('day', c.created AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
+              ON (a.date = to_char(date_trunc('day', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
