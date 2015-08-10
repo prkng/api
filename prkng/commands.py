@@ -88,8 +88,7 @@ def backup():
     Dump the database to file
     """
     CONFIG = create_app().config
-    backup_dir = os.path.join(os.path.dirname(
-        os.path.dirname(os.path.abspath(__file__))), 'backup')
+    backup_dir = os.path.join(os.path.expanduser('~'), 'backup')
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
     if not os.path.exists(backup_dir):
         os.mkdir(backup_dir)
