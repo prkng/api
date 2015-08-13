@@ -241,7 +241,7 @@ UNION ALL
         , pid as signpost
     FROM selected_roads
 ), loc_with_idx as (
-    SELECT
+    SELECT DISTINCT ON (rid, position)
         rid
         , position
         , rank() over (partition by rid order by position) as idx

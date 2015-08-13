@@ -396,6 +396,7 @@ class SlotsModel(object):
         Apply restrictions before sending the response
         """
         checkin = checkin or datetime.now()
+        duration = duration or 0.5
 
         req = """
         SELECT 1 FROM service_areas
