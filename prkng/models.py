@@ -8,6 +8,7 @@ from datetime import datetime, timedelta
 from passlib.hash import pbkdf2_sha256
 from time import time
 
+import aniso8601
 import boto.ses
 from boto.s3.connection import S3Connection
 
@@ -562,7 +563,7 @@ class Images(object):
 
 class City(object):
     @staticmethod
-    def get_checkins(city):
+    def get_checkins(city, start, end):
         res = db.engine.execute("""
             SELECT
                 c.id,
@@ -587,7 +588,11 @@ class City(object):
                     FROM users_auth GROUP BY auth_type, user_id) a
                 ON c.user_id = a.user_id
             WHERE sa.name = '{}'
-            """.format(city)).fetchall()
+            {}
+            """.format(city,
+                ((" AND (c.created AT TIME ZONE 'UTC') >= '{}'".format(aniso8601.parse_datetime(start).strftime("%Y-%m-%d %H:%M:%S"))) if start else "") +
+                ((" AND (c.created AT TIME ZONE 'UTC') <= '{}'".format(aniso8601.parse_datetime(end).strftime("%Y-%m-%d %H:%M:%S"))) if end else "")
+            )).fetchall()
 
         return [
             {key: value for key, value in row.items()}
@@ -813,8 +818,6 @@ class Car2Go(object):
         """
         Get slots with car2gos that have recently left
         """
-        start = datetime.now()
-        finish = start - timedelta(minutes=int(minutes))
         res = db.engine.execute("""
             SELECT
                 s.id,
@@ -823,14 +826,11 @@ class Car2Go(object):
                 s.rules,
                 s.button_location->>'lat' AS lat,
                 s.button_location->>'long' AS long,
-                to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
+                to_char(f.time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
             FROM slots s
-            JOIN car2go c ON c.slot_id = s.id
-            WHERE c.in_lot   = false
-                AND c.parked = false
-                AND c.since  > '{}'
-                AND c.since  < '{}'
-        """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
+            JOIN free_spaces f ON f.time >= (NOW() - INTERVAL '{} MIN')
+                AND s.id = ANY(f.slot_ids)
+        """.format(minutes))
         return [
             {key: value for key, value in row.items()}
             for row in res

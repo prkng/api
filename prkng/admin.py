@@ -107,7 +107,9 @@ def get_checkins():
     Get a list of checkins
     """
     city = request.args.get('city', 'montreal')
-    checkins = City.get_checkins(city)
+    start = request.args.get('start')
+    end = request.args.get('end')
+    checkins = City.get_checkins(city, start, end)
     return jsonify(checkins=checkins), 200
 
 
