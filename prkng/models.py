@@ -876,7 +876,7 @@ class Analytics(object):
             LIMIT 6
         """)
         return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
-            "year": [{key: value for key, value in row.items()} for row in week]}
+            "year": [{key: value for key, value in row.items()} for row in year]}
 
     @staticmethod
     def get_active_user_data():
@@ -916,7 +916,7 @@ class Analytics(object):
             OFFSET 1 LIMIT 6
         """)
         return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
-            "year": [{key: value for key, value in row.items()} for row in week]}
+            "year": [{key: value for key, value in row.items()} for row in year]}
 
     @staticmethod
     def get_checkin_data():
@@ -955,4 +955,4 @@ class Analytics(object):
             LIMIT 6
         """)
         return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
-            "year": [{key: value for key, value in row.items()} for row in week]}
+            "year": [{key: value for key, value in row.items()} for row in year]}
