@@ -913,7 +913,7 @@ class Analytics(object):
               ON (to_char(a.date, 'Mon') = to_char(date_trunc('month', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'Mon'))
             GROUP BY a.date
             ORDER BY a.date DESC
-            OFFSET 1 LIMIT 6
+            LIMIT 6
         """)
         return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
             "year": [{key: value for key, value in row.items()} for row in year]}
