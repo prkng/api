@@ -140,9 +140,7 @@ CREATE TABLE slots_temp
   signposts integer[],
   rules jsonb,
   way_name varchar,
-  geom geometry(LineString,3857),
-  geojson jsonb,
-  button_location jsonb
+  geom geometry(LineString,3857)
 )
 """
 
@@ -171,8 +169,8 @@ BEGIN
   FOR slot IN SELECT * FROM slots_temp ORDER BY rid, position LOOP
     SELECT id FROM slots s
       WHERE slot.rid = s.rid
-        AND ST_Touches(slot.geom, s.geom)
         AND slot.rules = s.rules
+        AND ST_DWithin(slot.geom, s.geom, 0.1)
       LIMIT 1 INTO id_match;
 
     IF id_match IS NULL THEN
@@ -180,7 +178,7 @@ BEGIN
         (slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
     ELSE
       UPDATE slots SET geom =
-        (CASE WHEN ST_Intersection(slot.geom, geom) = ST_EndPoint(geom)
+        (CASE WHEN ST_DWithin(ST_StartPoint(slot.geom), ST_EndPoint(geom), 0.5)
             THEN ST_MakeLine(geom, slot.geom)
             ELSE ST_MakeLine(slot.geom, geom)
         END),
@@ -218,27 +216,38 @@ where exists (
 """
 
 cut_slots_crossing_roads = """
-UPDATE slots_temp s set geom = (
-with tmp as (
-select
-    array_sort(
-        array_agg(
-            ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
-        )
-    ) as locations
-from roads o
-where st_crosses(s.geom, o.geom)
-and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
+WITH exclusions AS (
+    SELECT s.id, ST_Difference(s.geom, ST_Union(ST_Buffer(r.geom, 6, 'endcap=flat join=round'))) AS new_geom
+    FROM slots_temp s
+    JOIN roads r ON ST_DWithin(s.geom, r.geom, 4)
+    GROUP BY s.id, s.geom
+), update_original AS (
+    DELETE FROM slots_temp
+    USING exclusions
+    WHERE slots_temp.id = exclusions.id
+    RETURNING slots_temp.*
+), new_slots AS (
+    SELECT
+        uo.*,
+        CASE ST_GeometryType(ex.new_geom)
+            WHEN 'ST_LineString' THEN
+                ex.new_geom
+            ELSE
+                (ST_Dump(ex.new_geom)).geom
+        END AS new_geom
+    FROM exclusions ex
+    JOIN update_original uo ON ex.id = uo.id
 )
-select
-    st_linesubstring(s.geom, locs.start, locs.stop)::geometry('linestring', 3857)
-from tmp, get_max_range(tmp.locations) as locs
-)
-where exists (
-    select 1 from roads a
-    where st_crosses(s.geom, a.geom)
-          and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
-)
+INSERT INTO slots_temp (rid, position, signposts, rules, way_name, geom)
+    SELECT
+        rid,
+        position,
+        signposts,
+        rules,
+        way_name,
+        new_geom
+    FROM new_slots
+    WHERE ST_Length(new_geom) >= 4
 """
 
 create_client_data = """

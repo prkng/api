@@ -167,7 +167,8 @@ CREATE TABLE signpost_onroad AS
         , st_closestpoint(s.geom, sp.geom)::geometry(point, 3857) as geom
         , st_isleft(s.geom, sp.geom) as isleft
     FROM signpost sp
-    JOIN roads_geobase s on s.id_trc = sp.geobase_id;
+    JOIN roads_geobase s on s.id_trc = sp.geobase_id
+    ORDER BY sp.id, ST_Distance(s.geom, sp.geom);
 
 SELECT id from signpost_onroad group by id having count(*) > 1
 """

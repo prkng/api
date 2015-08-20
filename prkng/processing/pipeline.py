@@ -226,6 +226,7 @@ def cleanup_table():
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE nextpoints")
     db.query("DROP TABLE montreal_paid_temp")
+    db.query("DROP TABLE quebec_signpost_temp")
     db.query("DROP TABLE quebec_nextpoints")
     db.query("DROP TABLE quebec_slots_likely")
     db.query("DROP TABLE quebec_paid_slots_raw")

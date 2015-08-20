@@ -177,10 +177,11 @@ ORDER BY id, gid
 
 # creating signposts (aggregation of signs sharing the same lect_met attribute)
 create_signpost = """
-DROP TABLE IF EXISTS quebec_signpost;
-CREATE TABLE quebec_signpost (
+DROP TABLE IF EXISTS quebec_signpost_temp;
+CREATE TABLE quebec_signpost_temp (
     id serial PRIMARY KEY
     , rid integer  -- road id from roads table
+    , is_left integer
     , signs integer[]
     , geom geometry(Point, 3857)
 );
@@ -200,20 +201,52 @@ select
     , t.geom
     , ids
     , st_distance(t.geom, r.geom) as dist
+    , r.geom as road_geom
     , rank() over (
         partition by t.id order by levenshtein(t.nom_topog, r.name), st_distance(t.geom, r.geom)
         ) as rank
   from tmp t
   JOIN roads r on r.geom && st_buffer(t.geom, 30)
 )
-INSERT INTO quebec_signpost
+INSERT INTO quebec_signpost_temp
 SELECT
     distinct on (dist, rank, ids)
     row_number() over () as id
     , rid
+    , st_isleft(road_geom, geom)
     , ids
     , geom
-FROM ranked WHERE rank = 1
+FROM ranked WHERE rank = 1;
+
+-- aggregate posts within 7m on same side of same street, fixes many lect_met inaccuracies
+DO
+$$
+DECLARE
+  signpost record;
+  id_match integer;
+BEGIN
+    DROP TABLE IF EXISTS quebec_signpost;
+    CREATE TABLE quebec_signpost (id serial PRIMARY KEY, rid integer, is_left integer, signs integer[], geom geometry(Point, 3857));
+
+    FOR signpost IN SELECT * FROM quebec_signpost_temp LOOP
+      SELECT id FROM quebec_signpost
+        WHERE signpost.rid = quebec_signpost.rid
+          AND signpost.is_left = quebec_signpost.is_left
+          AND ST_DWithin(signpost.geom, quebec_signpost.geom, 7)
+        LIMIT 1 INTO id_match;
+
+      IF id_match IS NULL THEN
+        INSERT INTO quebec_signpost (rid, is_left, signs, geom) VALUES
+          (signpost.rid, signpost.is_left, signpost.signs, signpost.geom);
+      ELSE
+        UPDATE quebec_signpost SET geom = ST_Line_Interpolate_Point(ST_MakeLine(signpost.geom, geom), 0.5),
+          signs = signpost.signs || signs
+        WHERE quebec_signpost.id = id_match;
+      END IF;
+    END LOOP;
+
+END;
+$$ language plpgsql;
 """
 
 # project signposts on road and
@@ -445,20 +478,20 @@ WHERE st_geometrytype(geom) = 'ST_LineString' -- skip curious rings
 overlay_paid_rules = """
 WITH segments AS (
     SELECT
-        id, ST_Intersection(geom, exclude) AS geom_paid, ST_Difference(geom, exclude) AS geom_normal,
+        id, rid, rgeom, ST_Intersection(geom, exclude) AS geom_paid, ST_Difference(geom, exclude) AS geom_normal,
         exclude, signposts, way_name, orig_rules, array_agg(rules) AS rules
     FROM (
         SELECT
-            s.id, s.geom, s.signposts, s.way_name, s.rules AS orig_rules,
+            s.id, r.id AS rid, r.geom AS rgeom, s.geom, s.signposts, s.way_name, s.rules AS orig_rules,
             jsonb_array_elements(s.rules) AS rules,
             ST_Union(ST_Buffer(qps.geom, 1, 'endcap=flat join=round')) AS exclude
         FROM slots_temp s
         JOIN quebec_paid_slots_raw qps ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
-        GROUP BY s.id
+        GROUP BY s.id, r.id, r.geom
     ) AS foo
     WHERE ST_Length(ST_Intersection(geom, exclude)) >= 4
-    GROUP BY id, geom, exclude, signposts, way_name, orig_rules
+    GROUP BY id, rid, rgeom, geom, exclude, signposts, way_name, orig_rules
     ORDER BY id
 ), update_normal AS (
     DELETE FROM slots_temp
@@ -467,6 +500,8 @@ WITH segments AS (
 ), new_slots AS (
     SELECT
         g.signposts,
+        g.rid,
+        g.rgeom,
         g.way_name,
         array_to_json(array_append(g.rules,
             json_build_object(
@@ -493,6 +528,8 @@ WITH segments AS (
     UNION
     SELECT
         g.signposts,
+        g.rid,
+        g.rgeom,
         g.way_name,
         g.orig_rules AS rules,
         CASE ST_GeometryType(g.geom_normal)
@@ -503,9 +540,11 @@ WITH segments AS (
         END AS geom
     FROM segments g
 )
-INSERT INTO slots_temp (signposts, rules, way_name, geom)
+INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
     SELECT
         nn.signposts,
+        nn.rid,
+        st_line_locate_point(nn.rgeom, st_startpoint(nn.geom)),
         nn.rules,
         nn.way_name,
         nn.geom
@@ -516,25 +555,31 @@ INSERT INTO slots_temp (signposts, rules, way_name, geom)
 create_paid_slots_standalone = """
 WITH exclusions AS (
     SELECT
-        id, way_name, ST_Union(exclude) AS exclude
+        id, rid, rgeom, way_name, ST_Union(exclude) AS exclude
     FROM (
         SELECT
             qps.id,
+            r.id AS rid,
             r.name AS way_name,
+            r.geom AS rgeom,
             ST_Buffer(s.geom, 1, 'endcap=flat join=round') AS exclude
         FROM quebec_paid_slots_raw qps
         JOIN slots_temp s ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
     ) AS foo
-    GROUP BY id, way_name
+    GROUP BY id, rid, rgeom, way_name
 ), update_raw AS (
     SELECT
+        ex.rid,
+        ex.rgeom,
         ex.way_name,
         ST_Difference(qps.geom, ex.exclude) AS geom
     FROM quebec_paid_slots_raw qps
     JOIN exclusions ex ON ex.id = qps.id
     UNION
     SELECT
+        r.id AS rid,
+        r.geom AS rgeom,
         r.name,
         qps.geom
     FROM quebec_paid_slots_raw qps
@@ -542,7 +587,9 @@ WITH exclusions AS (
     WHERE qps.id NOT IN (SELECT id FROM exclusions)
 ), new_paid AS (
     SELECT
+        ur.rid,
         ur.way_name,
+        ur.rgeom,
         array_to_json(
             array[json_build_object(
                 'code', z.code,
@@ -566,9 +613,11 @@ WITH exclusions AS (
     FROM update_raw ur
     JOIN rules z ON z.code = 'QCPAID'
 )
-INSERT INTO slots_temp (signposts, rules, way_name, geom)
+INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
     SELECT
         ARRAY[0,0],
+        nn.rid,
+        st_line_locate_point(nn.rgeom, st_startpoint(nn.geom)),
         nn.rules,
         nn.way_name,
         nn.geom
