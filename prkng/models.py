@@ -861,7 +861,22 @@ class Analytics(object):
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
         """)
-        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
+        year = db.engine.execute("""
+            SELECT
+              to_char(a.date, 'Mon'), count(u.id)
+            FROM (
+              SELECT
+                date_trunc('month', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 MONTH'))) AS date
+              FROM generate_series(0, 12, 1) offs
+            ) a
+            LEFT OUTER JOIN users u
+              ON (to_char(a.date, 'Mon') = to_char(date_trunc('month', (u.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'Mon'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
+            "year": [{key: value for key, value in row.items()} for row in week]}
 
     @staticmethod
     def get_active_user_data():
@@ -886,7 +901,22 @@ class Analytics(object):
             ORDER BY a.date DESC
             OFFSET 1 LIMIT 6
         """)
-        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
+        year = db.engine.execute("""
+            SELECT
+              to_char(a.date, 'Mon'), count(DISTINCT c.user_id)
+            FROM (
+              SELECT
+                date_trunc('month', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 MONTH'))) AS date
+              FROM generate_series(0, 12, 1) offs
+            ) a
+            LEFT OUTER JOIN checkins c
+              ON (to_char(a.date, 'Mon') = to_char(date_trunc('month', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'Mon'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            OFFSET 1 LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
+            "year": [{key: value for key, value in row.items()} for row in week]}
 
     @staticmethod
     def get_checkin_data():
@@ -908,6 +938,21 @@ class Analytics(object):
               ON (a.date = to_char(date_trunc('day', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
-            OFFSET 1 LIMIT 6
+            LIMIT 6
         """)
-        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week]}
+        year = db.engine.execute("""
+            SELECT
+              to_char(a.date, 'Mon'), count(c.id)
+            FROM (
+              SELECT
+                date_trunc('month', ((NOW() AT TIME ZONE 'US/Eastern')::date - (offs * INTERVAL '1 MONTH'))) AS date
+              FROM generate_series(0, 12, 1) offs
+            ) a
+            LEFT OUTER JOIN checkins c
+              ON (to_char(a.date, 'Mon') = to_char(date_trunc('month', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'Mon'))
+            GROUP BY a.date
+            ORDER BY a.date DESC
+            LIMIT 6
+        """)
+        return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
+            "year": [{key: value for key, value in row.items()} for row in week]}
