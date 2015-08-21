@@ -938,7 +938,7 @@ class Analytics(object):
               ON (a.date = to_char(date_trunc('day', (c.created AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern'), 'YYYY-MM-DD"T"HH24:MI:SS"-0400"'))
             GROUP BY a.date
             ORDER BY a.date DESC
-            LIMIT 6
+            OFFSET 1 LIMIT 6
         """)
         year = db.engine.execute("""
             SELECT

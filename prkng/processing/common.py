@@ -217,7 +217,7 @@ where exists (
 
 cut_slots_crossing_roads = """
 WITH exclusions AS (
-    SELECT s.id, ST_Difference(s.geom, ST_Union(ST_Buffer(r.geom, 6, 'endcap=flat join=round'))) AS new_geom
+    SELECT s.id, ST_Difference(s.geom, ST_Union(ST_Buffer(r.geom, {offset}, 'endcap=flat join=round'))) AS new_geom
     FROM slots_temp s
     JOIN roads r ON ST_DWithin(s.geom, r.geom, 4)
     GROUP BY s.id, s.geom

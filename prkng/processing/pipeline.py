@@ -298,7 +298,7 @@ def run():
     process_quebec()
 
     Logger.info("Shorten slots that intersect with roads or other slots")
-    db.query(common.cut_slots_crossing_roads)
+    db.query(common.cut_slots_crossing_roads.format(offset=LINE_OFFSET))
     db.query(common.cut_slots_crossing_slots)
 
     Logger.info("Aggregating like slots")
