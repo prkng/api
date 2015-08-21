@@ -12,7 +12,7 @@ from flask import render_template, Response, g, request
 from flask.ext.restplus import Api, Resource, fields
 from geojson import loads, FeatureCollection, Feature
 
-from .models import SlotsModel, User, UserAuth, Checkins, Images, Reports, ServiceAreasMeta
+from .models import SlotsModel, Lots, User, UserAuth, Checkins, Images, Reports, ServiceAreasMeta
 from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
@@ -125,6 +125,35 @@ class ButtonLocation(fields.Raw):
     'button_location': ButtonLocation(required=True)
 })
 class SlotsField(fields.Raw):
+    pass
+
+
+@api.model(fields={
+    'indoor': fields.Boolean(),
+    'clerk': fields.Boolean(),
+    'valet': fields.Boolean()
+})
+class LotAttributes(fields.Raw):
+    pass
+
+
+@api.model(fields={
+    'name': fields.String(
+        description='name of parking lot / operator',
+        required=True),
+    'address': fields.String(
+        description='street address of lot entrance',
+        required=True),
+    'agenda': AgendaView(
+        description='list of days when lot/garage is open, containing a list of time ranges when open',
+        required=True),
+    'attrs': LotAttributes(
+        description='list of amenities present at this lot/garage',
+        required=True),
+    'daily_price': fields.Float(
+        description='price per day for a space in this lot/garage')
+})
+class LotsField(fields.Raw):
     pass
 
 
@@ -326,6 +355,76 @@ class SlotsOnMap(Resource):
             for feat in res
         ])), mimetype='text/html')
         return resp
+
+
+parking_lot_parser = api.parser()
+parking_lot_parser.add_argument(
+    'radius',
+    type=int,
+    location='args',
+    default=300,
+    help='Radius search in meters; default is 300m'
+)
+parking_lot_parser.add_argument(
+    'latitude',
+    type=float,
+    location='args',
+    required=True,
+    help='Latitude in degrees (WGS84)'
+)
+parking_lot_parser.add_argument(
+    'longitude',
+    type=float,
+    location='args',
+    required=True,
+    help='Longitude in degrees (WGS84)'
+)
+
+lots_fields = api.model('GeoJSONFeature', {
+    'id': fields.String(required=True),
+    'type': fields.String(required=True, enum=['Feature']),
+    'geometry': Geometry(required=True),
+    'properties': LotsField(required=True),
+})
+
+lots_collection_fields = api.model('GeoJSONFeatureCollection', {
+    'type': fields.String(required=True, enum=['FeatureCollection']),
+    'features': api.as_list(fields.Nested(lots_fields))
+})
+
+
+@api.route('/lots')
+class ParkingLotsResource(Resource):
+    @api.marshal_list_with(lots_collection_fields)
+    @api.doc(
+        responses={404: "no feature found"}
+    )
+    @api.doc(parser=parking_lot_parser)
+    def get(self):
+        """
+        Return parking lots and garages around the point defined by (x, y)
+        """
+        args = parking_lot_parser.parse_args()
+
+        res = Lots.get_within(
+            args['longitude'],
+            args['latitude'],
+            args['radius']
+        )
+        if res == False:
+            api.abort(404, "no feature found")
+
+        return FeatureCollection([
+            Feature(
+                id=feat[0],
+                geometry=feat[1],
+                properties={
+                    field: feat[num]
+                    for num, field in enumerate(Lots.properties[2:], start=2)
+                }
+            )
+            for feat in res
+        ]), 200
 
 
 token_parser = api.parser()

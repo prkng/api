@@ -12,7 +12,7 @@ from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadS
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
 
-from prkng.models import Analytics, Car2Go, Checkins, Reports, City, Corrections, SlotsModel
+from prkng.models import Analytics, Car2Go, Checkins, Reports, City, Corrections, SlotsModel, Lots
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -240,6 +240,29 @@ def get_slots():
     ]
 
     return jsonify(slots=slots), 200
+
+
+@admin.route('/api/lots')
+@auth_required()
+def get_lots():
+    """
+    Returns lots inside a boundbox
+    """
+    res = Lots.get_boundbox(
+        request.args['neLat'],
+        request.args['neLng'],
+        request.args['swLat'],
+        request.args['swLng']
+    )
+    if res == False:
+        return jsonify(status="no feature found"), 404
+
+    lots = [
+        {key: value for key, value in row.items()}
+        for row in res
+    ]
+
+    return jsonify(lots=lots), 200
 
 
 @admin.route('/api/frees', methods=['GET'])
