@@ -20,6 +20,6 @@ init_api(app)
 init_login(app)
 init_admin(app)
 init_car2go(app)
-init_tasks()
+init_tasks(app.config["DEBUG"])
 
 Logger.debug(app.config)
