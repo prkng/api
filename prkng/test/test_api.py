@@ -9,6 +9,7 @@ from flask import g
 
 from prkng import create_app
 from prkng.api import init_api
+from prkng.api.public import v1
 from prkng.models import db, init_model, User, metadata
 from prkng.processing.common import create_slots
 from prkng.login import init_login
@@ -80,7 +81,7 @@ def client(app):
 
 
 def test_api_me(client):
-    resp = client.get('/user/profile', headers={'X-API-KEY': g.user.apikey})
+    resp = client.get('/v1/user/profile', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert data['email'] == 'test@test'
     assert data['gender'] == None
@@ -89,14 +90,14 @@ def test_api_me(client):
 
 
 def test_api_checkin_count(client):
-    resp = client.get('/slot/checkin', headers={'X-API-KEY': g.user.apikey})
+    resp = client.get('/v1/checkins', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert len(data) == 3
 
 
 def test_api_getcheckin(client):
     resp = client.post(
-        '/slot/checkin',
+        '/v1/checkins',
         data={'slot_id': '20'},
         headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 404
@@ -104,26 +105,26 @@ def test_api_getcheckin(client):
 
 def test_api_postcheckin(client):
     resp = client.post(
-        '/slot/checkin',
+        '/v1/checkins',
         data={'slot_id': '2'},
         headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 201
 
 
 def test_api_getslot(client):
-    resp = client.get('/slot/2', headers={'X-API-KEY': g.user.apikey})
+    resp = client.get('/v1/slots/2', headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
     assert data['id'] == '2'
     assert resp.status_code == 200
 
 
 def test_api_getbadslot(client):
-    resp = client.get('/slot/20', headers={'X-API-KEY': g.user.apikey})
+    resp = client.get('/v1/slots/20', headers={'X-API-KEY': g.user.apikey})
     assert resp.status_code == 404
 
 
 def test_api_getslots(client):
-    resp = client.get('/slots?latitude=4.5&longitude=-7.5'
+    resp = client.get('/v1/slots?latitude=4.5&longitude=-7.5'
                       '&radius=1000&checkin=2015-03-27T09:30&duration=1',
                       headers={'X-API-KEY': g.user.apikey})
     data = json.loads(resp.data)
@@ -132,7 +133,7 @@ def test_api_getslots(client):
 
 
 def test_api_register(client):
-    resp = client.post('/register', data=dict(
+    resp = client.post('/v1/login/register', data=dict(
         email='test@prkng.com',
         password='incrediblepass',
         name='john doe',
@@ -143,7 +144,7 @@ def test_api_register(client):
 
 
 def test_api_register_already_registered(client):
-    resp = client.post('/register', data=dict(
+    resp = client.post('/v1/login/register', data=dict(
         email='test@prkng.com',
         password='incrediblepass',
         name='john doe',
@@ -156,7 +157,7 @@ def test_api_register_already_registered(client):
 
 
 def test_api_loginemail_ok(client):
-    resp = client.post('/login/email', data=dict(
+    resp = client.post('/v1/login', data=dict(
         email='test@prkng.com',
         password='incrediblepass'),
         headers={'X-API-KEY': g.user.apikey}
@@ -166,7 +167,7 @@ def test_api_loginemail_ok(client):
 
 
 def test_api_loginemail_badpass(client):
-    resp = client.post('/login/email', data=dict(
+    resp = client.post('/v1/login', data=dict(
         email='test@prkng.com',
         password='incrediblep'),
         headers={'X-API-KEY': g.user.apikey})
@@ -175,7 +176,7 @@ def test_api_loginemail_badpass(client):
 
 
 def test_api_update_profile(client):
-    resp = client.put('/user/profile', data=dict(
+    resp = client.put('/v1/user/profile', data=dict(
         email='test@prk.ng',
         password='newpassword',
         image_url='http://prk.ng/img/logo.png'),
@@ -184,7 +185,7 @@ def test_api_update_profile(client):
 
 
 def test_api_generate_s3_url(client):
-    resp = client.post('/image', data=dict(
+    resp = client.post('/v1/images', data=dict(
         image_type='avatar',
         file_name='test_image.jpg'),
         headers={'X-API-KEY': g.user.apikey})
@@ -192,7 +193,7 @@ def test_api_generate_s3_url(client):
 
 
 def test_submit_report(client):
-    resp = client.post('/report', data=dict(
+    resp = client.post('/v1/reports', data=dict(
         slot_id=2,
         longitude=-73.5860631065519,
         latitude=45.5204204797004,
@@ -202,7 +203,7 @@ def test_submit_report(client):
 
 
 def test_submit_report_no_slot(client):
-    resp = client.post('/report', data=dict(
+    resp = client.post('/v1/reports', data=dict(
         longitude=-73.5860631065519,
         latitude=45.5204204797004,
         image_url='http://prk.ng/img/logo.png'),
