@@ -13,6 +13,7 @@ from prkng.api.admin import init_admin
 from prkng.logger import Logger
 from prkng.login import init_login
 from prkng.models import init_model
+from prkng.tasks import init_tasks
 
 app = create_app()
 init_model(app)
@@ -20,5 +21,6 @@ init_api(app)
 init_login(app)
 init_admin(app)
 init_car2go(app)
+init_tasks()
 
 Logger.debug(app.config)

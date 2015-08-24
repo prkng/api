@@ -8,10 +8,10 @@ from __future__ import print_function
 
 from prkng import create_app
 from prkng.logger import Logger
+from prkng.tasks import run_backup
 from subprocess import check_call
 
 import click
-import datetime
 import os
 
 
@@ -74,28 +74,14 @@ def process():
 
 
 @click.command()
-def car2go():
-    """
-    Update local car2go data
-    """
-    from prkng.car2go import update
-    update()
-
-
-@click.command()
 def backup():
     """
     Dump the database to file
     """
     CONFIG = create_app().config
-    backup_dir = os.path.join(os.path.expanduser('~'), 'backup')
-    file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-    if not os.path.exists(backup_dir):
-        os.mkdir(backup_dir)
     Logger.info('Creating backup...')
-    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name), **CONFIG),
-        shell=True)
-    Logger.info('Backup created and stored as {}'.format(os.path.join(backup_dir, file_name)))
+    bpath = run_backup(username=CONFIG["PG_USERNAME"], database=CONFIG["PG_DATABASE"])
+    Logger.info('Backup created and stored as {}'.format(bpath))
 
 
 @click.command()
@@ -121,6 +107,5 @@ main.add_command(serve)
 main.add_command(update)
 main.add_command(process)
 main.add_command(update_areas)
-main.add_command(car2go)
 main.add_command(backup)
 main.add_command(maintenance)

@@ -155,7 +155,8 @@ CREATE TABLE slots
   way_name varchar,
   geom geometry(LineString,3857),
   geojson jsonb,
-  button_location jsonb
+  button_location jsonb,
+  button_locations jsonb
 )
 """
 

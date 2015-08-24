@@ -35,18 +35,3 @@ class FreeSpaces(object):
             {key: value for key, value in row.items()}
             for row in res
         ]
-
-    @staticmethod
-    def update():
-        start = datetime.datetime.now()
-        finish = start - datetime.timedelta(minutes=5)
-
-        db.engine.execute("""
-            INSERT INTO free_spaces (slot_ids)
-              SELECT array_agg(s.id) FROM slots s
-                JOIN car2go c ON c.slot_id = s.id
-                WHERE c.in_lot = false
-                  AND c.parked = false
-                  AND c.since  > '{}'
-                  AND c.since  < '{}'
-        """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
