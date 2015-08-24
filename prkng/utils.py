@@ -4,12 +4,17 @@
 """
 from __future__ import print_function
 
+import aniso8601
 import hashlib
 import sys
 import os
 import random
 import requests
 
+
+# helper to validate timestamp and returns it
+def timestamp(x):
+    return aniso8601.parse_datetime(x).isoformat(str('T'))
 
 def download_progress(url, filename, directory):
     """

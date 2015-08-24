@@ -48,8 +48,8 @@ def app(request):
         client.get("/test_auto_login")
 
     db.engine.execute("""
-        DROP TABLE IF EXISTS service_areas;
-        CREATE TABLE service_areas AS
+        DROP TABLE IF EXISTS cities;
+        CREATE TABLE cities AS
             SELECT 'montreal' AS name,
              'POLYGON((4.28302949061661931 42.34791957104560112,
                 4.28302949061661931 44.39724932975872917,

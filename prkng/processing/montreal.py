@@ -386,7 +386,7 @@ WITH tmp AS (
         ELSE 1.00
       END AS zone_rate
     FROM slots_temp s
-    JOIN service_areas sa ON ST_Intersects(s.geom, sa.geom) AND sa.name = 'montreal'
+    JOIN cities ct ON ST_Intersects(s.geom, ct.geom) AND ct.name = 'montreal'
     LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
     JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
     GROUP BY s.id, mpzt.name

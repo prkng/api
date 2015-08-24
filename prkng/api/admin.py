@@ -1,18 +1,11 @@
-# -*- coding: utf-8 -*-
-"""
-:author: ludovic.delaune@oslandia.com
-"""
-import json
-import os
-import time
+from prkng.api import auth_required, create_token
+from prkng.analytics import Analytics
+from prkng.models import Checkins, City, Corrections, FreeSpaces, Garages, Reports, Slots
 
-from functools import wraps
-
-from itsdangerous import TimedJSONWebSignatureSerializer, SignatureExpired, BadSignature
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
-
-from prkng.models import Analytics, Car2Go, Checkins, Reports, City, Corrections, SlotsModel, Lots
+import json
+import os
 
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
@@ -23,50 +16,6 @@ def init_admin(app):
     Initialize login manager extension into flask application
     """
     app.register_blueprint(admin)
-
-
-def auth_required():
-    def wrapper(func):
-        @wraps(func)
-        def decorator(*args, **kwargs):
-            v = verify()
-            if v:
-                return v
-            return func(*args, **kwargs)
-        return decorator
-    return wrapper
-
-
-def create_token(user):
-    iat = time.time()
-    payload = {
-        "iss": user,
-        "iat": iat,
-        "exp": iat + 21600
-    }
-    tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
-        expires_in=21600, algorithm_name="HS256")
-    return tjwss.dumps(payload).decode("utf-8")
-
-
-def verify():
-    token = request.headers.get("Authorization", None)
-    if not token:
-        return "Authorization required", 401
-
-    token = token.split()
-    if token[0] != "Bearer" or len(token) > 2:
-        return "Malformed token", 400
-    token = token[1]
-
-    try:
-        tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
-            expires_in=21600, algorithm_name="HS256")
-        payload = tjwss.loads(token)
-    except SignatureExpired:
-        return "Token expired", 401
-    except BadSignature:
-        return "Malformed token signature", 401
 
 
 @admin.route('/', defaults={'path': None})
@@ -80,9 +29,9 @@ def test_view(path):
         path = None
     sdir = os.path.dirname(os.path.realpath(__file__))
     if path and path.startswith("images"):
-        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-admin/public'))
+        sdir = os.path.abspath(os.path.join(sdir, '../../../prkng-admin/public'))
     else:
-        sdir = os.path.abspath(os.path.join(sdir, '../../prkng-admin/dist'))
+        sdir = os.path.abspath(os.path.join(sdir, '../../../prkng-admin/dist'))
     return send_from_directory(sdir, path or 'index.html')
 
 
@@ -91,7 +40,7 @@ def generate_token():
     """
     Generate a JSON Web Token for use with Ember.js admin
     """
-    data = json.loads(request.data)
+    data = request.get_json()
     uname, passwd = data.get("username"), data.get("password")
     if uname in current_app.config["ADMIN_ACCTS"] \
     and passwd == current_app.config["ADMIN_ACCTS"][uname]:
@@ -140,7 +89,7 @@ def update_report(id):
     """
     Updates a report's processing status
     """
-    data = json.loads(request.data)["report"]
+    data = request.get_json()["report"]
     report = Reports.set_progress(id, data["progress"])
     return jsonify(report=report), 200
 
@@ -184,7 +133,7 @@ def add_correction():
     """
     Add a new correction for a slot
     """
-    data = json.loads(request.data)["correction"]
+    data = request.get_json()["correction"]
     corr = Corrections.add(data["slot_id"], "XX-"+data["code"],
         data["city"], data["description"], data["initials"],
         data.get("season_start", ""), data.get("season_end", ""),
@@ -221,7 +170,7 @@ def get_slots():
     """
     Returns slots inside a boundbox
     """
-    res = SlotsModel.get_boundbox(
+    res = Slots.get_boundbox(
         request.args['neLat'],
         request.args['neLng'],
         request.args['swLat'],
@@ -246,9 +195,9 @@ def get_slots():
 @auth_required()
 def get_lots():
     """
-    Returns lots inside a boundbox
+    Returns garages inside a boundbox
     """
-    res = Lots.get_boundbox(
+    res = Garages.get_boundbox(
         request.args['neLat'],
         request.args['neLng'],
         request.args['swLat'],
@@ -269,9 +218,9 @@ def get_lots():
 @auth_required()
 def get_freed_spaces():
     """
-    Get car2go freed spaces
+    Get freed spaces
     """
-    frees = Car2Go.get_free_spaces(request.args.get('minutes', 5))
+    frees = FreeSpaces.get(request.args.get('minutes', 5))
     return jsonify(frees=frees), 200
 
 

@@ -1,71 +1,19 @@
-# -*- coding: utf-8 -*-
-"""
-:author: ludovic.delaune@oslandia.com
-"""
 from __future__ import unicode_literals
-from copy import deepcopy
-from functools import wraps
-from time import strftime
-from aniso8601 import parse_datetime
 
-from flask import render_template, Response, g, request
-from flask.ext.restplus import Api, Resource, fields
+from prkng.api import api
+from prkng.models import Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
+from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
+from prkng.utils import timestamp
+
+import copy
 from geojson import loads, FeatureCollection, Feature
+from flask import render_template, Response, g, request
+from flask.ext.restplus import Resource, fields
+import time
 
-from .models import SlotsModel, Lots, User, UserAuth, Checkins, Images, Reports, ServiceAreasMeta
-from .login import facebook_signin, google_signin, email_register, email_signin, email_update
 
 GEOM_TYPES = ('Point', 'LineString', 'Polygon',
               'MultiPoint', 'MultiLineString', 'MultiPolygon')
-
-HEADER_API_KEY = 'X-API-KEY'
-
-
-# helper to validate timestamp and returns it
-def timestamp(x):
-    return parse_datetime(x).isoformat(str('T'))
-
-
-class PrkngApi(Api):
-    """
-    Subclass Api and adds a ``secure`` decorator
-    """
-    def __init__(self, **kwargs):
-        super(PrkngApi, self).__init__(**kwargs)
-
-    def secure(self, func):
-        '''Enforce authentication'''
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-
-            apikey = request.headers.get(HEADER_API_KEY)
-
-            if not apikey:
-                return 'Invalid API Key', 401
-
-            g.user = User.get_byapikey(apikey)
-            if not g.user:
-                return 'Invalid API Key', 401
-
-            return func(*args, **kwargs)
-
-        return wrapper
-
-
-# api instance (Blueprint)
-api = PrkngApi(
-    version='1.0',
-    title='Prkng API',
-    description='On-street parking information API'
-)
-
-
-def init_api(app):
-    """
-    Initialize extensions into flask application
-    """
-    api.ui = app.config["DEBUG"]
-    api.init_app(app)
 
 
 # define response models
@@ -186,7 +134,7 @@ class ServiceAreaResource(Resource):
         """
         Returns coverage area package versions and metadata
         """
-        res = ServiceAreasMeta.get_all()
+        res = City.get_assets()
 
         return {
             "latest_version": max([x["version"] for x in res]),
@@ -196,14 +144,14 @@ class ServiceAreaResource(Resource):
         }, 200
 
 
-slots_fields = api.model('GeoJSONFeature', {
+slots_fields = api.model('SlotsGeoJSONFeature', {
     'id': fields.String(required=True),
     'type': fields.String(required=True, enum=['Feature']),
     'geometry': Geometry(required=True),
     'properties': SlotsField(required=True),
 })
 
-slots_collection_fields = api.model('GeoJSONFeatureCollection', {
+slots_collection_fields = api.model('SlotsGeoJSONFeatureCollection', {
     'type': fields.String(required=True, enum=['FeatureCollection']),
     'features': api.as_list(fields.Nested(slots_fields))
 })
@@ -220,7 +168,7 @@ class SlotResource(Resource):
         """
         Returns the parking slot corresponding to the id
         """
-        res = SlotsModel.get_byid(id)
+        res = Slots.get_byid(id)
         if not res:
             api.abort(404, "feature not found")
 
@@ -230,7 +178,7 @@ class SlotResource(Resource):
             geometry=res[1],
             properties={
                 field: res[num]
-                for num, field in enumerate(SlotsModel.properties[2:], start=2)
+                for num, field in enumerate(Slots.properties[2:], start=2)
             }
         ), 200
 
@@ -261,7 +209,7 @@ slot_parser.add_argument(
     'checkin',
     type=timestamp,
     location='args',
-    default=strftime("%Y-%m-%dT%H:%M:%S"),
+    default=time.strftime("%Y-%m-%dT%H:%M:%S"),
     help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00'); default is now"
 )
 slot_parser.add_argument(
@@ -293,7 +241,7 @@ class SlotsResource(Resource):
         """
         args = slot_parser.parse_args()
 
-        res = SlotsModel.get_within(
+        res = Slots.get_within(
             args['longitude'],
             args['latitude'],
             args['radius'],
@@ -310,117 +258,7 @@ class SlotsResource(Resource):
                 geometry=feat[1],
                 properties={
                     field: feat[num]
-                    for num, field in enumerate(SlotsModel.properties[2:], start=2)
-                }
-            )
-            for feat in res
-        ]), 200
-
-
-@api.route('/map/slots')
-@api.hide
-class SlotsOnMap(Resource):
-    def get(self):
-        """
-        Backdoor to view results on a map
-        """
-        args = slot_parser.parse_args()
-        res = SlotsModel.get_within(
-            args['longitude'],
-            args['latitude'],
-            args['radius'],
-            args['duration'],
-            args['checkin'],
-            args['permit']
-        )
-
-        if not res:
-            api.abort(404, "no feature found")
-
-        # remove agenda since it's too big for leaflet popup
-        for re in res:
-            for rule in re[2]:
-                for key, value in rule.items():
-                    rule.pop('agenda', None)
-
-        resp = Response(render_template('map.html', geojson=FeatureCollection([
-            Feature(
-                id=feat[0],
-                geometry=feat[1],
-                properties={
-                    field: feat[num]
-                    for num, field in enumerate(SlotsModel.properties[2:], start=2)
-                }
-            )
-            for feat in res
-        ])), mimetype='text/html')
-        return resp
-
-
-parking_lot_parser = api.parser()
-parking_lot_parser.add_argument(
-    'radius',
-    type=int,
-    location='args',
-    default=300,
-    help='Radius search in meters; default is 300m'
-)
-parking_lot_parser.add_argument(
-    'latitude',
-    type=float,
-    location='args',
-    required=True,
-    help='Latitude in degrees (WGS84)'
-)
-parking_lot_parser.add_argument(
-    'longitude',
-    type=float,
-    location='args',
-    required=True,
-    help='Longitude in degrees (WGS84)'
-)
-
-lots_fields = api.model('GeoJSONFeature', {
-    'id': fields.String(required=True),
-    'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': LotsField(required=True),
-})
-
-lots_collection_fields = api.model('GeoJSONFeatureCollection', {
-    'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(lots_fields))
-})
-
-
-@api.route('/lots')
-class ParkingLotsResource(Resource):
-    @api.marshal_list_with(lots_collection_fields)
-    @api.doc(
-        responses={404: "no feature found"}
-    )
-    @api.doc(parser=parking_lot_parser)
-    def get(self):
-        """
-        Return parking lots and garages around the point defined by (x, y)
-        """
-        args = parking_lot_parser.parse_args()
-
-        res = Lots.get_within(
-            args['longitude'],
-            args['latitude'],
-            args['radius']
-        )
-        if res == False:
-            api.abort(404, "no feature found")
-
-        return FeatureCollection([
-            Feature(
-                id=feat[0],
-                geometry=feat[1],
-                properties={
-                    field: feat[num]
-                    for num, field in enumerate(Lots.properties[2:], start=2)
+                    for num, field in enumerate(Slots.properties[2:], start=2)
                 }
             )
             for feat in res
@@ -577,15 +415,15 @@ api_key_parser.add_argument(
 )
 
 # define the slot id parser
-post_checkin_parser = deepcopy(api_key_parser)
+post_checkin_parser = copy.deepcopy(api_key_parser)
 post_checkin_parser.add_argument(
     'slot_id', type=int, required=True, help='Slot identifier', location='form')
 
-get_checkin_parser = deepcopy(api_key_parser)
+get_checkin_parser = copy.deepcopy(api_key_parser)
 get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
-delete_checkin_parser = deepcopy(api_key_parser)
+delete_checkin_parser = copy.deepcopy(api_key_parser)
 delete_checkin_parser.add_argument(
     'checkin_id', type=int, required=True, help='Check-in identifier',
     location='form')
@@ -633,7 +471,7 @@ class Checkin(Resource):
         return "Resource deleted", 204
 
 
-update_profile_parser = deepcopy(api_key_parser)
+update_profile_parser = copy.deepcopy(api_key_parser)
 update_profile_parser.add_argument('email', type=str, location='form', help='user email')
 update_profile_parser.add_argument('password', type=str, location='form', help='user password')
 update_profile_parser.add_argument('name', type=unicode, location='form', help='user name')
@@ -659,7 +497,7 @@ class Profile(Resource):
         return email_update(g.user, **args)
 
 
-image_parser = deepcopy(api_key_parser)
+image_parser = copy.deepcopy(api_key_parser)
 image_parser.add_argument(
     'image_type', type=str, required=True, help='Either "avatar" or "report"',
     location='form')
@@ -684,7 +522,7 @@ class Image(Resource):
         return data, 200
 
 
-report_parser = deepcopy(api_key_parser)
+report_parser = copy.deepcopy(api_key_parser)
 report_parser.add_argument(
     'slot_id', type=int, help='Slot identifier', location='form')
 report_parser.add_argument(

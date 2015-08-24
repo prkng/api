@@ -7,8 +7,16 @@ from contextlib import contextmanager
 
 import psycopg2
 from psycopg2.extras import NamedTupleCursor
+from sqlalchemy import MetaData
 
 from logger import Logger
+
+
+metadata = MetaData()
+
+class db(object):
+    """lazy loading of db"""
+    engine = None
 
 
 class PostgresWrapper(object):

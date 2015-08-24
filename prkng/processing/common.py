@@ -159,23 +159,6 @@ CREATE TABLE slots
 )
 """
 
-create_parking_lots = """
-DROP TABLE IF EXISTS parking_lots;
-CREATE TABLE parking_lots
-(
-  id serial PRIMARY KEY,
-  active boolean,
-  name varchar,
-  address varchar,
-  description varchar,
-  agenda jsonb,
-  daily_price float,
-  attrs jsonb,
-  geom geometry(Point, 3857),
-  geojson jsonb
-)
-"""
-
 aggregate_like_slots = """
 DO
 $$

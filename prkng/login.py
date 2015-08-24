@@ -2,12 +2,13 @@
 """
 :author: ludovic.delaune@oslandia.com
 """
-import requests
+from prkng.models import User, UserAuth
 
 from flask.ext.login import LoginManager, login_user
 from flask import current_app
 from passlib.hash import pbkdf2_sha256
-from .models import User, UserAuth
+import requests
+
 
 # login Manager
 lm = LoginManager()

@@ -406,7 +406,7 @@ class ServiceAreasLoader(object):
                 name,
                 name_disp,
                 ST_As{}(ST_Transform(geom, 4326)) AS geom
-            FROM service_areas
+            FROM cities
         """
         self.mask_qry = """
             SELECT
@@ -414,7 +414,7 @@ class ServiceAreasLoader(object):
                 'world_mask',
                 'world_mask',
                 ST_As{}(ST_Transform(geom, 4326)) AS geom
-            FROM service_areas_mask
+            FROM cities_mask
         """
 
     def upload_kml(self, version, query, gz=False):
@@ -469,7 +469,7 @@ class ServiceAreasLoader(object):
         Reload service area statics from source and upload new version of statics to S3
         """
         self.db.query("""
-            CREATE TABLE IF NOT EXISTS service_areas_meta (
+            CREATE TABLE IF NOT EXISTS city_assets (
                 id serial PRIMARY KEY,
                 version integer,
                 kml_addr varchar,
@@ -481,7 +481,7 @@ class ServiceAreasLoader(object):
 
         version_res = self.db.query("""
             SELECT version
-            FROM service_areas_meta
+            FROM city_assets
             ORDER BY version DESC
             LIMIT 1
         """)
@@ -490,22 +490,22 @@ class ServiceAreasLoader(object):
         Logger.info("Importing service area shapefiles")
         check_call(
             "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} service_areas | "
+            "{filename} cities | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=script('service_areas.shp'), **CONFIG),
             shell=True
         )
         check_call(
             "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} service_areas_mask | "
+            "{filename} cities_mask | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=script('service_areas_mask.shp'), **CONFIG),
             shell=True
         )
-        self.db.query("""update service_areas
+        self.db.query("""update cities
             set geom = st_makevalid(geom) where not st_isvalid(geom)""")
-        self.db.create_index('service_areas', 'geom', index_type='gist')
-        self.db.vacuum_analyze("public", "service_areas")
+        self.db.create_index('cities', 'geom', index_type='gist')
+        self.db.vacuum_analyze("public", "cities")
 
         Logger.info("Exporting new version of statics to S3")
         kml_url = self.upload_kml(version, self.areas_qry)
@@ -515,7 +515,7 @@ class ServiceAreasLoader(object):
 
         Logger.info("Saving metadata")
         self.db.query("""
-            INSERT INTO service_areas_meta
+            INSERT INTO city_assets
                 (version, kml_addr, kml_mask_addr, geojson_addr, geojson_mask_addr)
             SELECT {}, '{}', '{}', '{}', '{}'
         """.format(version, kml_url.split('?')[0], kml_mask_url.split('?')[0],
