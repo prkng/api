@@ -254,5 +254,11 @@ create_client_data = """
 UPDATE slots SET
     geojson = ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
     button_location = json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
-        'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb
+        'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb,
+    button_locations = (case when st_length(geom) >= 300 then array_to_json(array[
+        json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.333), 4326)),
+            'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.333), 4326))),
+        json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.666), 4326)),
+            'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.666), 4326)))])::jsonb
+        else array_to_json(array[button_location])::jsonb end)
 """

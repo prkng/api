@@ -5,16 +5,8 @@ import datetime
 
 
 class Slots(object):
-    properties = (
-        'id',
-        'geojson',
-        'rules',
-        'button_location',
-        'way_name'
-    )
-
     @staticmethod
-    def get_within(x, y, radius, duration, checkin=None, permit=False):
+    def get_within(x, y, radius, duration, properties, checkin=None, permit=False):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -40,7 +32,7 @@ class Slots(object):
                 {radius}
             )
         """.format(
-            properties=','.join(Slots.properties),
+            properties=','.join(properties),
             x=x,
             y=y,
             radius=radius
@@ -55,7 +47,7 @@ class Slots(object):
 
     @staticmethod
     def get_boundbox(
-            nelat, nelng, swlat, swlng, checkin=None, duration=0.25, type=None,
+            nelat, nelng, swlat, swlng, properties, checkin=None, duration=0.25, type=None,
             permit=False, invert=False):
         """
         Retrieve all slots inside a given boundbox.
@@ -79,7 +71,7 @@ class Slots(object):
                 slots.geom
             )
         """.format(
-            properties=','.join(Slots.properties),
+            properties=','.join(properties),
             nelat=nelat,
             nelng=nelng,
             swlat=swlat,
@@ -101,7 +93,7 @@ class Slots(object):
         return slots
 
     @staticmethod
-    def get_byid(sid):
+    def get_byid(sid, properties):
         """
         Retrieve slot information by its ID
         """
@@ -109,4 +101,4 @@ class Slots(object):
             SELECT {properties}
             FROM slots
             WHERE id = {sid}
-            """.format(sid=sid, properties=','.join(Slots.properties))).fetchall()
+            """.format(sid=sid, properties=','.join(properties))).fetchall()

@@ -16,6 +16,14 @@ GEOM_TYPES = ('Point', 'LineString', 'Polygon',
               'MultiPoint', 'MultiLineString', 'MultiPolygon')
 ns = api.namespace('v1', 'API v1')
 
+slot_props = (
+    'id',
+    'geojson',
+    'rules',
+    'button_locations',
+    'way_name'
+)
+
 # define response models
 @api.model(fields={
     'type': fields.String(description='GeoJSON Type', required=True, enum=GEOM_TYPES),
@@ -40,7 +48,7 @@ class AgendaView(fields.Raw):
     'long': fields.Float(),
     'lat': fields.Float()
 })
-class ButtonLocation(fields.Raw):
+class ButtonLocations(fields.Raw):
     pass
 
 
@@ -70,7 +78,7 @@ class ButtonLocation(fields.Raw):
         required=True),
     'paid_hourly_rate': fields.Float(
         description='hourly cost for paid parking here (if applicable)'),
-    'button_location': ButtonLocation(required=True)
+    'button_locations': fields.List(ButtonLocations(required=True))
 })
 class SlotsField(fields.Raw):
     pass
@@ -144,14 +152,14 @@ class ServiceAreas(Resource):
         }, 200
 
 
-slots_fields = api.model('SlotsGeoJSONFeature', {
+slots_fields = api.model('v1SlotsGeoJSONFeature', {
     'id': fields.String(required=True),
     'type': fields.String(required=True, enum=['Feature']),
     'geometry': Geometry(required=True),
     'properties': SlotsField(required=True),
 })
 
-slots_collection_fields = api.model('SlotsGeoJSONFeatureCollection', {
+slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
     'type': fields.String(required=True, enum=['FeatureCollection']),
     'features': api.as_list(fields.Nested(slots_fields))
 })
@@ -168,7 +176,7 @@ class SlotResource(Resource):
         """
         Returns the parking slot corresponding to the id
         """
-        res = Slots.get_byid(id)
+        res = Slots.get_byid(id, slot_props)
         if not res:
             api.abort(404, "feature not found")
 
@@ -178,7 +186,7 @@ class SlotResource(Resource):
             geometry=res[1],
             properties={
                 field: res[num]
-                for num, field in enumerate(Slots.properties[2:], start=2)
+                for num, field in enumerate(slot_props[2:], start=2)
             }
         ), 200
 
@@ -246,6 +254,7 @@ class SlotsResource(Resource):
             args['latitude'],
             args['radius'],
             args['duration'],
+            slot_props,
             args['checkin'],
             args['permit']
         )
@@ -258,7 +267,7 @@ class SlotsResource(Resource):
                 geometry=feat[1],
                 properties={
                     field: feat[num]
-                    for num, field in enumerate(Slots.properties[2:], start=2)
+                    for num, field in enumerate(slot_props[2:], start=2)
                 }
             )
             for feat in res

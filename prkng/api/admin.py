@@ -10,6 +10,14 @@ import os
 
 admin = Blueprint('admin', __name__, url_prefix='/admin')
 
+slot_props = (
+    'id',
+    'geojson',
+    'rules',
+    'button_locations',
+    'way_name'
+)
+
 
 def init_admin(app):
     """
@@ -175,6 +183,7 @@ def get_slots():
         request.args['neLng'],
         request.args['swLat'],
         request.args['swLng'],
+        slot_props,
         request.args.get('checkin'),
         request.args.get('duration'),
         int(request.args.get('type', 0)),
