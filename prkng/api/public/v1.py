@@ -24,6 +24,17 @@ slot_props = (
     'way_name'
 )
 
+
+# define header parser for the API key
+api_key_parser = api.parser()
+api_key_parser.add_argument(
+    'X-API-KEY',
+    type=str,
+    location='headers',
+    help='Prkng API Key',
+    required=True
+)
+
 # define response models
 @api.model(fields={
     'type': fields.String(description='GeoJSON Type', required=True, enum=GEOM_TYPES),
@@ -191,7 +202,7 @@ class SlotResource(Resource):
         ), 200
 
 
-slot_parser = api.parser()
+slot_parser = copy.deepcopy(api_key_parser)
 slot_parser.add_argument(
     'radius',
     type=int,
@@ -225,7 +236,7 @@ slot_parser.add_argument(
     type=float,
     location='args',
     default=0.5,
-    help='Desired Parking time in hours; default is 30 min'
+    help='Desired Parking time in hours; default is 0.5'
 )
 slot_parser.add_argument(
     'permit',
@@ -451,15 +462,6 @@ class LoginChangePass(Resource):
         if not UserAuth.update_password("email${}".format(user.id), args["passwd"], args["code"]):
             return "Reset code incorrect", 400
 
-
-# define header parser for the API key
-api_key_parser = api.parser()
-api_key_parser.add_argument(
-    'X-API-KEY',
-    type=str,
-    location='headers',
-    help='Prkng API Key'
-)
 
 # define the slot id parser
 post_checkin_parser = copy.deepcopy(api_key_parser)
