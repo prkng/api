@@ -1,14 +1,14 @@
 from __future__ import unicode_literals
 
-from prkng.api import api
-from prkng.models import Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
+from prkng.api.public import api
+from prkng.models import Checkins, City, Images, Reports, Slots, User, UserAuth
 from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
 from prkng.utils import timestamp
 
 import copy
 from geojson import loads, FeatureCollection, Feature
-from flask import render_template, Response, g, request
-from flask.ext.restplus import Resource, fields
+from flask import Response, g, request
+from flask.ext.restplus import Resource
 import time
 
 
@@ -23,120 +23,8 @@ slot_props = (
     'way_name'
 )
 
-# define response models
-@api.model(fields={
-    'type': fields.String(description='GeoJSON Type', required=True, enum=GEOM_TYPES),
-    'coordinates': fields.List(
-        fields.Raw,
-        description='The geometry as coordinates lists',
-        required=True),
-})
-class Geometry(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    '%s' % day: fields.List(fields.Raw)
-    for day in range(1, 8)
-})
-class AgendaView(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    'long': fields.Float(),
-    'lat': fields.Float()
-})
-class ButtonLocation(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    'description': fields.String(
-        description='description of the parking rule',
-        required=True),
-    'season_start': fields.String(
-        description='when the permission begins in the year (ex: 12-01 for december 1)',
-        required=True),
-    'season_end': fields.String(
-        description='when the permission no longer applies',
-        required=True),
-    'time_max_parking': fields.String(
-        description='restriction on parking time (minutes)',
-        required=True),
-    'agenda': AgendaView(
-        description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
-                       containing a list of time ranges when the restriction apply''',
-        required=True),
-    'permit_no': fields.String(
-        description='city parking permit number applicable for this slot',
-        required=True),
-    'special_days': fields.String(required=True),
-    'restrict_typ': fields.String(
-        description='special restriction details',
-        required=True),
-    'paid_hourly_rate': fields.Float(
-        description='hourly cost for paid parking here (if applicable)'),
-    'button_location': ButtonLocation(required=True)
-})
-class v0SlotsField(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    'indoor': fields.Boolean(),
-    'clerk': fields.Boolean(),
-    'valet': fields.Boolean()
-})
-class LotAttributes(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    'name': fields.String(
-        description='name of parking lot / operator',
-        required=True),
-    'address': fields.String(
-        description='street address of lot entrance',
-        required=True),
-    'agenda': AgendaView(
-        description='list of days when lot/garage is open, containing a list of time ranges when open',
-        required=True),
-    'attrs': LotAttributes(
-        description='list of amenities present at this lot/garage',
-        required=True),
-    'daily_price': fields.Float(
-        description='price per day for a space in this lot/garage')
-})
-class LotsField(fields.Raw):
-    pass
-
-
-@api.model(fields={
-    'version': fields.String(description='version of resource'),
-    'kml_addr': fields.String(description='URL to service areas dataset (KML format, gzipped)'),
-    'geojson_addr': fields.String(description='URL to service areas dataset (GeoJSON format, gzipped)'),
-    'kml_mask_addr': fields.String(description='URL to service areas mask dataset (KML format, gzipped)'),
-    'geojson_mask_addr': fields.String(description='URL to service areas mask dataset (GeoJSON format, gzipped)')
-})
-class ServiceAreasVersion(fields.Raw):
-    pass
-
-
-@api.model(fields={0: ServiceAreasVersion()})
-class ServiceAreasVersions(fields.Raw):
-    pass
-
-
-service_areas_model = api.model('ServiceAreasMeta', {
-    'latest_version': fields.Integer(description='latest available version of resources'),
-    'versions': ServiceAreasVersions()
-})
-
-
-@api.route('/areas')
+@api.route('/areas', doc=False)
 class ServiceAreaResource(Resource):
-    @api.doc(model=service_areas_model)
     def get(self):
         """
         Returns coverage area package versions and metadata
@@ -151,26 +39,8 @@ class ServiceAreaResource(Resource):
         }, 200
 
 
-slots_fields = api.model('v0SlotsGeoJSONFeature', {
-    'id': fields.String(required=True),
-    'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': v0SlotsField(required=True),
-})
-
-slots_collection_fields = api.model('v0SlotsGeoJSONFeatureCollection', {
-    'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(slots_fields))
-})
-
-
-@api.route('/slot/<string:id>')
+@api.route('/slot/<string:id>', doc=False)
 class SlotResource(Resource):
-    @api.marshal_list_with(slots_fields)
-    @api.doc(
-        params={'id': 'slot id'},
-        responses={404: "feature not found"}
-    )
     def get(self, id):
         """
         Returns the parking slot corresponding to the id
@@ -235,13 +105,8 @@ slot_parser.add_argument(
 )
 
 
-@api.route('/slots')
+@api.route('/slots', doc=False)
 class SlotsResource(Resource):
-    @api.marshal_list_with(slots_collection_fields)
-    @api.doc(
-        responses={404: "no feature found"}
-    )
-    @api.doc(parser=slot_parser)
     def get(self):
         """
         Returns slots around the point defined by (x, y)
@@ -281,32 +146,9 @@ token_parser.add_argument(
     help='Oauth2 user access token'
 )
 
-user_model = api.model('User', {
-    'name': fields.String(),
-    'email': fields.String(),
-    'apikey': fields.String(),
-    'created': fields.String(),
-    'auth_id': fields.String(),
-    'id': fields.String(),
-    'gender': fields.String(),
-    'image_url': fields.String()
-})
 
-
-checkin_model = api.model('Checkin', {
-    'created': fields.String(),
-    'long': fields.String(),
-    'lat': fields.String(),
-    'wayname': fields.String(),
-    'slot_id': fields.String(),
-    'id': fields.String(),
-    'active': fields.String()
-})
-
-
-@api.route('/login/facebook')
+@api.route('/login/facebook', doc=False)
 class LoginFacebook(Resource):
-    @api.doc(parser=token_parser, model=user_model)
     def post(self):
         """
         Login with a facebook account.
@@ -318,9 +160,8 @@ class LoginFacebook(Resource):
         return facebook_signin(args['access_token'])
 
 
-@api.route('/login/google')
+@api.route('/login/google', doc=False)
 class LoginGoogle(Resource):
-    @api.doc(parser=token_parser, model=user_model)
     def post(self):
         """
         Login with a google account.fields
@@ -341,9 +182,8 @@ register_parser.add_argument('birthyear', type=str, location='form', help='birth
 register_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
-@api.route('/register')
+@api.route('/register', doc=False)
 class Register(Resource):
-    @api.doc(parser=register_parser, model=user_model)
     def post(self):
         """
         Register a new account.
@@ -357,9 +197,8 @@ email_parser.add_argument('email', type=str, location='form', help='user email')
 email_parser.add_argument('password', type=str, location='form', help='user password')
 
 
-@api.route('/login/email')
+@api.route('/login/email', doc=False)
 class LoginEmail(Resource):
-    @api.doc(parser=email_parser, model=user_model)
     def post(self):
         """
         Login with en email account.
@@ -373,10 +212,8 @@ passwd_reset_parser.add_argument(
     'email', type=str, required=True, help='Email of account', location='form')
 
 
-@api.route('/login/email/reset')
+@api.route('/login/email/reset', doc=False)
 class LoginEmailReset(Resource):
-    @api.doc(parser=passwd_reset_parser,
-            responses={200: "OK", 400: "Account not found"})
     def post(self):
         """
         Send an account password reset code
@@ -397,10 +234,8 @@ passwd_change_parser.add_argument(
     'passwd', type=str, required=True, help='New password', location='form')
 
 
-@api.route('/login/email/changepass')
+@api.route('/login/email/changepass', doc=False)
 class LoginEmailChangePass(Resource):
-    @api.doc(parser=passwd_change_parser,
-            responses={200: "OK", 404: "Account not found", 400: "Reset code incorrect"})
     def post(self):
         """
         Change an account's password via reset code
@@ -437,10 +272,8 @@ delete_checkin_parser.add_argument(
     location='form')
 
 
-@api.route('/slot/checkin')
+@api.route('/slot/checkin', doc=False)
 class Checkin(Resource):
-    @api.doc(parser=get_checkin_parser,
-             responses={401: "Invalid API key"})
     @api.secure
     def get(self):
         """
@@ -453,8 +286,6 @@ class Checkin(Resource):
         res = Checkins.get_all(g.user.id, limit)
         return res, 200
 
-    @api.doc(parser=post_checkin_parser, model=checkin_model,
-             responses={404: "No slot existing with this id", 201: "Resource created"})
     @api.secure
     def post(self):
         """
@@ -467,8 +298,6 @@ class Checkin(Resource):
         res = Checkins.get(g.user.id)
         return res, 201
 
-    @api.doc(parser=delete_checkin_parser,
-             responses={204: "Resource deleted"})
     @api.secure
     def delete(self):
         """
@@ -488,15 +317,13 @@ update_profile_parser.add_argument('birthyear', type=str, location='form', help=
 update_profile_parser.add_argument('image_url', type=str, location='form', help='avatar URL')
 
 
-@api.route('/user/profile')
+@api.route('/user/profile', doc=False)
 class Profile(Resource):
     @api.secure
-    @api.doc(parser=api_key_parser, model=user_model)
     def get(self):
         """Get informations about a user"""
         return g.user.json, 200
 
-    @api.doc(parser=update_profile_parser, model=user_model)
     @api.secure
     def put(self):
         """Update user profile information"""
@@ -512,15 +339,10 @@ image_parser.add_argument(
 image_parser.add_argument(
     'file_name', type=str, required=True, help='File name of the image to be uploaded',
     location='form')
-s3_url_model = api.model('S3 URL', {
-    'request_url': fields.String(),
-    'access_url': fields.String()
-})
 
-@api.route('/image')
+@api.route('/image', doc=False)
 class Image(Resource):
     @api.secure
-    @api.doc(parser=image_parser, model=s3_url_model)
     def post(self):
         """
         Generate an S3 URL for image submission
@@ -553,11 +375,9 @@ report_parser.add_argument('notes', type=str,
     location='form', help='report notes')
 
 
-@api.route('/report')
+@api.route('/report', doc=False)
 class Report(Resource):
     @api.secure
-    @api.doc(parser=report_parser,
-        responses={201: "Resource created"})
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()

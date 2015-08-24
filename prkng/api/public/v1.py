@@ -1,6 +1,6 @@
 from __future__ import unicode_literals
 
-from prkng.api import api
+from prkng.api.public import api
 from prkng.models import Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
 from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
 from prkng.utils import timestamp
