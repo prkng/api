@@ -16,11 +16,11 @@ scheduler = Scheduler('scheduled_jobs', connection=Redis(db=1))
 def init_tasks(debug=True):
     now = datetime.datetime.now()
     stop_tasks()
-    scheduler.schedule(scheduled_time=now, func=update_car2go, interval=120, result_ttl=5, repeat=None)
-    scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=5, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_car2go, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
     if not debug:
         scheduler.schedule(scheduled_time=datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.time(8)),
-            func=run_backup, args=["prkng", "prkng"], interval=86400, result_ttl=5, repeat=None)
+            func=run_backup, args=["prkng", "prkng"], interval=86400, result_ttl=172800, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():

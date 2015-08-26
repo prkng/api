@@ -23,7 +23,7 @@ class Reports(object):
     def add(user_id, slot_id, lng, lat, url, notes):
         db.engine.execute("""
             INSERT INTO reports (user_id, slot_id, way_name, long, lat, image_url, notes)
-            SELECT {user_id}, {slot_id}, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
+            SELECT {user_id}, s.signposts, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
               FROM slots s
               WHERE s.id = {slot_id}
         """.format(user_id=user_id, slot_id=slot_id or "NULL", lng=lng, lat=lat,
