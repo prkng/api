@@ -49,7 +49,7 @@ class Reports(object):
                 ARRAY_REMOVE(ARRAY_AGG(c.id), NULL) AS corrections
             FROM reports r
             JOIN users u ON r.user_id = u.id
-            LEFT JOIN slots s ON r.slot_id = s.id
+            LEFT JOIN slots s ON r.signposts = s.signposts
             LEFT JOIN corrections c ON s.signposts = c.signposts
             WHERE r.id = {}
             GROUP BY r.id, u.id, s.way_name, s.rules
@@ -62,14 +62,10 @@ class Reports(object):
         res = db.engine.execute("""
             UPDATE reports r
               SET progress = {}
-              FROM users u, slots s
               WHERE r.id = {}
-                AND r.user_id = u.id
-                AND r.slot_id = s.id
-            RETURNING r.*, u.name, u.email, s.way_name
-        """.format(progress, id)).first()
+        """.format(progress, id))
 
-        return {key: value for key, value in res.items()}
+        return Reports.get(id)
 
     @staticmethod
     def delete(id):
