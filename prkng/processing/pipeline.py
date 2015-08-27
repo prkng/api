@@ -350,7 +350,7 @@ def insert_rules(from_table):
 def insert_raw_lots(filename):
     db.query("""
         COPY parking_lots_raw (name, operator, address, description, lun_normal, mar_normal, mer_normal,
-            jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_special, lun_special,
+            jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_normal, lun_special,
             mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special, hourly_special,
             daily_special, lun_free, mar_free, mer_free, jeu_free, ven_free, sam_free, dim_free,
             indoor, handicap, clerk, valet, lat, long, active)
