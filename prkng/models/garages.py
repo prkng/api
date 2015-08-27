@@ -6,9 +6,9 @@ class Garages(object):
         'id',
         'geojson',
         'name',
+        'operator',
         'address',
         'agenda',
-        'daily_price',
         'attrs'
     )
 

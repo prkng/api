@@ -160,6 +160,49 @@ CREATE TABLE slots
 )
 """
 
+create_parking_lots_raw = """
+DROP TABLE IF EXISTS parking_lots_raw;
+CREATE TABLE parking_lots_raw (
+  id serial primary key,
+  name varchar,
+  operator varchar,
+  address varchar,
+  description varchar,
+  lun_normal varchar,
+  mar_normal varchar,
+  mer_normal varchar,
+  jeu_normal varchar,
+  ven_normal varchar,
+  sam_normal varchar,
+  dim_normal varchar,
+  hourly_normal float,
+  daily_normal float,
+  lun_special varchar,
+  mar_special varchar,
+  mer_special varchar,
+  jeu_special varchar,
+  ven_special varchar,
+  sam_special varchar,
+  dim_special varchar,
+  hourly_special float,
+  daily_special float,
+  lun_free varchar,
+  mar_free varchar,
+  mer_free varchar,
+  jeu_free varchar,
+  ven_free varchar,
+  sam_free varchar,
+  dim_free varchar,
+  indoor boolean,
+  handicap boolean,
+  clerk boolean,
+  valet boolean,
+  lat float,
+  long float,
+  active boolean
+)
+"""
+
 create_parking_lots = """
 DROP TABLE IF EXISTS parking_lots;
 CREATE TABLE parking_lots
@@ -167,10 +210,10 @@ CREATE TABLE parking_lots
   id serial PRIMARY KEY,
   active boolean,
   name varchar,
+  operator varchar,
   address varchar,
   description varchar,
   agenda jsonb,
-  daily_price float,
   attrs jsonb,
   geom geometry(Point,3857),
   geojson jsonb

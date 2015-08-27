@@ -4,6 +4,7 @@
 """
 from __future__ import unicode_literals
 
+import csv
 import json
 import os
 
@@ -294,6 +295,13 @@ def run():
     db.query(common.create_slots_temp)
     db.query(common.create_slots)
     db.query(common.create_corrections)
+    db.query(common.create_parking_lots_raw)
+    db.query(common.create_parking_lots)
+
+    Logger.info("Processing parking lot / garage data")
+    insert_raw_lots("lots_stationnement_mtl.csv")
+    insert_parking_lots()
+
     process_montreal()
     process_quebec()
 
@@ -337,3 +345,52 @@ def insert_rules(from_table):
             for val in rule._asdict().values()]
         for rule in rules_grouped
     ])
+
+
+def insert_raw_lots(filename):
+    db.query("""
+        COPY parking_lots_raw (name, operator, address, description, lun_normal, mar_normal, mer_normal,
+            jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_special, lun_special,
+            mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special, hourly_special,
+            daily_special, lun_free, mar_free, mer_free, jeu_free, ven_free, sam_free, dim_free,
+            indoor, handicap, clerk, valet, lat, long, active)
+        FROM '{}'
+        WITH CSV HEADER
+    """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
+
+
+def insert_parking_lots():
+    columns = ["name", "operator", "address", "description", "agenda", "attrs", "geom", "active", "geojson"]
+    days = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
+    lots, queries = [], []
+    for row in db.query("""
+        SELECT *, ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857) AS geom
+        FROM parking_lots_raw
+    """, namedtuple=True):
+        lot = [(x.decode('utf-8') if x else None) for x in [row.name, row.operator, row.address, row.description]]
+        agenda = {}
+        for x in range(1,8):
+            agenda[str(x)] = []
+            if getattr(row, days[x - 1] + "_normal"):
+                y = getattr(row, days[x - 1] + "_normal")
+                agenda[str(x)].append({"hours": [float(z) for z in y.split(",")],
+                    "hourly": row.hourly_normal or None, "daily": row.daily_normal or None})
+            if getattr(row, days[x - 1] + "_special"):
+                y = getattr(row, days[x - 1] + "_special")
+                agenda[str(x)].append({"hours": [float(z) for z in y.split(",")],
+                    "hourly": row.hourly_special or None, "daily": row.daily_special or None})
+            if getattr(row, days[x - 1] + "_free"):
+                y = getattr(row, days[x - 1] + "_free")
+                agenda[str(x)].append({"hours": [float(z) for z in y.split(",")], "hourly": 0})
+        lot.append(json.dumps(agenda))
+        lot.append(json.dumps({"indoor": row.indoor, "handicap": row.handicap,
+            "clerk": row.clerk, "valet": row.valet}))
+        lot.append(row.geom)
+        lot.append(row.active)
+        lots.append(lot)
+    for x in lots:
+        queries.append("""
+            INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, '{}'::jsonb,
+                '{}'::geometry, '{}', ST_AsGeoJSON(ST_Transform('{geom}'::geometry, 4326))::jsonb)
+        """.format(",".join(columns), *[y for y in x], geom=x[-2]))
+    db.queries(queries)
