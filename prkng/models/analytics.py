@@ -1,5 +1,6 @@
 from prkng.database import db, metadata
 
+import datetime
 import json
 from sqlalchemy import Column, DateTime, Float, Integer, String, Table, text
 
@@ -36,8 +37,8 @@ class Analytics(object):
 
     @staticmethod
     def add_pos_tobuf(user_id, lat, lng, radius):
-        db.redis.rpush('prkng:analytics:pos', json.dumps({"user_id": user_id,
-            "lat": lat, "long": lng, "radius": radius}))
+        db.redis.rpush('prkng:analytics:pos', json.dumps({"user_id": user_id, "lat": lat, "long": lng,
+            "radius": radius, "created": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}))
 
     @staticmethod
     def add_pos_bulk(pos):
