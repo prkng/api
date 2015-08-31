@@ -1,3 +1,4 @@
+from analytics import Analytics
 from assets import Images
 from car2gos import Car2Go
 from checkins import Checkins
@@ -10,6 +11,7 @@ from slots import Slots
 from users import User, UserAuth
 
 from prkng.database import db, metadata
+from redis import Redis
 from sqlalchemy import create_engine
 
 
@@ -43,6 +45,7 @@ def init_model(app):
             strategy='threadlocal',
             pool_size=10
         )
+        db.redis = Redis(db=1)
 
     metadata.bind = db.engine
     # create model

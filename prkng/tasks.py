@@ -17,6 +17,7 @@ def init_tasks(debug=True):
     now = datetime.datetime.now()
     stop_tasks()
     scheduler.schedule(scheduled_time=now, func=update_car2go, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
     if not debug:
         scheduler.schedule(scheduled_time=datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.time(8)),
@@ -27,14 +28,13 @@ def stop_tasks():
         scheduler.cancel(x)
 
 def run_backup(username, database):
-    backup_dir = os.path.join(os.path.expanduser('~'), 'backup')
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-    if not os.path.exists(backup_dir):
-        os.mkdir(backup_dir)
-    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name),
+    if not os.path.exists("/backup"):
+        os.mkdir("/backup")
+    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join("/backup", file_name),
         PG_USERNAME=username, PG_DATABASE=database),
         shell=True)
-    return os.path.join(backup_dir, file_name)
+    return os.path.join("/backup", file_name)
 
 def update_car2go():
     CONFIG = create_app().config
@@ -133,3 +133,23 @@ def update_free_spaces():
               AND c.since  > '{}'
               AND c.since  < '{}'
     """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
+
+
+def update_analytics():
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+    r = Redis(db=1)
+
+    queries = []
+    data = r.lrange('prkng:analytics:pos', 0, -1)
+    r.delete('prkng:analytics:pos')
+
+    for x in data:
+        x = json.loads(x)
+        queries.append("""
+            INSERT INTO analytics_pos (user_id, lat, long, radius) VALUES ({}, {}, {}, {})
+        """.format(x["user_id"], x["lat"], x["long"], x["radius"]))
+
+    db.queries(queries)

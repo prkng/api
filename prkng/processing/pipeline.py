@@ -367,7 +367,7 @@ def insert_parking_lots():
         SELECT *, ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857) AS geom
         FROM parking_lots_raw
     """, namedtuple=True):
-        lot = [(x.decode('utf-8') if x else None) for x in [row.name, row.operator, row.address, row.description]]
+        lot = [(x.decode('utf-8') if x else '') for x in [row.name, row.operator, row.address, row.description]]
         agenda = {}
         for x in range(1,8):
             agenda[str(x)] = []

@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from prkng.api.public import api
-from prkng.models import Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
+from prkng.models import Analytics, Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
 from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
 from prkng.utils import timestamp
 
@@ -249,6 +249,7 @@ slot_parser.add_argument(
 
 @ns.route('/slots', endpoint='slots_v1')
 class SlotsResource(Resource):
+    @api.secure
     @api.marshal_list_with(slots_collection_fields)
     @api.doc(
         responses={404: "no feature found"}
@@ -271,6 +272,9 @@ class SlotsResource(Resource):
         )
         if res == False:
             api.abort(404, "no feature found")
+
+        # push map search data to analytics
+        Analytics.add_pos_tobuf(g.user.id, args["latitude"], args["longitude"], args["radius"])
 
         return FeatureCollection([
             Feature(
@@ -613,3 +617,18 @@ class Report(Resource):
         Reports.add(g.user.id, args.get("slot_id", None), args["longitude"],
             args["latitude"], args.get("image_url", ""), args.get("notes", ""))
         return "Resource created", 201
+
+
+search_parser = copy.deepcopy(api_key_parser)
+search_parser.add_argument(
+    'query', type=str, required=True, help='Search query string', location='form')
+
+@ns.route('/search', endpoint='search_v1')
+class Search(Resource):
+    @api.secure
+    @api.doc(parser=search_parser,
+        responses={201: "Resource created"})
+    def post(self):
+        """Send search query data"""
+        args = search_parser.parse_args()
+        Analytics.add_search(g.user.id, args["query"])

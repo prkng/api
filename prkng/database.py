@@ -17,6 +17,7 @@ metadata = MetaData()
 class db(object):
     """lazy loading of db"""
     engine = None
+    redis = None
 
 
 class PostgresWrapper(object):
