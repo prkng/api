@@ -28,11 +28,11 @@ pos_table = Table(
 class Analytics(object):
     @staticmethod
     def add_search(user_id, query):
-        search_table.insert().values(user_id=user_id, query=query)
+        db.engine.execute(search_table.insert().values(user_id=user_id, query=query))
 
     @staticmethod
     def add_pos(user_id, lat, lng, radius):
-        pos_table.insert().values(user_id=user_id, lat=lat, long=lng, radius=radius)
+        db.engine.execute(pos_table.insert().values(user_id=user_id, lat=lat, long=lng, radius=radius))
 
     @staticmethod
     def add_pos_tobuf(user_id, lat, lng, radius):
@@ -41,4 +41,4 @@ class Analytics(object):
 
     @staticmethod
     def add_pos_bulk(pos):
-        pos_table.insert().execute([x for x in pos])
+        db.engine.execute(pos_table.insert().execute([x for x in pos]))

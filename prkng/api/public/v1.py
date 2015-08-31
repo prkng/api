@@ -261,6 +261,9 @@ class SlotsResource(Resource):
         """
         args = slot_parser.parse_args()
 
+        # push map search data to analytics
+        Analytics.add_pos_tobuf(g.user.id, args["latitude"], args["longitude"], args["radius"])
+
         res = Slots.get_within(
             args['longitude'],
             args['latitude'],
@@ -272,9 +275,6 @@ class SlotsResource(Resource):
         )
         if res == False:
             api.abort(404, "no feature found")
-
-        # push map search data to analytics
-        Analytics.add_pos_tobuf(g.user.id, args["latitude"], args["longitude"], args["radius"])
 
         return FeatureCollection([
             Feature(
@@ -632,3 +632,4 @@ class Search(Resource):
         """Send search query data"""
         args = search_parser.parse_args()
         Analytics.add_search(g.user.id, args["query"])
+        return "Resource created", 201
