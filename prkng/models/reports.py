@@ -1,5 +1,6 @@
 from prkng.database import db, metadata
 from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, text
+from sqlalchemy.dialects.postgresql import ARRAY
 
 
 report_table = Table(
@@ -7,7 +8,7 @@ report_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
-    Column('slot_id', Integer),
+    Column('signposts', ARRAY(Integer)),
     Column('way_name', String),
     Column('long', Float),
     Column('lat', Float),
@@ -22,7 +23,7 @@ class Reports(object):
     @staticmethod
     def add(user_id, slot_id, lng, lat, url, notes):
         db.engine.execute("""
-            INSERT INTO reports (user_id, slot_id, way_name, long, lat, image_url, notes)
+            INSERT INTO reports (user_id, signposts, way_name, long, lat, image_url, notes)
             SELECT {user_id}, s.signposts, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
               FROM slots s
               WHERE s.id = {slot_id}

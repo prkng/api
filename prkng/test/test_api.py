@@ -8,8 +8,7 @@ import pytest
 from flask import g
 
 from prkng import create_app
-from prkng.api import init_api
-from prkng.api.public import v1
+from prkng.api.public import init_api, v1
 from prkng.models import db, init_model, User, metadata
 from prkng.processing.common import create_slots
 from prkng.login import init_login

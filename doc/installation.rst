@@ -18,6 +18,7 @@ System requirements
 - uwsgi >= 2.0.8 (installed globally, not in a virtualenv, for production only)
 - git
 - nodejs >= 0.10.35
+- redis-server
 
 
 Database configuration
@@ -189,12 +190,6 @@ This command will process all data and generate parking slots (will erase any ol
 
 Launch a development server.
 Go to your browser and check `<http://localhost:5000>`_
-
-.. code-block:: bash
-
-    $ prkng car2go
-
-Fetch from the car2go API and update local data.
 
 .. code-block:: bash
 
