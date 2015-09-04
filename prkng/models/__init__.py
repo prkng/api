@@ -5,7 +5,7 @@ from checkins import Checkins
 from cities import City
 from corrections import Corrections
 from free_spaces import FreeSpaces
-from garages import Garages
+from parking_lots import ParkingLots
 from reports import Reports
 from slots import Slots
 from users import User, UserAuth

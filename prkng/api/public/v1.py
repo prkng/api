@@ -1,7 +1,7 @@
 from __future__ import unicode_literals
 
 from prkng.api.public import api
-from prkng.models import Analytics, Checkins, City, Garages, Images, Reports, Slots, User, UserAuth
+from prkng.models import Analytics, Checkins, City, Images, ParkingLots, Reports, Slots, User, UserAuth
 from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
 from prkng.utils import timestamp
 
@@ -327,7 +327,7 @@ lots_collection_fields = api.model('LotsGeoJSONFeatureCollection', {
 
 
 @ns.route('/lots', endpoint='parkinglots_v1')
-class ParkingLots(Resource):
+class Lots(Resource):
     @api.secure
     @api.marshal_list_with(lots_collection_fields)
     @api.doc(
@@ -344,7 +344,7 @@ class ParkingLots(Resource):
         Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
             args["longitude"], args["radius"])
 
-        res = Garages.get_within(
+        res = ParkingLots.get_within(
             args['longitude'],
             args['latitude'],
             args['radius']
@@ -358,7 +358,7 @@ class ParkingLots(Resource):
                 geometry=feat[1],
                 properties={
                     field: feat[num]
-                    for num, field in enumerate(Garages.properties[2:], start=2)
+                    for num, field in enumerate(ParkingLots.properties[2:], start=2)
                 }
             )
             for feat in res

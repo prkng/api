@@ -1,6 +1,6 @@
 from prkng.api import auth_required, create_token
 from prkng.analytics import Analytics
-from prkng.models import Checkins, City, Corrections, FreeSpaces, Garages, Reports, Slots
+from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots
 
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
@@ -206,7 +206,7 @@ def get_lots():
     """
     Returns garages inside a boundbox
     """
-    res = Garages.get_boundbox(
+    res = ParkingLots.get_boundbox(
         request.args['neLat'],
         request.args['neLng'],
         request.args['swLat'],

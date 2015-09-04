@@ -1,7 +1,7 @@
 from prkng.database import db
 
 
-class Garages(object):
+class ParkingLots(object):
     properties = (
         'id',
         'geojson',
