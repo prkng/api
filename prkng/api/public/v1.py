@@ -262,7 +262,8 @@ class SlotsResource(Resource):
         args = slot_parser.parse_args()
 
         # push map search data to analytics
-        Analytics.add_pos_tobuf(g.user.id, args["latitude"], args["longitude"], args["radius"])
+        Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
+            args["longitude"], args["radius"])
 
         res = Slots.get_within(
             args['longitude'],
@@ -337,6 +338,10 @@ class ParkingLots(Resource):
         Return parking lots and garages around the point defined by (x, y)
         """
         args = parking_lot_parser.parse_args()
+
+        # push map search data to analytics
+        Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
+            args["longitude"], args["radius"])
 
         res = Garages.get_within(
             args['longitude'],

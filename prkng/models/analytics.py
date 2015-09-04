@@ -10,6 +10,7 @@ search_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer),
+    Column('search_type', String),
     Column('created', DateTime, server_default=text('NOW()')),
     Column('query', String)
 )
@@ -32,13 +33,14 @@ class Analytics(object):
         db.engine.execute(search_table.insert().values(user_id=user_id, query=query))
 
     @staticmethod
-    def add_pos(user_id, lat, lng, radius):
+    def add_pos(stype, user_id, lat, lng, radius):
         db.engine.execute(pos_table.insert().values(user_id=user_id, lat=lat, long=lng, radius=radius))
 
     @staticmethod
-    def add_pos_tobuf(user_id, lat, lng, radius):
-        db.redis.rpush('prkng:analytics:pos', json.dumps({"user_id": user_id, "lat": lat, "long": lng,
-            "radius": radius, "created": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")}))
+    def add_pos_tobuf(stype, user_id, lat, lng, radius):
+        db.redis.rpush('prkng:analytics:pos', json.dumps({"search_type": stype, "user_id": user_id,
+            "created": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "lat": lat, "long": lng, "radius": radius}))
 
     @staticmethod
     def add_pos_bulk(pos):
