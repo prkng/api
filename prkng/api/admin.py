@@ -243,3 +243,13 @@ def get_analytics():
     acts = Analytics.get_active_user_data()
     chks = Analytics.get_checkin_data()
     return jsonify(users=user, actives=acts, checkins=chks), 200
+
+
+@admin.route('/api/heatmap', methods=['GET'])
+@auth_required()
+def get_heatmap():
+    """
+    Get map usage heatmap
+    """
+    usage = Analytics.get_map_usage(24)
+    return jsonify(heatmap=usage), 200

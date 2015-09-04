@@ -119,3 +119,12 @@ class Analytics(object):
         """)
         return {"day": today, "week": [{key: value for key, value in row.items()} for row in week],
             "year": [{key: value for key, value in row.items()} for row in year]}
+
+    @staticmethod
+    def get_map_usage(hours=24):
+        res = db.engine.execute("""
+            SELECT lat, long, 1 AS value
+            FROM analytics_pos
+            WHERE created >= (NOW() - ({} * INTERVAL '1 DAY'))
+        """.format(hours))
+        return [{key: value for key, value in row.items()} for row in res]

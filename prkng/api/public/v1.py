@@ -328,6 +328,7 @@ lots_collection_fields = api.model('LotsGeoJSONFeatureCollection', {
 
 @ns.route('/lots', endpoint='parkinglots_v1')
 class ParkingLots(Resource):
+    @api.secure
     @api.marshal_list_with(lots_collection_fields)
     @api.doc(
         responses={404: "no feature found"}
