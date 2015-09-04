@@ -34,7 +34,8 @@ class Analytics(object):
 
     @staticmethod
     def add_pos(stype, user_id, lat, lng, radius):
-        db.engine.execute(pos_table.insert().values(user_id=user_id, lat=lat, long=lng, radius=radius))
+        db.engine.execute(pos_table.insert().values(search_type=stype, user_id=user_id,
+            lat=lat, long=lng, radius=radius))
 
     @staticmethod
     def add_pos_tobuf(stype, user_id, lat, lng, radius):
