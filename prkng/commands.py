@@ -85,7 +85,7 @@ def backup():
 
 
 @click.command(name="init-tasks")
-def init_tasks():
+def initialize_tasks():
     """
     Tell rq-scheduler to process our tasks
     """
