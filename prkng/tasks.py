@@ -149,7 +149,7 @@ def update_analytics():
     for x in data:
         x = json.loads(x)
         queries.append("""
-            INSERT INTO analytics_pos (user_id, lat, long, radius, created) VALUES ({}, {}, {}, {}, '{}')
-        """.format(x["user_id"], x["lat"], x["long"], x["radius"], x["created"]))
+            INSERT INTO analytics_pos (user_id, lat, long, radius, created, search_type) VALUES ({}, {}, {}, {}, '{}', '{}')
+        """.format(x["user_id"], x["lat"], x["long"], x["radius"], x["created"], x["search_type"]))
 
     db.queries(queries)
