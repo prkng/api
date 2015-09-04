@@ -8,7 +8,7 @@ from __future__ import print_function
 
 from prkng import create_app
 from prkng.logger import Logger
-from prkng.tasks import run_backup
+from prkng.tasks import init_tasks, run_backup
 from subprocess import check_call
 
 import click
@@ -84,6 +84,16 @@ def backup():
     Logger.info('Backup created and stored as {}'.format(bpath))
 
 
+@click.command(name="init-tasks")
+def init_tasks():
+    """
+    Tell rq-scheduler to process our tasks
+    """
+    CONFIG = create_app().config
+    init_tasks(CONFIG["DEBUG"])
+    Logger.info('Tasks initialized')
+
+
 @click.command()
 def maintenance():
     """
@@ -108,4 +118,5 @@ main.add_command(update)
 main.add_command(process)
 main.add_command(update_areas)
 main.add_command(backup)
+main.add_command(init_tasks)
 main.add_command(maintenance)
