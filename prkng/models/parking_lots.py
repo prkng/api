@@ -35,7 +35,7 @@ class ParkingLots(object):
                 {radius}
             )
         """.format(
-            properties=','.join(Garages.properties),
+            properties=','.join(ParkingLots.properties),
             x=x,
             y=y,
             radius=radius
@@ -67,7 +67,7 @@ class ParkingLots(object):
                 parking_lots.geom
             )
         """.format(
-            properties=','.join(Garages.properties),
+            properties=','.join(ParkingLots.properties),
             nelat=nelat,
             nelng=nelng,
             swlat=swlat,
@@ -85,4 +85,4 @@ class ParkingLots(object):
             SELECT {properties}
             FROM parking_lots
             WHERE id = {sid}
-            """.format(sid=lid, properties=','.join(Garages.properties))).fetchall()
+            """.format(sid=lid, properties=','.join(ParkingLots.properties))).fetchall()
