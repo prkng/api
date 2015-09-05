@@ -164,6 +164,6 @@ class Analytics(object):
         res = db.engine.execute("""
             SELECT lat, long, 1 AS value
             FROM analytics_pos
-            WHERE created >= (NOW() - ({} * INTERVAL '1 DAY'))
+            WHERE created >= (NOW() - ({} * INTERVAL '1 HOUR'))
         """.format(hours))
         return [{key: value for key, value in row.items()} for row in res]
