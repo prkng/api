@@ -290,14 +290,7 @@ class SlotsResource(Resource):
         ]), 200
 
 
-parking_lot_parser = api.parser()
-parking_lot_parser.add_argument(
-    'radius',
-    type=int,
-    location='args',
-    default=300,
-    help='Radius search in meters; default is 300m'
-)
+parking_lot_parser = copy.deepcopy(api_key_parser)
 parking_lot_parser.add_argument(
     'latitude',
     type=float,
@@ -342,15 +335,9 @@ class Lots(Resource):
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
-            args["longitude"], args["radius"])
+            args["longitude"], 300)
 
-        res = ParkingLots.get_within(
-            args['longitude'],
-            args['latitude'],
-            args['radius']
-        )
-        if res == False:
-            api.abort(404, "no feature found")
+        res = ParkingLots.get_all()
 
         return FeatureCollection([
             Feature(

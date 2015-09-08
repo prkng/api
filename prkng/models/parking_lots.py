@@ -14,18 +14,24 @@ class ParkingLots(object):
     )
 
     @staticmethod
-    def get_within(x, y, radius):
+    def get_all():
         """
         Retrieve the nearest parking lots/garages within ``radius`` meters of a
         given location (x, y).
         """
         req = """
-        SELECT 1 FROM cities
-        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
-        """.format(x=x, y=y)
-        if not db.engine.execute(req).first():
-            return False
+        SELECT {properties} FROM parking_lots
+        WHERE active = true
+        """.format(properties=','.join(ParkingLots.properties))
 
+        return db.engine.execute(req).fetchall()
+
+    @staticmethod
+    def get_within(x, y, radius):
+        """
+        Retrieve the nearest parking lots/garages within ``radius`` meters of a
+        given location (x, y).
+        """
         req = """
         SELECT {properties} FROM parking_lots
         WHERE
@@ -49,14 +55,6 @@ class ParkingLots(object):
         """
         Retrieve all parking lots / garages inside a given boundbox.
         """
-
-        req = """
-        SELECT 1 FROM cities
-        WHERE ST_Intersects(geom, ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857))
-        """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)
-        if not db.engine.execute(req).first():
-            return False
-
         req = """
         SELECT {properties} FROM parking_lots
         WHERE active = true
