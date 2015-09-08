@@ -43,7 +43,7 @@ def generate_token():
     and passwd == current_app.config["CAR2GO_ACCTS"][uname]:
         if uname == "jeremi":
             with open(os.path.join(os.path.expanduser('~'), 'jeremi.log'), 'a') as f:
-                f.write('[LOGIN] User jeremi at {} with IP {}'.format(datetime.datetime.now().isoformat(),
+                f.write('[LOGIN] User jeremi at {} with IP {}\n'.format(datetime.datetime.now().isoformat(),
                     request.environ['REMOTE_ADDR']))
         return jsonify(token=create_token(uname))
     else:
