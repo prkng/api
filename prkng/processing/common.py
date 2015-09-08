@@ -197,10 +197,14 @@ CREATE TABLE parking_lots_raw (
   dim_free varchar,
   indoor boolean,
   handicap boolean,
-  clerk boolean,
+  card boolean,
   valet boolean,
   lat float,
   long float,
+  capacity integer,
+  street_view_lat float,
+  street_view_long float,
+  street_view_head float,
   active boolean
 )
 """
@@ -212,13 +216,15 @@ CREATE TABLE parking_lots
   id serial PRIMARY KEY,
   active boolean,
   name varchar,
+  capacity integer,
   operator varchar,
   address varchar,
   description varchar,
   agenda jsonb,
   attrs jsonb,
   geom geometry(Point,3857),
-  geojson jsonb
+  geojson jsonb,
+  street_view jsonb
 )
 """
 

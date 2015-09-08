@@ -9,7 +9,8 @@ class ParkingLots(object):
         'operator',
         'address',
         'agenda',
-        'attrs'
+        'attrs',
+        'street_view'
     )
 
     @staticmethod

@@ -353,21 +353,22 @@ def insert_raw_lots(filename):
             jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_normal, max_normal,
             lun_special, mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special,
             hourly_special, daily_special, max_special, lun_free, mar_free, mer_free, jeu_free,
-            ven_free, sam_free, dim_free, indoor, handicap, clerk, valet, lat, long, active)
+            ven_free, sam_free, dim_free, indoor, handicap, card, valet, lat, long, capacity,
+            street_view_lat, street_view_long, street_view_head, active)
         FROM '{}'
         WITH CSV HEADER
     """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
 
 
 def insert_parking_lots():
-    columns = ["name", "operator", "address", "description", "agenda", "attrs", "geom", "active", "geojson"]
+    columns = ["name", "operator", "address", "description", "agenda", "capacity", "attrs", "geom", "active", "street_view", "geojson"]
     days = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
     lots, queries = [], []
     for row in db.query("""
         SELECT *, ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857) AS geom
         FROM parking_lots_raw
     """, namedtuple=True):
-        lot = [(x.decode('utf-8') if x else '') for x in [row.name, row.operator, row.address, row.description]]
+        lot = [(x.decode('utf-8').replace("'", "''") if x else '') for x in [row.name, row.operator, row.address, row.description]]
         agenda = {}
         for x in range(1,8):
             agenda[str(x)] = []
@@ -385,14 +386,15 @@ def insert_parking_lots():
                 y = getattr(row, days[x - 1] + "_free")
                 agenda[str(x)].append({"hours": [float(z) for z in y.split(",")], "hourly": 0})
         lot.append(json.dumps(agenda))
+        lot.append(row.capacity or 0)
         lot.append(json.dumps({"indoor": row.indoor, "handicap": row.handicap,
-            "clerk": row.clerk, "valet": row.valet}))
-        lot.append(row.geom)
-        lot.append(row.active)
+            "card": row.card, "valet": row.valet}))
+        lot += [row.geom, row.active, row.street_view_lat, row.street_view_long, row.street_view_head]
         lots.append(lot)
     for x in lots:
         queries.append("""
-            INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, '{}'::jsonb,
-                '{}'::geometry, '{}', ST_AsGeoJSON(ST_Transform('{geom}'::geometry, 4326))::jsonb)
-        """.format(",".join(columns), *[y for y in x], geom=x[-2]))
+            INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, {}, '{}'::jsonb,
+                '{}'::geometry, '{}', json_build_object('lat', {}, 'long', {}, 'head', {})::jsonb,
+                ST_AsGeoJSON(ST_Transform('{geom}'::geometry, 4326))::jsonb)
+        """.format(",".join(columns), *[y for y in x], geom=x[-5]))
     db.queries(queries)
