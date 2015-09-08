@@ -252,5 +252,5 @@ def get_heatmap():
     """
     Get map usage heatmap
     """
-    usage = Analytics.get_map_usage(24)
+    usage = Analytics.get_map_usage(request.args.get('hours', 24))
     return jsonify(heatmap=usage), 200
