@@ -300,7 +300,11 @@ def run():
 
     Logger.info("Processing parking lot / garage data")
     insert_raw_lots("lots_stationnement_mtl.csv")
+    insert_raw_lots("lots_vinci.csv")
     insert_parking_lots()
+    db.create_index('parking_lots', 'id')
+    db.create_index('parking_lots', 'geom', index_type='gist')
+    db.create_index('parking_lots', 'agenda', index_type='gin')
 
     process_montreal()
     process_quebec()
