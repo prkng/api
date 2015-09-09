@@ -7,6 +7,7 @@ class ParkingLots(object):
         'geojson',
         'name',
         'operator',
+        'capacity',
         'address',
         'agenda',
         'attrs',
