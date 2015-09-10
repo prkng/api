@@ -83,9 +83,9 @@ Queen Elizabeth Health Centre,Vinci,"2074, avenue Northcliffe",,"0,24","0,24","0
 140 Grande-Allée Est,Vinci,"140, Grande-Allée Est",,"0,24","0,24","0,24","0,24","0,24","0,24","0,24",4,16,,,,,,,,,,,,,,,,,,,TRUE,TRUE,TRUE,FALSE,46.803307,-71.223041,385,46.803307,-71.223041,0,TRUE
 Monastère des Augustines,Vinci,"75, rue des Remparts",,"0,24","0,24","0,24","0,24","0,24","0,24","0,24",4,16,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,TRUE,46.816051,-71.21032,38,46.816051,-71.21032,0,TRUE
 1363 avenue Maguire,Vinci,"1363, avenue Maguire",,"0,24","0,24","0,24","0,24","0,24","0,24","0,24",1.75,14,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,FALSE,46.780241,-71.25102,31,46.780241,-71.25102,0,TRUE
-La Jetée,Vinci,"150, rue Dalhousie",,"17,7","17,7","17,7","17,7","17,7","0,24","0,24",4,12,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,FALSE,46.817812,-71.203009,28,46.817812,-71.203009,0,TRUE
+La Jetée,Vinci,"150, rue Dalhousie",,"17,24","17,24","17,24","17,24","17,24","0,24","0,24",4,12,,"0,7","0,7","0,7","0,7","0,7",,,4,12,,,,,,,,,FALSE,FALSE,TRUE,FALSE,46.817812,-71.203009,28,46.817812,-71.203009,0,TRUE
 990 de Bourgogne,Vinci,"990, avenue de Bourgogne",,"6,18","6,18","6,18","6,18","6,18",,,4,10,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,FALSE,46.765139,-71.311069,250,46.765139,-71.311069,0,TRUE
-Marriott Spring HIlls,Vinci,"445, rue Saint-Jean-Baptiste",,"6,2","6,2","6,2","6,2","6,2","0,24","0,24",9,20,,,,,,,,,,,,,,,,,,,TRUE,TRUE,TRUE,TRUE,45.506438,-73.554764,110,45.506438,-73.554764,0,TRUE
+Marriott Spring HIlls,Vinci,"445, rue Saint-Jean-Baptiste",,"6,24","6,24","6,24","6,24","6,24","0,24","0,24",9,20,,"0,2","0,2","0,2","0,2","0,2",,,9,20,,,,,,,,,TRUE,TRUE,TRUE,TRUE,45.506438,-73.554764,110,45.506438,-73.554764,0,TRUE
 1851 Sherbrooke Est,Vinci,1851 Sherbrooke Est,,"6.5,17","6.5,17","6.5,17","6.5,17","6.5,17","6.5,17","6.5,17",6,11,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,FALSE,45.528914,-73.564131,35,45.528914,-73.564131,0,TRUE
 Toulon Development,Vinci,"4060, rue Sainte-Catherine O",,"6.5,18","6.5,18","6.5,18","6.5,18","6.5,18","6.5,18","6.5,18",10,14,,,,,,,,,,,,,,,,,,,TRUE,FALSE,FALSE,FALSE,45.487852,-73.58602,100,45.487852,-73.58602,0,TRUE
 680 Sherbrooke Ouest,Vinci,"680, rue Sherbrooke Ouest",,"7,17","7,17","7,17","7,17","7,17",,,9,19,,,,,,,,,,,,,,,,,,,TRUE,TRUE,TRUE,TRUE,45.504314,-73.572878,130,45.504314,-73.572878,0,TRUE
@@ -94,19 +94,3 @@ Mérici,Vinci,"801, Grande-Allée Ouest",,"7,18","7,18","7,18","7,18","7,18",,,4
 3000 Boulevard Laurier,Vinci,"3000, boulevard Laurier",,"7,18","7,18","7,18","7,18","7,18",,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,FALSE,46.765396,-71.292841,60,46.765396,-71.292841,0,TRUE
 79 René-Lévesque Est,Vinci,"79, boulevard René-Lévesque Est",,"7,18.5","7,18.5","7,18.5","7,18.5","7,18.5","7,18.5","7,18.5",,,,,,,,,,,,,,,,,,,,,TRUE,FALSE,TRUE,FALSE,46.805708,-71.223243,130,46.805708,-71.223243,0,TRUE
 925 Grande-Allée ouest,Vinci,"925, chemin St-Louis",,"7.5,17.5","7.5,17.5","7.5,17.5","7.5,17.5","7.5,17.5",,,5,14,,,,,,,,,,,,,,,,,,,TRUE,TRUE,TRUE,FALSE,46.793606,-71.235846,450,46.793606,-71.235846,0,TRUE
-Queen Mary Garage,Vinci,"3535, chemin Queen Mary",,,,,,,,,12,12,,,,,,,,,,,,,,,,,,,TRUE,FALSE,FALSE,FALSE,45.495787,-73.619006,65,45.495787,-73.619006,0,TRUE
-Hôpital Santa Cabrini,Vinci,"5655, rue Saint-Zotique Est",,,,,,,,,9,18,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,FALSE,45.579381,-73.57067,509,45.579381,-73.57067,0,TRUE
-Université McGill,Vinci,"845, rue Sherbrooke Ouest",,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,45.506092,-73.576755,1600,45.506092,-73.576755,0,TRUE
-Metro Décarie,Vinci,"5201, chemin Queen Mary",,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,45.485085,-73.629428,90,45.485085,-73.629428,0,TRUE
-Metro Somerled,Vinci,"6645, avenue Somerled",,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,45.466727,-73.639571,40,45.466727,-73.639571,0,TRUE
-Metro Dorion,Vinci,"1955, rue Sainte-Catherine E",,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,45.524463,-73.551758,50,45.524463,-73.551758,0,TRUE
-Metro Côte Des Neiges,Vinci,"5150, chemin de la Côte-des-Neiges",,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,45.495016,-73.620282,75,45.495016,-73.620282,0,TRUE
-Métro Notre-Dame,Vinci,"1230, rue Notre-Dame Ouest",,,,,,,,,,,,,,,,,,,,,,,,,,,,,TRUE,FALSE,FALSE,FALSE,45.492793,-73.56427,69,45.492793,-73.56427,0,TRUE
-Le Nordelec,Vinci,"1751, rue Richardson",,,,,,,,,5,10,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,TRUE,45.484588,-73.561568,475,45.484588,-73.561568,0,TRUE
-Radio-Canada,Vinci,"1400, boulevard René-Lévesque Est",,,,,,,,,11.5,11.5,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,FALSE,45.520587,-73.548963,1215,45.520587,-73.548963,0,TRUE
-Édifice Bois-Fontaine,Vinci,"880, chemin Sainte-Foy",,,,,,,,,,,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,TRUE,46.800157,-71.242678,,46.800157,-71.242678,0,TRUE
-Grand Théâtre,Vinci,"269, boulevard René-Lévesque Est",,,,,,,,,4,17,,,,,,,,,,,,,,,,,,,FALSE,TRUE,TRUE,FALSE,46.805883,-71.221498,70,46.805883,-71.221498,0,TRUE
-5160 Décarie ,Vinci,"5160, boulevard Décarie ",,,,,,,,,5,10,,,,,,,,,,,,,,,,,,,FALSE,FALSE,FALSE,FALSE,45.483668,-73.630501,,45.483668,-73.630501,0,TRUE
-Hydro-Québec,Vinci,"1243, rue St-Urbain",,,,,,,,,17,17,,,,,,,,,10,10,,,,,,,,,FALSE,FALSE,TRUE,FALSE,45.508211,-73.563186,40,45.508211,-73.563186,0,TRUE
-Altitude Montréal,Vinci,"1225, boulevard Robert-Bourassa",,,,,,,,,12,22,,,,,,,,,10,10,,,,,,,,,TRUE,TRUE,TRUE,TRUE,45.503028,-73.568662,280,45.503028,-73.568662,0,TRUE
-AMT - Stationnement Namur Est,Vinci,"5275, rue Jean-Talon Ouest",,,,,,,,,7,14,,,,,,,,,,,,,,,,,,,FALSE,FALSE,TRUE,FALSE,45.495787,-73.652779,36,45.495787,-73.652779,0,TRUE
