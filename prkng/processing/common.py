@@ -55,12 +55,11 @@ FROM {source}
 """
 
 create_corrections = """
-CREATE TABLE IF NOT EXISTS corrections
+CREATE TABLE IF NOT EXISTS {}_corrections
 (
   id serial PRIMARY KEY,
   created timestamp DEFAULT NOW(),
   initials varchar,
-  city varchar,
   signposts integer[],
   code varchar,
   description varchar,
@@ -123,7 +122,7 @@ WITH r AS (
   FROM corrections
   GROUP BY signposts
 )
-UPDATE slots s
+UPDATE {}_slots s
   SET rules = r.rules
   FROM r
   WHERE s.signposts = r.signposts
@@ -131,8 +130,8 @@ UPDATE slots s
 """
 
 create_slots_temp = """
-DROP TABLE IF EXISTS slots_temp;
-CREATE TABLE slots_temp
+DROP TABLE IF EXISTS {}_slots_temp;
+CREATE TABLE {}_slots_temp
 (
   id serial PRIMARY KEY,
   rid integer,
@@ -145,8 +144,8 @@ CREATE TABLE slots_temp
 """
 
 create_slots = """
-DROP TABLE IF EXISTS slots;
-CREATE TABLE slots
+DROP TABLE IF EXISTS {}_slots;
+CREATE TABLE {}_slots
 (
   id serial PRIMARY KEY,
   rid integer,
@@ -235,24 +234,24 @@ DECLARE
   slot record;
   id_match integer;
 BEGIN
-  FOR slot IN SELECT * FROM slots_temp ORDER BY rid, position LOOP
-    SELECT id FROM slots s
+  FOR slot IN SELECT * FROM {}_slots_temp ORDER BY rid, position LOOP
+    SELECT id FROM {}_slots s
       WHERE slot.rid = s.rid
         AND slot.rules = s.rules
         AND ST_DWithin(slot.geom, s.geom, 0.1)
       LIMIT 1 INTO id_match;
 
     IF id_match IS NULL THEN
-      INSERT INTO slots (rid, signposts, rules, geom, way_name) VALUES
+      INSERT INTO {}_slots (rid, signposts, rules, geom, way_name) VALUES
         (slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
     ELSE
-      UPDATE slots SET geom =
+      UPDATE {}_slots SET geom =
         (CASE WHEN ST_DWithin(ST_StartPoint(slot.geom), ST_EndPoint(geom), 0.5)
             THEN ST_MakeLine(geom, slot.geom)
             ELSE ST_MakeLine(slot.geom, geom)
         END),
         signposts = (signposts || ARRAY[slot.signposts])
-      WHERE slots.id = id_match;
+      WHERE {}_slots.id = id_match;
     END IF;
   END LOOP;
 END;
@@ -260,7 +259,7 @@ $$ language plpgsql;
 """
 
 cut_slots_crossing_slots = """
-UPDATE slots_temp s set geom = (
+UPDATE {}_slots_temp s set geom = (
 with tmp as (
 select
     array_sort(
@@ -268,7 +267,7 @@ select
             ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
         )
     ) as locations
-from slots_temp o
+from {}_slots_temp o
 where st_crosses(s.geom, o.geom) and s.id != o.id
 and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
 )
@@ -277,7 +276,7 @@ select
 from tmp, get_max_range(tmp.locations) as locs
 )
 where exists (
-    select 1 from slots_temp a
+    select 1 from {}_slots_temp a
     where st_crosses(s.geom, a.geom)
           and s.id != a.id
           and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
@@ -287,14 +286,14 @@ where exists (
 cut_slots_crossing_roads = """
 WITH exclusions AS (
     SELECT s.id, ST_Difference(s.geom, ST_Union(ST_Buffer(r.geom, {offset}, 'endcap=flat join=round'))) AS new_geom
-    FROM slots_temp s
+    FROM {city}_slots_temp s
     JOIN roads r ON ST_DWithin(s.geom, r.geom, 4)
     GROUP BY s.id, s.geom
 ), update_original AS (
-    DELETE FROM slots_temp
+    DELETE FROM {city}_slots_temp
     USING exclusions
-    WHERE slots_temp.id = exclusions.id
-    RETURNING slots_temp.*
+    WHERE {city}_slots_temp.id = exclusions.id
+    RETURNING {city}_slots_temp.*
 ), new_slots AS (
     SELECT
         uo.*,
@@ -307,7 +306,7 @@ WITH exclusions AS (
     FROM exclusions ex
     JOIN update_original uo ON ex.id = uo.id
 )
-INSERT INTO slots_temp (rid, position, signposts, rules, way_name, geom)
+INSERT INTO {city}_slots_temp (rid, position, signposts, rules, way_name, geom)
     SELECT
         rid,
         position,
@@ -320,7 +319,7 @@ INSERT INTO slots_temp (rid, position, signposts, rules, way_name, geom)
 """
 
 create_client_data = """
-UPDATE slots SET
+UPDATE {}_slots SET
     geojson = ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
     button_location = json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
         'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb,

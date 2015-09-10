@@ -202,8 +202,8 @@ JOIN signpost s using(id)
 
 # create potential slots determined with signposts projected as start and end points
 create_slots_likely = """
-DROP TABLE IF EXISTS slots_likely;
-CREATE TABLE slots_likely(
+DROP TABLE IF EXISTS montreal_slots_likely;
+CREATE TABLE montreal_slots_likely(
     id serial
     , signposts integer[]
     , rid integer  -- road id
@@ -249,7 +249,7 @@ UNION ALL
         , signpost
     FROM point_list
 )
-INSERT INTO slots_likely (signposts, rid, position, geom)
+INSERT INTO montreal_slots_likely (signposts, rid, position, geom)
 SELECT
     ARRAY[loc1.signpost, loc2.signpost]
     , w.id
@@ -283,7 +283,7 @@ SELECT
     , sp.geom as sgeom
 FROM signpost_onroad spo
 JOIN signpost sp on sp.id = spo.id
-JOIN slots_likely sl on ARRAY[spo.id] <@ sl.signposts
+JOIN montreal_slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 ) select
     id
     , slot_id
@@ -307,7 +307,7 @@ WITH tmp AS (
         , s.direction
         , spo.isleft
         , rb.name
-    FROM slots_likely sl
+    FROM montreal_slots_likely sl
     JOIN sign s on ARRAY[s.signpost] <@ sl.signposts
     JOIN signpost_onroad spo on s.signpost = spo.id
     JOIN nextpoints np on np.slot_id = sl.id AND
@@ -324,7 +324,7 @@ WITH tmp AS (
         , s.direction
         , spo.isleft
         , rb.name
-    FROM slots_likely sl
+    FROM montreal_slots_likely sl
     JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
     JOIN signpost_onroad spo on s.signpost = spo.id
     JOIN roads_geobase rb on spo.road_id = rb.id
@@ -362,7 +362,7 @@ FROM tmp t
 JOIN rules r ON t.code = r.code
 LEFT JOIN permit_zones z ON r.restrict_typ = 'permit' AND ST_Intersects(t.geom, z.geom)
 GROUP BY t.id
-) INSERT INTO slots_temp (rid, position, signposts, rules, geom, way_name)
+) INSERT INTO montreal_slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT
     rid
     , position
@@ -385,7 +385,7 @@ WITH tmp AS (
         WHEN mpzt.name LIKE '%Zone 4%' THEN 1.50
         ELSE 1.00
       END AS zone_rate
-    FROM slots_temp s
+    FROM montreal_slots_temp s
     JOIN cities ct ON ST_Intersects(s.geom, ct.geom) AND ct.name = 'montreal'
     LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
     JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
@@ -396,7 +396,7 @@ WITH tmp AS (
   FROM tmp
   GROUP BY id
 )
-UPDATE slots_temp s
+UPDATE montreal_slots_temp s
   SET rules = array_to_json(
     array_append(
       r.rules,
@@ -420,8 +420,8 @@ UPDATE slots_temp s
 """
 
 create_slots_for_debug = """
-DROP TABLE IF EXISTS slots_debug;
-CREATE TABLE slots_debug as
+DROP TABLE IF EXISTS montreal_slots_debug;
+CREATE TABLE montreal_slots_debug as
 (
     WITH tmp as (
     -- select north and south from signpost
@@ -432,7 +432,7 @@ CREATE TABLE slots_debug as
         , s.direction
         , spo.isleft
         , rb.name
-    FROM slots_likely sl
+    FROM montreal_slots_likely sl
     JOIN sign s on ARRAY[s.signpost] <@ sl.signposts
     JOIN signpost_onroad spo on s.signpost = spo.id
     JOIN nextpoints np on np.slot_id = sl.id AND
@@ -449,7 +449,7 @@ CREATE TABLE slots_debug as
         , s.direction
         , spo.isleft
         , rb.name
-    FROM slots_likely sl
+    FROM montreal_slots_likely sl
     JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
     JOIN signpost_onroad spo on s.signpost = spo.id
     JOIN roads_geobase rb on spo.road_id = rb.id

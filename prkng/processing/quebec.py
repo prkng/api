@@ -463,7 +463,7 @@ SELECT
 FROM tmp t
 JOIN rules r on t.code = r.code
 GROUP BY t.id
-) INSERT INTO slots_temp (rid, position, signposts, rules, geom, way_name)
+) INSERT INTO quebec_slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT
     rid
     , position
@@ -485,7 +485,7 @@ WITH segments AS (
             s.id, r.id AS rid, r.geom AS rgeom, s.geom, s.signposts, s.way_name, s.rules AS orig_rules,
             jsonb_array_elements(s.rules) AS rules,
             ST_Union(ST_Buffer(qps.geom, 1, 'endcap=flat join=round')) AS exclude
-        FROM slots_temp s
+        FROM quebec_slots_temp s
         JOIN quebec_paid_slots_raw qps ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
         GROUP BY s.id, r.id, r.geom
@@ -494,9 +494,9 @@ WITH segments AS (
     GROUP BY id, rid, rgeom, geom, exclude, signposts, way_name, orig_rules
     ORDER BY id
 ), update_normal AS (
-    DELETE FROM slots_temp
+    DELETE FROM quebec_slots_temp
     USING segments
-    WHERE slots_temp.id = segments.id
+    WHERE quebec_slots_temp.id = segments.id
 ), new_slots AS (
     SELECT
         g.signposts,
@@ -540,7 +540,7 @@ WITH segments AS (
         END AS geom
     FROM segments g
 )
-INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
+INSERT INTO quebec_slots_temp (signposts, rid, position, rules, way_name, geom)
     SELECT
         nn.signposts,
         nn.rid,
@@ -564,7 +564,7 @@ WITH exclusions AS (
             r.geom AS rgeom,
             ST_Buffer(s.geom, 1, 'endcap=flat join=round') AS exclude
         FROM quebec_paid_slots_raw qps
-        JOIN slots_temp s ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
+        JOIN quebec_slots_temp s ON ST_Intersects(s.geom, ST_Buffer(qps.geom, 1, 'endcap=flat join=round'))
         JOIN roads r ON r.id = qps.road_id AND s.way_name = r.name
     ) AS foo
     GROUP BY id, rid, rgeom, way_name
@@ -613,7 +613,7 @@ WITH exclusions AS (
     FROM update_raw ur
     JOIN rules z ON z.code = 'QCPAID'
 )
-INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
+INSERT INTO quebec_slots_temp (signposts, rid, position, rules, way_name, geom)
     SELECT
         ARRAY[0,0],
         nn.rid,

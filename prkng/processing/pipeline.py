@@ -274,7 +274,7 @@ def process_osm():
     db.vacuum_analyze('public', 'roads')
 
 
-def run():
+def run(cities=["montreal", "quebec", "newyork"]):
     """
     Run the entire pipeline
     """
@@ -292,9 +292,11 @@ def run():
     # create common tables
     db.query(common.create_rules)
     db.create_index('rules', 'code')
-    db.query(common.create_slots_temp)
-    db.query(common.create_slots)
-    db.query(common.create_corrections)
+
+    for x in cities:
+        db.query(common.create_slots_temp.format(x))
+        db.query(common.create_slots.format(x))
+        db.query(common.create_corrections.format(x))
 
     Logger.info("Processing parking lot / garage data")
     db.query(common.create_parking_lots_raw)
@@ -306,24 +308,30 @@ def run():
     db.create_index('parking_lots', 'geom', index_type='gist')
     db.create_index('parking_lots', 'agenda', index_type='gin')
 
-    process_montreal()
-    process_quebec()
+    for x in cities:
+        if x == 'montreal':
+            process_montreal()
+        elif x == 'quebec':
+            process_quebec()
 
     Logger.info("Shorten slots that intersect with roads or other slots")
-    db.query(common.cut_slots_crossing_roads.format(offset=LINE_OFFSET))
-    db.query(common.cut_slots_crossing_slots)
+    for x in cities:
+        db.query(common.cut_slots_crossing_roads.format(city=x, offset=LINE_OFFSET))
+        db.query(common.cut_slots_crossing_slots.format(x))
 
     Logger.info("Aggregating like slots")
-    db.create_index('slots', 'id')
-    db.create_index('slots', 'geom', index_type='gist')
-    db.create_index('slots', 'rules', index_type='gin')
-    db.query(common.aggregate_like_slots)
-    db.query(common.create_client_data)
-    db.vacuum_analyze('public', 'slots')
+    for x in cities:
+        db.create_index(x+'_slots', 'id')
+        db.create_index(x+'_slots', 'geom', index_type='gist')
+        db.create_index(x+'_slots', 'rules', index_type='gin')
+        db.query(common.aggregate_like_slots.format(x))
+        db.query(common.create_client_data.format(x))
+        db.vacuum_analyze('public', x+'_slots')
 
     Logger.info("Mapping corrections to new slots")
-    db.query(common.process_corrected_rules)
-    db.query(common.process_corrections)
+    for x in cities:
+        db.query(common.process_corrected_rules)
+        db.query(common.process_corrections.format(x))
 
     if not CONFIG['DEBUG']:
         cleanup_table()
