@@ -295,10 +295,10 @@ def run():
     db.query(common.create_slots_temp)
     db.query(common.create_slots)
     db.query(common.create_corrections)
-    db.query(common.create_parking_lots_raw)
-    db.query(common.create_parking_lots)
 
     Logger.info("Processing parking lot / garage data")
+    db.query(common.create_parking_lots_raw)
+    db.query(common.create_parking_lots)
     insert_raw_lots("lots_stationnement_mtl.csv")
     insert_raw_lots("lots_vinci.csv")
     insert_parking_lots()
@@ -368,12 +368,15 @@ def insert_parking_lots():
     columns = ["name", "operator", "address", "description", "agenda", "capacity", "attrs", "geom", "active", "street_view", "geojson"]
     days = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
     lots, queries = [], []
+
     for row in db.query("""
         SELECT *, ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857) AS geom
         FROM parking_lots_raw
     """, namedtuple=True):
         lot = [(x.decode('utf-8').replace("'", "''") if x else '') for x in [row.name, row.operator, row.address, row.description]]
         agenda = {}
+
+        # Create pricing rules per time period the lot is open
         for x in range(1,8):
             agenda[str(x)] = []
             if getattr(row, days[x - 1] + "_normal"):
@@ -390,10 +393,12 @@ def insert_parking_lots():
                 y = getattr(row, days[x - 1] + "_free")
                 agenda[str(x)].append({"hours": [float(z) for z in y.split(",")],
                     "hourly": 0, "max": None, "daily": None})
+
+        # Create "closed" rules for periods not covered by an open rule
         for x in agenda:
             hours = sorted([y["hours"] for y in agenda[x]], key=lambda z: z[0])
             for i, y in enumerate(hours):
-                starts, ends = [y[0] for y in hours], [y[1] for y in hours]
+                starts = [z[0] for z in hours]
                 if y[0] == 0.0:
                     continue
                 last_end = hours[i-1][1] if not i == 0 else 0.0
@@ -406,12 +411,12 @@ def insert_parking_lots():
                         "daily": None})
             if agenda[x] == []:
                 agenda[x].append({"hours": [0.0,24.0], "hourly": None, "max": None, "daily": None})
-        lot.append(json.dumps(agenda))
-        lot.append(row.capacity or 0)
-        lot.append(json.dumps({"indoor": row.indoor, "handicap": row.handicap,
-            "card": row.card, "valet": row.valet}))
-        lot += [row.geom, row.active, row.street_view_lat, row.street_view_long, row.street_view_head]
+
+        lot += [json.dumps(agenda), row.capacity or 0, json.dumps({"indoor": row.indoor,
+            "handicap": row.handicap, "card": row.card, "valet": row.valet}), row.geom, row.active,
+            row.street_view_lat, row.street_view_long, row.street_view_head]
         lots.append(lot)
+
     for x in lots:
         queries.append("""
             INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, {}, '{}'::jsonb,
