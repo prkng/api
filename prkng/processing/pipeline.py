@@ -388,7 +388,24 @@ def insert_parking_lots():
                     "daily": row.daily_normal or None})
             if getattr(row, days[x - 1] + "_free"):
                 y = getattr(row, days[x - 1] + "_free")
-                agenda[str(x)].append({"hours": [float(z) for z in y.split(",")], "hourly": 0})
+                agenda[str(x)].append({"hours": [float(z) for z in y.split(",")],
+                    "hourly": 0, "max": None, "daily": None})
+        for x in agenda:
+            hours = sorted([y["hours"] for y in agenda[x]], key=lambda z: z[0])
+            for i, y in enumerate(hours):
+                starts, ends = [y[0] for y in hours], [y[1] for y in hours]
+                if y[0] == 0.0:
+                    continue
+                last_end = hours[i-1][1] if not i == 0 else 0.0
+                next_start = hours[i+1][0] if not i == (len(hours) - 1) else 24.0
+                if not last_end in starts:
+                    agenda[x].append({"hours": [last_end, y[0]], "hourly": None, "max": None,
+                        "daily": None})
+                if not next_start in starts and y[1] != 24.0:
+                    agenda[x].append({"hours": [y[1], next_start], "hourly": None, "max": None,
+                        "daily": None})
+            if agenda[x] == []:
+                agenda[x].append({"hours": [0.0,24.0], "hourly": None, "max": None, "daily": None})
         lot.append(json.dumps(agenda))
         lot.append(row.capacity or 0)
         lot.append(json.dumps({"indoor": row.indoor, "handicap": row.handicap,
