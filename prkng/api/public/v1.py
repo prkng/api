@@ -616,7 +616,7 @@ search_parser = copy.deepcopy(api_key_parser)
 search_parser.add_argument(
     'query', type=str, required=True, help='Search query string', location='form')
 
-@ns.route('/search', endpoint='search_v1')
+@ns.route('/analytics/search', endpoint='search_v1')
 class Search(Resource):
     @api.secure
     @api.doc(parser=search_parser,
@@ -625,4 +625,34 @@ class Search(Resource):
         """Send search query data"""
         args = search_parser.parse_args()
         Analytics.add_search(g.user.id, args["query"])
+        return "Resource created", 201
+
+
+event_parser = copy.deepcopy(api_key_parser)
+event_parser.add_argument(
+    'latitude',
+    type=float,
+    location='form',
+    help='Latitude in degrees (WGS84)'
+)
+event_parser.add_argument(
+    'longitude',
+    type=float,
+    location='form',
+    help='Longitude in degrees (WGS84)'
+)
+event_parser.add_argument(
+    'event', type=str, required=True, help='Event type, e.g. `enter_fence` or `leave_fence`',
+    location='form')
+
+@ns.route('/analytics/event', endpoint='event_v1')
+class Event(Resource):
+    @api.secure
+    @api.doc(parser=event_parser,
+        responses={201: "Resource created"})
+    def post(self):
+        """Send analytics event data"""
+        args = event_parser.parse_args()
+        Analytics.add_event(g.user.id, args.get("latitude"), args.get("longitude"),
+            args["event"])
         return "Resource created", 201

@@ -366,7 +366,7 @@ def insert_raw_lots(filename):
             lun_special, mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special,
             hourly_special, daily_special, max_special, lun_free, mar_free, mer_free, jeu_free,
             ven_free, sam_free, dim_free, indoor, handicap, card, valet, lat, long, capacity,
-            street_view_lat, street_view_long, street_view_head, active)
+            street_view_lat, street_view_long, street_view_head, street_view_id, active)
         FROM '{}'
         WITH CSV HEADER
     """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
@@ -422,13 +422,13 @@ def insert_parking_lots():
 
         lot += [json.dumps(agenda), row.capacity or 0, json.dumps({"indoor": row.indoor,
             "handicap": row.handicap, "card": row.card, "valet": row.valet}), row.geom, row.active,
-            row.street_view_lat, row.street_view_long, row.street_view_head]
+            row.street_view_head, row.street_view_id]
         lots.append(lot)
 
     for x in lots:
         queries.append("""
             INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, {}, '{}'::jsonb,
-                '{}'::geometry, '{}', json_build_object('lat', {}, 'long', {}, 'head', {})::jsonb,
+                '{}'::geometry, '{}', json_build_object('head', {}, 'id', '{}')::jsonb,
                 ST_AsGeoJSON(ST_Transform('{geom}'::geometry, 4326))::jsonb)
-        """.format(",".join(columns), *[y for y in x], geom=x[-5]))
+        """.format(",".join(columns), *[y for y in x], geom=x[-4]))
     db.queries(queries)
