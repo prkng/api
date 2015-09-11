@@ -28,6 +28,8 @@ db = PostgresWrapper(
 # distance from road to slot
 LINE_OFFSET = 6
 
+CITIES = ["montreal", "quebec", "newyork"]
+
 
 def process_quebec():
     """
@@ -54,7 +56,7 @@ def process_quebec():
     db.create_index('quebec_sign', 'direction')
     db.create_index('quebec_sign', 'code')
     db.create_index('quebec_sign', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'sign')
+    db.vacuum_analyze('public', 'quebec_sign')
 
     info("Creating signposts")
     db.query(qbc.create_signpost)
@@ -98,10 +100,10 @@ def process_quebec():
     db.vacuum_analyze('public', 'quebec_nextpoints')
 
     db.query(qbc.insert_slots_temp.format(offset=LINE_OFFSET))
-    db.create_index('slots_temp', 'id')
-    db.create_index('slots_temp', 'geom', index_type='gist')
-    db.create_index('slots_temp', 'rules', index_type='gin')
-    db.vacuum_analyze('public', 'slots_temp')
+    db.create_index('quebec_slots_temp', 'id')
+    db.create_index('quebec_slots_temp', 'geom', index_type='gist')
+    db.create_index('quebec_slots_temp', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'quebec_slots_temp')
 
     info("Creating and overlaying paid slots")
     db.query(qbc.create_bornes_raw)
@@ -139,27 +141,27 @@ def process_montreal():
 
     info("Loading signs")
     db.query(mrl.insert_sign)
-    db.create_index('sign', 'geom', index_type='gist')
-    db.create_index('sign', 'direction')
-    db.create_index('sign', 'elevation')
-    db.create_index('sign', 'signpost')
-    db.vacuum_analyze('public', 'sign')
+    db.create_index('montreal_sign', 'geom', index_type='gist')
+    db.create_index('montreal_sign', 'direction')
+    db.create_index('montreal_sign', 'elevation')
+    db.create_index('montreal_sign', 'signpost')
+    db.vacuum_analyze('public', 'montreal_sign')
 
     info("Creating sign posts")
     db.query(mrl.create_signpost)
     db.query(mrl.insert_signpost)
-    db.create_index('signpost', 'geom', index_type='gist')
-    db.create_index('signpost', 'geobase_id')
-    db.vacuum_analyze('public', 'signpost')
+    db.create_index('montreal_signpost', 'geom', index_type='gist')
+    db.create_index('montreal_signpost', 'geobase_id')
+    db.vacuum_analyze('public', 'montreal_signpost')
 
     info("Matching osm roads with geobase")
     db.query(mrl.match_roads_geobase)
-    db.create_index('roads_geobase', 'id')
-    db.create_index('roads_geobase', 'id_trc')
-    db.create_index('roads_geobase', 'osm_id')
-    db.create_index('roads_geobase', 'name')
-    db.create_index('roads_geobase', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'roads_geobase')
+    db.create_index('montreal_roads_geobase', 'id')
+    db.create_index('montreal_roads_geobase', 'id_trc')
+    db.create_index('montreal_roads_geobase', 'osm_id')
+    db.create_index('montreal_roads_geobase', 'name')
+    db.create_index('montreal_roads_geobase', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'montreal_roads_geobase')
 
     info("Projecting signposts on road")
     duplicates = db.query(mrl.project_signposts)
@@ -167,10 +169,10 @@ def process_montreal():
         warning("Duplicates found for projected signposts : {}"
                 .format(str(duplicates)))
 
-    db.create_index('signpost_onroad', 'id')
-    db.create_index('signpost_onroad', 'road_id')
-    db.create_index('signpost_onroad', 'isleft')
-    db.create_index('signpost_onroad', 'geom', index_type='gist')
+    db.create_index('montreal_signpost_onroad', 'id')
+    db.create_index('montreal_signpost_onroad', 'road_id')
+    db.create_index('montreal_signpost_onroad', 'isleft')
+    db.create_index('montreal_signpost_onroad', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'signpost_onroad')
 
     percent, total = db.query(mrl.count_signpost_projected)[0]
@@ -179,30 +181,34 @@ def process_montreal():
         warning("Only {:.0f}% of signposts have been bound to a road. Total is {}"
                 .format(percent, total))
         db.query(mrl.generate_signposts_orphans)
-        info("Table 'signpost_orphans' has been generated to check for orphans")
+        info("Table 'montreal_signpost_orphans' has been generated to check for orphans")
 
     info("Creating slots between signposts")
     db.query(mrl.create_slots_likely)
     db.query(mrl.insert_slots_likely.format(isleft=1))
     db.query(mrl.insert_slots_likely.format(isleft=-1))
-    db.create_index('slots_likely', 'id')
-    db.create_index('slots_likely', 'signposts', index_type='gin')
-    db.create_index('slots_likely', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'slots_likely')
+    db.create_index('montreal_slots_likely', 'id')
+    db.create_index('montreal_slots_likely', 'signposts', index_type='gin')
+    db.create_index('montreal_slots_likely', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'montreal_slots_likely')
 
     db.query(mrl.create_nextpoints_for_signposts)
-    db.create_index('nextpoints', 'id')
-    db.create_index('nextpoints', 'slot_id')
-    db.create_index('nextpoints', 'direction')
+    db.create_index('montreal_nextpoints', 'id')
+    db.create_index('montreal_nextpoints', 'slot_id')
+    db.create_index('montreal_nextpoints', 'direction')
     db.vacuum_analyze('public', 'nextpoints')
 
     db.query(mrl.insert_slots_temp.format(offset=LINE_OFFSET))
+    db.create_index('montreal_slots_temp', 'id')
+    db.create_index('montreal_slots_temp', 'geom', index_type='gist')
+    db.create_index('montreal_slots_temp', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'montreal_slots_temp')
 
     if CONFIG['DEBUG']:
         db.query(mrl.create_slots_for_debug.format(offset=LINE_OFFSET))
-        db.create_index('slots_debug', 'pkid')
-        db.create_index('slots_debug', 'geom', index_type='gist')
-        db.vacuum_analyze('public', 'slots_debug')
+        db.create_index('montreal_slots_debug', 'pkid')
+        db.create_index('montreal_slots_debug', 'geom', index_type='gist')
+        db.vacuum_analyze('public', 'montreal_slots_debug')
 
     info("Overlaying paid slots")
     db.query(mrl.create_paid_temp)
@@ -220,21 +226,17 @@ def cleanup_table():
     Remove temporary tables
     """
     Logger.info("Cleanup schema")
-    db.query("DROP TABLE bad_intersection")
-    db.query("DROP TABLE way_intersection")
-    db.query("DROP TABLE roads")
-    db.query("DROP TABLE signpost_onroad")
-    db.query("DROP TABLE slots_likely")
-    db.query("DROP TABLE nextpoints")
-    db.query("DROP TABLE montreal_paid_temp")
-    db.query("DROP TABLE quebec_signpost_temp")
-    db.query("DROP TABLE quebec_nextpoints")
-    db.query("DROP TABLE quebec_slots_likely")
-    db.query("DROP TABLE quebec_paid_slots_raw")
-    db.query("DROP TABLE quebec_bornes_raw")
-    db.query("DROP TABLE quebec_bornes_clustered")
-    db.query("DROP TABLE permit_zones")
-    db.query("DROP TABLE slots_temp")
+
+    # drop universal temp tables
+    for x in ["bad_intersection", "way_intersection", "roads", "signpost_onroad",
+            "permit_zones", "parking_lots_raw"]:
+        db.query("DROP TABLE IF EXISTS {}".format(x))
+
+    # drop per-city temp tables
+    for x in ["slots_likely", "slots_temp", "nextpoints", "paid_temp", "signpost_temp",
+            "paid_slots_raw", "bornes_raw", "bornes_clustered"]
+        for y in CITIES:
+            db.query("DROP TABLE IF EXISTS {}_{}".format(y, x))
 
 
 def process_osm():
@@ -274,15 +276,13 @@ def process_osm():
     db.vacuum_analyze('public', 'roads')
 
 
-def run(cities=["montreal", "quebec", "newyork"]):
+def run(cities=CITIES):
     """
     Run the entire pipeline
     """
-    Logger.debug("Loading extension fuzzystrmatch")
+    Logger.debug("Loading extensions and custom functions")
     db.query("create extension if not exists fuzzystrmatch")
     db.query("create extension if not exists intarray")
-
-    Logger.info("Loading custom functions")
     db.query(plfunctions.st_isleft_func)
     db.query(plfunctions.array_sort)
     db.query(plfunctions.get_max_range)
@@ -292,10 +292,11 @@ def run(cities=["montreal", "quebec", "newyork"]):
     # create common tables
     db.query(common.create_rules)
     db.create_index('rules', 'code')
+    db.query(common.create_slots)
 
     for x in cities:
         db.query(common.create_slots_temp.format(x))
-        db.query(common.create_slots.format(x))
+        db.query(common.create_slots_partition.format(x))
         db.query(common.create_corrections.format(x))
 
     Logger.info("Processing parking lot / garage data")
@@ -308,11 +309,10 @@ def run(cities=["montreal", "quebec", "newyork"]):
     db.create_index('parking_lots', 'geom', index_type='gist')
     db.create_index('parking_lots', 'agenda', index_type='gin')
 
-    for x in cities:
-        if x == 'montreal':
-            process_montreal()
-        elif x == 'quebec':
-            process_quebec()
+    if 'montreal' in cities:
+        process_montreal()
+    if 'quebec' in cities:
+        process_quebec()
 
     Logger.info("Shorten slots that intersect with roads or other slots")
     for x in cities:

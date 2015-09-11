@@ -9,8 +9,8 @@ class Corrections(object):
             time_max_parking, agenda, special_days, restrict_typ):
         # get signposts by slot ID
         res = db.engine.execute("""
-            SELECT signposts FROM slots WHERE id = {}
-        """.format(slot_id)).first()
+            SELECT signposts FROM slots WHERE city = '{city}' AND id = {id}
+        """.format(city=city, id=slot_id)).first()
         if not res:
             return False
         signposts = res[0]
@@ -51,10 +51,11 @@ class Corrections(object):
             FROM corrections c,
                 slots s,
                 jsonb_array_elements(s.rules) codes
-            WHERE c.id = {}
+            WHERE c.id = {id}
+              AND s.city = '{city}'
               AND s.signposts = c.signposts
             GROUP BY c.id, s.id
-        """.format(id)).first()
+        """.format(id=id, city=city)).first()
         if not res:
             return False
 

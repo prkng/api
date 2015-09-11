@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(x, y, radius, duration, properties, checkin=None, permit=False):
+    def get_within(city, x, y, radius, duration, properties, checkin=None, permit=False):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -17,15 +17,8 @@ class Slots(object):
         duration = duration or 0.5
 
         req = """
-        SELECT 1 FROM cities
-        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
-        """.format(x=x, y=y)
-        if not db.engine.execute(req).first():
-            return False
-
-        req = """
         SELECT {properties} FROM slots
-        WHERE
+        WHERE city = '{city}' AND
             ST_Dwithin(
                 st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
                 geom,
@@ -33,6 +26,7 @@ class Slots(object):
             )
         """.format(
             properties=','.join(properties),
+            city=city,
             x=x,
             y=y,
             radius=radius
@@ -52,13 +46,6 @@ class Slots(object):
         """
         Retrieve all slots inside a given boundbox.
         """
-
-        req = """
-        SELECT 1 FROM cities
-        WHERE ST_Intersects(geom, ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857))
-        """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)
-        if not db.engine.execute(req).first():
-            return False
 
         req = """
         SELECT {properties} FROM slots
@@ -93,12 +80,12 @@ class Slots(object):
         return slots
 
     @staticmethod
-    def get_byid(sid, properties):
+    def get_byid(city, sid, properties):
         """
         Retrieve slot information by its ID
         """
         return db.engine.execute("""
             SELECT {properties}
             FROM slots
-            WHERE id = {sid}
-            """.format(sid=sid, properties=','.join(properties))).fetchall()
+            WHERE city = '{city}' AND id = {sid}
+            """.format(city=city, sid=sid, properties=','.join(properties))).fetchall()

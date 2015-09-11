@@ -292,7 +292,7 @@ class Checkin(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        ok = Checkins.add(g.user.id, args['slot_id'])
+        ok = Checkins.add(g.user.id, 'montreal', args['slot_id'])
         if not ok:
             api.abort(404, "No slot existing with this id")
         res = Checkins.get(g.user.id)
@@ -381,6 +381,10 @@ class Report(Resource):
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
-        Reports.add(g.user.id, args.get("slot_id", None), args["longitude"],
+        city = City.get(args['longitude'], args['latitude'])
+        if not city:
+            return "Resource created", 201
+
+        Reports.add(g.user.id, city, args.get("slot_id", None), args["longitude"],
             args["latitude"], args.get("image_url", ""), args.get("notes", ""))
         return "Resource created", 201

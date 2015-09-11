@@ -122,10 +122,11 @@ WITH r AS (
   FROM corrections
   GROUP BY signposts
 )
-UPDATE {}_slots s
+UPDATE slots s
   SET rules = r.rules
   FROM r
-  WHERE s.signposts = r.signposts
+  WHERE s.city = '{}'
+    AND s.signposts = r.signposts
     AND s.rules <> r.rules
 """
 
@@ -144,10 +145,10 @@ CREATE TABLE {}_slots_temp
 """
 
 create_slots = """
-DROP TABLE IF EXISTS {}_slots;
-CREATE TABLE {}_slots
+CREATE TABLE IF NOT EXISTS slots
 (
   id serial PRIMARY KEY,
+  city varchar,
   rid integer,
   signposts integer[],
   rules jsonb,
@@ -157,6 +158,19 @@ CREATE TABLE {}_slots
   button_location jsonb,
   button_locations jsonb
 )
+"""
+
+create_slots_partition = """
+DROP TABLE IF EXISTS {}_slots;
+CREATE TABLE {}_slots (
+    CHECK ( city = '{}' )
+) INHERITS (slots);
+
+CREATE RULE slots_insert_{} AS
+    ON INSERT TO slots
+        WHERE ( city = '{}' )
+    DO INSTEAD
+        INSERT INTO slots_{} VALUES (NEW.*);
 """
 
 create_parking_lots_raw = """
@@ -236,23 +250,24 @@ DECLARE
   id_match integer;
 BEGIN
   FOR slot IN SELECT * FROM {}_slots_temp ORDER BY rid, position LOOP
-    SELECT id FROM {}_slots s
-      WHERE slot.rid = s.rid
+    SELECT id FROM slots s
+      WHERE slot.city = '{}'
+        AND slot.rid = s.rid
         AND slot.rules = s.rules
         AND ST_DWithin(slot.geom, s.geom, 0.1)
       LIMIT 1 INTO id_match;
 
     IF id_match IS NULL THEN
-      INSERT INTO {}_slots (rid, signposts, rules, geom, way_name) VALUES
-        (slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
+      INSERT INTO slots (city, rid, signposts, rules, geom, way_name) VALUES
+        ('{}', slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
     ELSE
-      UPDATE {}_slots SET geom =
+      UPDATE slots SET geom =
         (CASE WHEN ST_DWithin(ST_StartPoint(slot.geom), ST_EndPoint(geom), 0.5)
             THEN ST_MakeLine(geom, slot.geom)
             ELSE ST_MakeLine(slot.geom, geom)
         END),
         signposts = (signposts || ARRAY[slot.signposts])
-      WHERE {}_slots.id = id_match;
+      WHERE city = '{}' AND slots.id = id_match;
     END IF;
   END LOOP;
 END;
@@ -320,7 +335,7 @@ INSERT INTO {city}_slots_temp (rid, position, signposts, rules, way_name, geom)
 """
 
 create_client_data = """
-UPDATE {}_slots SET
+UPDATE slots SET
     geojson = ST_AsGeoJSON(ST_Transform(geom, 4326))::jsonb,
     button_location = json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
         'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))::jsonb,

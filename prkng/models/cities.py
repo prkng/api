@@ -5,6 +5,14 @@ import aniso8601
 
 class City(object):
     @staticmethod
+    def get(x, y):
+        city = db.engine.execute("""
+            SELECT name FROM cities
+            WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
+        """.format(x=x, y=y)).first()
+        return city[0] if city else None
+
+    @staticmethod
     def get_all(returns="json"):
         return db.engine.execute("""
             SELECT

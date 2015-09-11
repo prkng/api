@@ -8,6 +8,7 @@ report_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
+    Column('city', String),
     Column('signposts', ARRAY(Integer)),
     Column('way_name', String),
     Column('long', Float),
@@ -21,13 +22,15 @@ report_table = Table(
 
 class Reports(object):
     @staticmethod
-    def add(user_id, slot_id, lng, lat, url, notes):
+    def add(user_id, city, slot_id, lng, lat, url, notes):
         db.engine.execute("""
-            INSERT INTO reports (user_id, signposts, way_name, long, lat, image_url, notes)
-            SELECT {user_id}, s.signposts, s.way_name, {lng}, {lat}, '{image_url}', '{notes}'
+            INSERT INTO reports (user_id, city, signposts, way_name, long, lat, image_url, notes)
+            SELECT {user_id}, '{city}', s.signposts, s.way_name, {lng}, {lat},
+                '{image_url}', '{notes}'
               FROM slots s
-              WHERE s.id = {slot_id}
-        """.format(user_id=user_id, slot_id=slot_id or "NULL", lng=lng, lat=lat,
+              WHERE s.city = '{city}'
+                AND s.id = {slot_id}
+        """.format(user_id=user_id, city=city, slot_id=slot_id or "NULL", lng=lng, lat=lat,
             image_url=url, notes=notes))
 
     @staticmethod
@@ -36,7 +39,8 @@ class Reports(object):
             SELECT
                 r.id,
                 to_char(r.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created,
-                r.slot_id,
+                r.city,
+                s.id AS slot_id,
                 u.id AS user_id,
                 u.name AS user_name,
                 u.email AS user_email,
@@ -50,7 +54,7 @@ class Reports(object):
                 ARRAY_REMOVE(ARRAY_AGG(c.id), NULL) AS corrections
             FROM reports r
             JOIN users u ON r.user_id = u.id
-            LEFT JOIN slots s ON r.signposts = s.signposts
+            LEFT JOIN slots s ON r.city = s.city AND r.signposts = s.signposts
             LEFT JOIN corrections c ON s.signposts = c.signposts
             WHERE r.id = {}
             GROUP BY r.id, u.id, s.way_name, s.rules

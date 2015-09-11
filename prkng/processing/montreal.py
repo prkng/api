@@ -4,8 +4,8 @@ from __future__ import unicode_literals
 
 # create table hosting all signs
 create_sign = """
-DROP TABLE IF EXISTS sign;
-CREATE TABLE sign (
+DROP TABLE IF EXISTS montreal_sign;
+CREATE TABLE montreal_sign (
     id serial PRIMARY KEY
     , sid integer NOT NULL
     , geom geometry(Point, 3857)
@@ -29,7 +29,7 @@ CREATE TABLE montreal_paid_temp (
 # only treat fleche_pan 0, 2, 3 for direction
 # don't know what others mean
 insert_sign = """
-INSERT INTO sign
+INSERT INTO montreal_sign
 (
     sid
     , geom
@@ -67,8 +67,8 @@ WHERE
 
 # create signpost table
 create_signpost = """
-DROP TABLE IF EXISTS signpost;
-CREATE TABLE signpost (
+DROP TABLE IF EXISTS montreal_signpost;
+CREATE TABLE montreal_signpost (
     id integer PRIMARY KEY
     , geobase_id integer
     , geom geometry(Point, 3857)
@@ -77,20 +77,20 @@ CREATE TABLE signpost (
 
 # insert only signpost that have signs on it
 insert_signpost = """
-INSERT INTO signpost
+INSERT INTO montreal_signpost
     SELECT
         distinct s.signpost
         , pt.trc_id::integer
         , pt.geom
-    FROM sign s
+    FROM montreal_sign s
     JOIN montreal_poteaux pt ON pt.poteau_id_pot = s.signpost
 """
 
 
 # try to match osm ways with geobase
 match_roads_geobase = """
-DROP TABLE IF EXISTS roads_geobase;
-CREATE TABLE roads_geobase (
+DROP TABLE IF EXISTS montreal_roads_geobase;
+CREATE TABLE montreal_roads_geobase (
     id integer
     , osm_id bigint
     , name varchar
@@ -114,7 +114,7 @@ FROM roads o
 JOIN montreal_geobase m on o.geom && st_expand(m.geom, 10)
 WHERE st_contains(st_buffer(m.geom, 30), o.geom)
 )
-INSERT INTO roads_geobase
+INSERT INTO montreal_roads_geobase
 SELECT
     id
     , osm_id
@@ -138,12 +138,12 @@ SELECT
             , abs(st_length(o.geom) - st_length(m.geom)) / greatest(st_length(o.geom), st_length(m.geom))
       ) as rank
 FROM roads o
-LEFT JOIN roads_geobase orig on orig.id = o.id
+LEFT JOIN montreal_roads_geobase orig on orig.id = o.id
 JOIN montreal_geobase m on o.geom && st_expand(m.geom, 10)
 WHERE st_contains(st_buffer(o.geom, 30), m.geom)
       AND orig.id is NULL
 )
-INSERT INTO roads_geobase
+INSERT INTO montreal_roads_geobase
 SELECT
     id
     , osm_id
@@ -159,26 +159,26 @@ WHERE rank = 1
 # project signposts on road and
 # determine if they were on the left side or right side of the road
 project_signposts = """
-DROP TABLE IF EXISTS signpost_onroad;
-CREATE TABLE signpost_onroad AS
+DROP TABLE IF EXISTS montreal_signpost_onroad;
+CREATE TABLE montreal_signpost_onroad AS
     SELECT
         distinct on (sp.id) sp.id  -- hack to prevent duplicata, FIXME
         , s.id as road_id
         , st_closestpoint(s.geom, sp.geom)::geometry(point, 3857) as geom
         , st_isleft(s.geom, sp.geom) as isleft
-    FROM signpost sp
-    JOIN roads_geobase s on s.id_trc = sp.geobase_id
+    FROM montreal_signpost sp
+    JOIN montreal_roads_geobase s on s.id_trc = sp.geobase_id
     ORDER BY sp.id, ST_Distance(s.geom, sp.geom);
 
-SELECT id from signpost_onroad group by id having count(*) > 1
+SELECT id from montreal_signpost_onroad group by id having count(*) > 1
 """
 
 # how many signposts have been projected ?
 count_signpost_projected = """
 WITH tmp AS (
     SELECT
-        (SELECT count(*) FROM signpost_onroad) as a
-        , (SELECT count(*) FROM signpost) as b
+        (SELECT count(*) FROM montreal_signpost_onroad) as a
+        , (SELECT count(*) FROM montreal_signpost) as b
 )
 SELECT
     a::float / b * 100, b
@@ -187,16 +187,16 @@ FROM tmp
 
 # generate signposts orphans
 generate_signposts_orphans = """
-DROP TABLE IF EXISTS signposts_orphans;
-CREATE TABLE signposts_orphans AS
+DROP TABLE IF EXISTS montreal_signposts_orphans;
+CREATE TABLE montreal_signposts_orphans AS
 (WITH tmp as (
-    SELECT id FROM signpost
+    SELECT id FROM montreal_signpost
     EXCEPT
-    SELECT id FROM signpost_onroad
+    SELECT id FROM montreal_signpost_onroad
 ) SELECT
     s.*
 FROM tmp t
-JOIN signpost s using(id)
+JOIN montreal_signpost s using(id)
 )
 """
 
@@ -219,7 +219,7 @@ WITH selected_roads AS (
         , r.geom as rgeom
         , p.id as pid
         , p.geom as pgeom
-    FROM roads_geobase r, signpost_onroad p
+    FROM montreal_roads_geobase r, montreal_signpost_onroad p
     where r.geom && p.geom
         AND r.id = p.road_id
         AND p.isleft = {isleft}
@@ -257,13 +257,13 @@ SELECT
     , st_line_substring(w.geom, loc1.position, loc2.position) as geom
 FROM loc_with_idx loc1
 JOIN loc_with_idx loc2 using (rid)
-JOIN roads_geobase w on w.id = loc1.rid
+JOIN montreal_roads_geobase w on w.id = loc1.rid
 WHERE loc2.idx = loc1.idx+1;
 """
 
 create_nextpoints_for_signposts = """
-DROP TABLE IF EXISTS nextpoints;
-CREATE TABLE nextpoints AS
+DROP TABLE IF EXISTS montreal_nextpoints;
+CREATE TABLE montreal_nextpoints AS
 (WITH tmp as (
 SELECT
     spo.id
@@ -281,8 +281,8 @@ SELECT
         else NULL
       end as geom
     , sp.geom as sgeom
-FROM signpost_onroad spo
-JOIN signpost sp on sp.id = spo.id
+FROM montreal_signpost_onroad spo
+JOIN montreal_signpost sp on sp.id = spo.id
 JOIN montreal_slots_likely sl on ARRAY[spo.id] <@ sl.signposts
 ) select
     id
@@ -308,12 +308,12 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM montreal_slots_likely sl
-    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts
-    JOIN signpost_onroad spo on s.signpost = spo.id
-    JOIN nextpoints np on np.slot_id = sl.id AND
+    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts
+    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
+    JOIN montreal_nextpoints np on np.slot_id = sl.id AND
                           s.signpost = np.id AND
                           s.direction = np.direction
-    JOIN roads_geobase rb on spo.road_id = rb.id
+    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
 
     UNION ALL
     -- both direction from signpost
@@ -325,9 +325,9 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM montreal_slots_likely sl
-    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
-    JOIN signpost_onroad spo on s.signpost = spo.id
-    JOIN roads_geobase rb on spo.road_id = rb.id
+    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
+    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
+    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
 ),
 selection as (
 SELECT
@@ -433,12 +433,12 @@ CREATE TABLE montreal_slots_debug as
         , spo.isleft
         , rb.name
     FROM montreal_slots_likely sl
-    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts
-    JOIN signpost_onroad spo on s.signpost = spo.id
-    JOIN nextpoints np on np.slot_id = sl.id AND
+    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts
+    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
+    JOIN montreal_nextpoints np on np.slot_id = sl.id AND
                           s.signpost = np.id AND
                           s.direction = np.direction
-    JOIN roads_geobase rb on spo.road_id = rb.id
+    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
 
     UNION ALL
     -- both direction from signpost
@@ -450,9 +450,9 @@ CREATE TABLE montreal_slots_debug as
         , spo.isleft
         , rb.name
     FROM montreal_slots_likely sl
-    JOIN sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
-    JOIN signpost_onroad spo on s.signpost = spo.id
-    JOIN roads_geobase rb on spo.road_id = rb.id
+    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
+    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
+    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
 )
 SELECT
     distinct on (t.id, t.code)

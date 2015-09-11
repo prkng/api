@@ -7,6 +7,7 @@ checkin_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
+    Column('city', String),
     Column('slot_id', Integer),
     Column('way_name', String),
     Column('long', Float),
@@ -23,7 +24,7 @@ class Checkins(object):
         Get info on the user's current check-in
         """
         res = db.engine.execute("""
-            SELECT id, slot_id, way_name, long, lat, created::text as created, active
+            SELECT id, city, slot_id, way_name, long, lat, created::text AS created, active
             FROM checkins
             WHERE user_id = {}
             AND active = true
@@ -35,7 +36,7 @@ class Checkins(object):
     @staticmethod
     def get_all(user_id, limit):
         res = db.engine.execute("""
-            SELECT id, slot_id, way_name, long, lat, created::text as created, active
+            SELECT id, city, slot_id, way_name, long, lat, created::text as created, active
             FROM checkins
             WHERE user_id = {uid}
             ORDER BY created DESC
@@ -44,10 +45,10 @@ class Checkins(object):
         return [dict(row) for row in res]
 
     @staticmethod
-    def add(user_id, slot_id):
+    def add(user_id, city, slot_id):
         exists = db.engine.execute("""
-            select 1 from slots where id = {slot_id}
-            """.format(slot_id=slot_id)).first()
+            SELECT 1 FROM slots WHERE city = '{city}' AND id = {slot_id}
+        """.format(city=city, slot_id=slot_id)).first()
         if not exists:
             return False
 
@@ -55,14 +56,14 @@ class Checkins(object):
         db.engine.execute(checkin_table.update().where(checkin_table.c.user_id == user_id).values(active=False))
 
         db.engine.execute("""
-            INSERT INTO checkins (user_id, slot_id, way_name, long, lat, active)
+            INSERT INTO checkins (user_id, city, slot_id, way_name, long, lat, active)
             SELECT
-                {user_id}, {slot_id}, way_name,
+                {user_id}, '{city}', {slot_id}, way_name,
                 (button_location->>'long')::float,
                 (button_location->>'lat')::float,
                 true
-            FROM slots WHERE id = {slot_id}
-        """.format(user_id=user_id, slot_id=slot_id))  # FIXME way_name
+            FROM slots WHERE city = '{city}' AND id = {slot_id}
+        """.format(city=city, user_id=user_id, slot_id=slot_id))  # FIXME way_name
         return True
 
     @staticmethod

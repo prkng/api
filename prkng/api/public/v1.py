@@ -175,33 +175,6 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
     'features': api.as_list(fields.Nested(slots_fields))
 })
 
-
-@ns.route('/slots/<string:id>', endpoint='slot_v1')
-class SlotResource(Resource):
-    @api.marshal_list_with(slots_fields)
-    @api.doc(
-        params={'id': 'slot id'},
-        responses={404: "feature not found"}
-    )
-    def get(self, id):
-        """
-        Returns the parking slot corresponding to the id
-        """
-        res = Slots.get_byid(id, slot_props)
-        if not res:
-            api.abort(404, "feature not found")
-
-        res = res[0]
-        return Feature(
-            id=res[0],
-            geometry=res[1],
-            properties={
-                field: res[num]
-                for num, field in enumerate(slot_props[2:], start=2)
-            }
-        ), 200
-
-
 slot_parser = copy.deepcopy(api_key_parser)
 slot_parser.add_argument(
     'radius',
@@ -265,7 +238,12 @@ class SlotsResource(Resource):
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
             args["longitude"], args["radius"])
 
+        city = City.get(args['longitude'], args['latitude'])
+        if not city:
+            api.abort(404, "no feature found")
+
         res = Slots.get_within(
+            city,
             args['longitude'],
             args['latitude'],
             args['radius'],
@@ -274,8 +252,6 @@ class SlotsResource(Resource):
             args['checkin'],
             args['permit']
         )
-        if res == False:
-            api.abort(404, "no feature found")
 
         return FeatureCollection([
             Feature(
@@ -336,6 +312,10 @@ class Lots(Resource):
         # push map search data to analytics
         Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
             args["longitude"], 300)
+
+        city = City.get(args['longitude'], args['latitude'])
+        if not city:
+            api.abort(404, "no feature found")
 
         res = ParkingLots.get_all()
 
@@ -464,6 +444,8 @@ class LoginChangePass(Resource):
 post_checkin_parser = copy.deepcopy(api_key_parser)
 post_checkin_parser.add_argument(
     'slot_id', type=int, required=True, help='Slot identifier', location='form')
+post_checkin_parser.add_argument(
+    'city', type=str, help='City name', location='form')
 
 get_checkin_parser = copy.deepcopy(api_key_parser)
 get_checkin_parser.add_argument(
@@ -473,10 +455,11 @@ checkin_model = api.model('Checkin', {
     'created': fields.String(),
     'long': fields.String(),
     'lat': fields.String(),
-    'wayname': fields.String(),
+    'way_name': fields.String(),
+    'city': fields.String(),
     'slot_id': fields.String(),
     'id': fields.String(),
-    'active': fields.String()
+    'active': fields.Boolean()
 })
 
 
@@ -504,7 +487,7 @@ class CheckinList(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        ok = Checkins.add(g.user.id, args['slot_id'])
+        ok = Checkins.add(g.user.id, args['city'], args['slot_id'])
         if not ok:
             api.abort(404, "No slot existing with this id")
         res = Checkins.get(g.user.id)
@@ -593,6 +576,8 @@ report_parser.add_argument(
     required=True,
     help='Longitude in degrees (WGS84)'
 )
+report_parser.add_argument('city', type=str, required=True,
+    location='form', help='city name')
 report_parser.add_argument('image_url', type=str, required=True,
     location='form', help='report image URL')
 report_parser.add_argument('notes', type=str,
@@ -607,8 +592,9 @@ class Report(Resource):
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
-        Reports.add(g.user.id, args.get("slot_id", None), args["longitude"],
-            args["latitude"], args.get("image_url", ""), args.get("notes", ""))
+        Reports.add(g.user.id, args["city"], args.get("slot_id", None),
+            args["longitude"], args["latitude"], args.get("image_url", ""),
+            args.get("notes", ""))
         return "Resource created", 201
 
 
