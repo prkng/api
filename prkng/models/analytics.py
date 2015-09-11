@@ -26,6 +26,17 @@ pos_table = Table(
     Column('radius', Integer)
 )
 
+event_table = Table(
+    'analytics_event',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('user_id', Integer),
+    Column('created', DateTime, server_default=text('NOW()')),
+    Column('lat', Float, nullable=True),
+    Column('long', Float, nullable=True),
+    Column('event', String)
+)
+
 
 class Analytics(object):
     @staticmethod
@@ -46,3 +57,7 @@ class Analytics(object):
     @staticmethod
     def add_pos_bulk(pos):
         db.engine.execute(pos_table.insert().execute([x for x in pos]))
+
+    @staticmethod
+    def add_event(user_id, lat, lng, event):
+        db.engine.execute(event_table.insert().values(user_id=user_id, lat=lat, long=lng, event=event))

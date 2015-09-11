@@ -205,6 +205,7 @@ CREATE TABLE parking_lots_raw (
   street_view_lat float,
   street_view_long float,
   street_view_head float,
+  street_view_id varchar,
   active boolean
 )
 """
