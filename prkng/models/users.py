@@ -81,8 +81,8 @@ class User(UserMixin):
                 email = '{email}',
                 image_url = '{image_url}'
             WHERE id = {user_id}
-            """.format(email=email or self.email,
-                name=name or self.name,
+            """.format(email=email.encode('utf-8') or self.email,
+                name=name.encode('utf-8') or self.name,
                 gender=gender or self.gender,
                 image_url=image_url or self.image_url,
                 user_id=self.id))
