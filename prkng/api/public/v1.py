@@ -260,8 +260,7 @@ class SlotsResource(Resource):
         Returns slots around the point defined by (x, y)
         """
         args = slot_parser.parse_args()
-        if args.get('carsharing', False) not in ['false', False]:
-            args['carsharing'] = True
+        args['carsharing'] = args['carsharing'] not in ['false', False]
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
