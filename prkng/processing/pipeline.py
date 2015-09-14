@@ -366,8 +366,8 @@ def insert_raw_lots(filename):
             jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_normal, max_normal,
             lun_special, mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special,
             hourly_special, daily_special, max_special, lun_free, mar_free, mer_free, jeu_free,
-            ven_free, sam_free, dim_free, indoor, handicap, card, valet, lat, long, capacity,
-            street_view_lat, street_view_long, street_view_head, street_view_id, active)
+            ven_free, sam_free, dim_free, daily_free, indoor, handicap, card, valet, lat, long,
+            capacity, street_view_lat, street_view_long, street_view_head, street_view_id, active)
         FROM '{}'
         WITH CSV HEADER
     """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
@@ -401,7 +401,7 @@ def insert_parking_lots():
             if getattr(row, days[x - 1] + "_free"):
                 y = getattr(row, days[x - 1] + "_free")
                 agenda[str(x)].append({"hours": [float(z) for z in y.split(",")],
-                    "hourly": 0, "max": None, "daily": None})
+                    "hourly": 0, "max": None, "daily": row.daily_free or None})
 
         # Create "closed" rules for periods not covered by an open rule
         for x in agenda:

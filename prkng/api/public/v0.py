@@ -120,7 +120,8 @@ class SlotsResource(Resource):
             args['duration'],
             slot_props,
             args['checkin'],
-            args['permit']
+            args['permit'] in ['false', False],
+            args['permit'] == 'all'
         )
         if res == False:
             api.abort(404, "no feature found")

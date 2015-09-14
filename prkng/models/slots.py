@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(city, x, y, radius, duration, properties, checkin=None, permit=False):
+    def get_within(x, y, radius, duration, properties, checkin=None, permit=False):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).

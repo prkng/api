@@ -212,11 +212,11 @@ slot_parser.add_argument(
     help='Desired Parking time in hours; default is 0.5'
 )
 slot_parser.add_argument(
-    'permit',
+    'carsharing',
     type=str,
     location='args',
     default=False,
-    help='Permit number to check availability for; can also use "all"'
+    help='Filter automatically by carsharing rules'
 )
 
 
@@ -233,6 +233,7 @@ class SlotsResource(Resource):
         Returns slots around the point defined by (x, y)
         """
         args = slot_parser.parse_args()
+        args['carsharing'] = args['carsharing'] not in ['false', False]
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
@@ -247,10 +248,11 @@ class SlotsResource(Resource):
             args['longitude'],
             args['latitude'],
             args['radius'],
-            args['duration'],
+            24.0 if args['carsharing'] else args['duration'],
             slot_props,
             args['checkin'],
-            args['permit']
+            not args['carsharing'],
+            'all' if args['carsharing'] else False
         )
 
         return FeatureCollection([

@@ -208,6 +208,7 @@ CREATE TABLE parking_lots_raw (
   ven_free varchar,
   sam_free varchar,
   dim_free varchar,
+  daily_free float,
   indoor boolean,
   handicap boolean,
   card boolean,
