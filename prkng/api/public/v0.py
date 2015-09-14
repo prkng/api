@@ -117,7 +117,7 @@ class SlotsResource(Resource):
             args['longitude'],
             args['latitude'],
             args['radius'],
-            24.0 if args['permit'] == 'all' else args['duration'],
+            args['duration'],
             slot_props,
             args['checkin'],
             args['permit'] in ['false', False],

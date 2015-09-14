@@ -75,6 +75,8 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
                         + timedelta(days=absoluteday, hours=1)
                 except TypeError:
                     raise Exception("Data integrity error on {}, please review rules".format(rule['code']))
+                except Exception, e:
+                    raise Exception("Exception occurred on {} :  {}".format(rule['code'], str(e)))
 
                 if (max(start_time, checkin) < min(stop_time, checkin_end) and rule['time_max_parking'] == None):
                     # overlapping !
