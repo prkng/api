@@ -276,7 +276,7 @@ def process_osm():
     db.vacuum_analyze('public', 'roads')
 
 
-def run(cities=CITIES):
+def run(cities=CITIES, osm=False):
     """
     Run the entire pipeline
     """
@@ -287,7 +287,8 @@ def run(cities=CITIES):
     db.query(plfunctions.array_sort)
     db.query(plfunctions.get_max_range)
 
-    process_osm()
+    if osm:
+        process_osm()
 
     # create common tables
     db.query(common.create_rules)

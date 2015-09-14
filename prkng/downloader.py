@@ -313,6 +313,101 @@ class Quebec(DataSource):
         return res
 
 
+class NewYork(DataSource):
+    """
+    Download data from New York City
+    """
+    def __init__(self):
+        super(NewYork, self).__init__()
+        self.city = 'newyork'
+        # ckan API
+        self.url_signs = "http://a841-dotweb01.nyc.gov/datafeeds/ParkingReg/Parking_Regulation_Shapefile.zip"
+        self.url_roads = "https://data.cityofnewyork.us/api/geospatial/exjm-f27b?method=export&format=Shapefile"
+
+    def download(self):
+        self.download_signs()
+        self.download_roads()
+
+    def download_roads(self):
+        """
+        Download NYC Street Centerline (CSCL) shapefile
+        """
+        Logger.info("Downloading New York Centerlines")
+        zipfile = download_progress(
+            self.url_roads,
+            "nyc_cscl.zip",
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+
+        Logger.info("Unzipping")
+        with ZipFile(zipfile) as zip:
+            self.road_shapefile = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                name for name in zip.namelist()
+                if name.lower().endswith('.shp')
+            ][0])
+            zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
+
+    def download_signs(self):
+        """
+        Download signs using CKAN API
+        """
+        Logger.info("Downloading New York sign data")
+        zipfile = download_progress(
+            self.url_signs,
+            basename(self.url_signs),
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+
+        Logger.info("Unzipping")
+        with ZipFile(zipfile) as zip:
+            self.sign_shapefile = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                name for name in zip.namelist()
+                if name.lower().endswith('.shp')
+            ][0])
+            zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
+
+    def load(self):
+        """
+        Loads shapefiles into database
+        """
+        check_call(
+            'shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I {filename} newyork_sign | '
+            'psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}'
+            .format(filename=self.sign_shapefile, **CONFIG),
+            shell=True
+        )
+
+        self.db.vacuum_analyze("public", "newyork_sign")
+
+        check_call(
+            'shp2pgsql -d -g geom -s 2263:3857 -W LATIN1 -I {filename} newyork_lines | '
+            'psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}'
+            .format(filename=self.road_shapefile, **CONFIG),
+            shell=True
+        )
+        self.db.vacuum_analyze("public", "newyork_lines")
+
+        # TODO process and import NYC street terms dictionary
+
+    def load_rules(self):
+        """
+        load parking rules translation
+        """
+        pass
+
+    def get_extent(self):
+        """
+        get extent in the format latmin, longmin, latmax, longmax
+        """
+        res = self.db.query(
+            """WITH tmp AS (
+                SELECT st_transform(st_envelope(st_collect(geom)), 4326) as geom
+                FROM newyork_sign
+            ) select st_ymin(geom), st_xmin(geom), st_ymax(geom), st_xmax(geom) from tmp
+            """)[0]
+        return res
+
+
 class OsmLoader(object):
     """
     Load osm data according to bbox given

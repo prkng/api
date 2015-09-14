@@ -65,12 +65,16 @@ def update_areas():
 
 
 @click.command()
-def process():
+@click.option('--city', default='montreal,quebec,newyork',
+    help='A specific city (or comma-separated list of cities) to process data for')
+@click.option('--osm', default=False,
+    help='Reprocess OSM roads/map data')
+def process(city, osm):
     """
     Process data and create the target tables
     """
     from prkng.processing import pipeline
-    pipeline.run()
+    pipeline.run(city.split(","))
 
 
 @click.command()
