@@ -117,10 +117,11 @@ class SlotsResource(Resource):
             args['longitude'],
             args['latitude'],
             args['radius'],
-            args['duration'],
+            24.0 if args['permit'] == 'all' else args['duration'],
             slot_props,
             args['checkin'],
-            args['permit']
+            args['permit'] in ['false', False],
+            args['permit'] == 'all'
         )
         if res == False:
             api.abort(404, "no feature found")

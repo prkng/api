@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(x, y, radius, duration, properties, checkin=None, permit=False):
+    def get_within(x, y, radius, duration, properties, checkin=None, paid=True, permit=False):
         """
         Retrieve the nearest slots within ``radius`` meters of a
         given location (x, y).
@@ -41,7 +41,7 @@ class Slots(object):
         features = db.engine.execute(req).fetchall()
 
         return filter(
-            lambda x: not on_restriction(x.rules, checkin, duration, permit),
+            lambda x: not on_restriction(x.rules, checkin, duration, paid, permit),
             features
         )
 
@@ -80,9 +80,9 @@ class Slots(object):
 
         slots = db.engine.execute(req).fetchall()
         if checkin and invert:
-            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration), permit), slots)
+            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration), True, permit), slots)
         elif checkin:
-            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration), permit), slots)
+            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration), True, permit), slots)
         if type == 1:
             slots = filter(lambda x: "paid" in [y["restrict_typ"] for y in x.rules], slots)
         elif type == 2:

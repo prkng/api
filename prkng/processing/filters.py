@@ -6,7 +6,7 @@ from itertools import groupby
 from aniso8601 import parse_datetime
 
 
-def on_restriction(rules, checkin, duration, permit=False):
+def on_restriction(rules, checkin, duration, paid=True, permit=False):
     """
     Returns True if restrictions are consistent with the checkin
     and duration given in argument. False otherwise
@@ -26,7 +26,10 @@ def on_restriction(rules, checkin, duration, permit=False):
 
     # analyze each rule and stop iteration on conflict
     for rule in rules:
-        if rule.get('restrict_typ') in ['paid', 'angled']:
+        if rule.get('restrict_typ') == 'paid' and not paid:
+            # don't show me paid slots
+            return True
+        elif rule.get('restrict_typ') in ['paid', 'angled']:
             # not concerned, going to the next rule
             continue
 
