@@ -240,7 +240,7 @@ slot_parser.add_argument(
 )
 slot_parser.add_argument(
     'carsharing',
-    type=bool,
+    type=str,
     location='args',
     default=False,
     help='Filter automatically by carsharing rules'
@@ -260,6 +260,8 @@ class SlotsResource(Resource):
         Returns slots around the point defined by (x, y)
         """
         args = slot_parser.parse_args()
+        if args.get('carsharing', False) not in ['false', False]:
+            args['carsharing'] = True
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
@@ -272,7 +274,7 @@ class SlotsResource(Resource):
             24.0 if args['carsharing'] else args['duration'],
             slot_props,
             args['checkin'],
-            args['carsharing'] == False,
+            not args['carsharing'],
             'all' if args['carsharing'] else False
         )
         if res == False:
