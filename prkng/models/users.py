@@ -75,8 +75,8 @@ class User(UserMixin):
         Update profile information
         """
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
-            .values(name=(name.encode('utf-8') or self.name),
-                    email=(email.encode('utf-8') or self.email),
+            .values(name=(name.encode('utf-8') if name else self.name),
+                    email=(email.encode('utf-8') if email else self.email),
                     gender=gender or self.gender,
                     image_url=image_url or self.image_url
             )
