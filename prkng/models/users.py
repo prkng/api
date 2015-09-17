@@ -75,14 +75,14 @@ class User(UserMixin):
         Update profile information
         """
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
-            .values(name=(name.encode('utf-8') or self.name),
-                    email=(email.encode('utf-8') or self.email),
+            .values(name=(name.encode('utf-8') if name else self.name),
+                    email=(email.encode('utf-8') if email else self.email),
                     gender=gender or self.gender,
                     image_url=image_url or self.image_url
             )
         )
-        self.name = name.encode('utf-8') or self.name
-        self.email = email.encode('utf-8') or self.email
+        self.name = name.encode('utf-8') if name else self.name
+        self.email = email.encode('utf-8') if email else self.email
         self.gender = gender or self.gender
         self.image_url = image_url or self.image_url
 
@@ -125,6 +125,8 @@ class User(UserMixin):
         does exist then return a User Object.  If not then return None as
         required by Flask-Login.
         """
+        if not email:
+            return None
         res = user_table.select(user_table.c.email == email.lower()).execute().first()
         if not res:
             return None
