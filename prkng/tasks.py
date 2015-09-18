@@ -152,4 +152,13 @@ def update_analytics():
             INSERT INTO analytics_pos (user_id, lat, long, radius, created, search_type) VALUES ({}, {}, {}, {}, '{}', '{}')
         """.format(x["user_id"], x["lat"], x["long"], x["radius"], x["created"], x["search_type"]))
 
+    data = r.lrange('prkng:analytics:event', 0, -1)
+    r.delete('prkng:analytics:event')
+
+    for x in data:
+        x = json.loads(x)
+        queries.append("""
+            INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES ({}, {}, {}, '{}', '{}')
+        """.format(x["user_id"], x["lat"] or "NULL", x["long"] or "NULL", x["created"], x["event"]))
+
     db.queries(queries)

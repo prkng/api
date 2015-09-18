@@ -61,3 +61,9 @@ class Analytics(object):
     @staticmethod
     def add_event(user_id, lat, lng, event):
         db.engine.execute(event_table.insert().values(user_id=user_id, lat=lat, long=lng, event=event))
+
+    @staticmethod
+    def add_event_tobuf(user_id, lat, lng, event):
+        db.redis.rpush('prkng:analytics:event', json.dumps({"user_id": user_id, "lat": lat,
+            "long": lng, "created": datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "event": event}))
