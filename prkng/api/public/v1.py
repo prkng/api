@@ -641,6 +641,6 @@ class Event(Resource):
     def post(self):
         """Send analytics event data"""
         args = event_parser.parse_args()
-        Analytics.add_event(g.user.id, args.get("latitude"), args.get("longitude"),
+        Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
             args["event"])
         return "Resource created", 201
