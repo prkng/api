@@ -171,7 +171,7 @@ class Analytics(object):
     @staticmethod
     def get_geofence_checks():
         res = db.engine.execute("""
-            SELECT DISTINCT ON (ae.user_id, ae.created)
+            SELECT DISTINCT ON (ae.created, ae.user_id)
                 ae.id,
                 to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(ae.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS response_time,
@@ -184,6 +184,6 @@ class Analytics(object):
             JOIN users u ON ae.user_id = u.id
             JOIN checkins c ON ae.user_id = c.user_id AND ae.created >= c.created
             WHERE ae.event LIKE '%%fence_response%%'
-            ORDER BY ae.user_id, ae.created DESC, c.created DESC
+            ORDER BY ae.created DESC, ae.user_id, c.created DESC
         """)
         return [{key: value for key, value in row.items()} for row in res]
