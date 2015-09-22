@@ -254,3 +254,13 @@ def get_heatmap():
     """
     usage = Analytics.get_map_usage(request.args.get('hours', 24))
     return jsonify(heatmap=usage), 200
+
+
+@admin.route('/api/geofences', methods=['GET'])
+@auth_required()
+def get_geofences():
+    """
+    Get geofence response data
+    """
+    res = Analytics.get_geofence_checks()
+    return jsonify(geofences=res), 200

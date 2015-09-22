@@ -167,3 +167,23 @@ class Analytics(object):
             WHERE created >= (NOW() - ({} * INTERVAL '1 HOUR'))
         """.format(hours))
         return [{key: value for key, value in row.items()} for row in res]
+
+    @staticmethod
+    def get_geofence_checks():
+        res = db.engine.execute("""
+            SELECT DISTINCT ON (ae.user_id, ae.created)
+                ae.id,
+                to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
+                to_char(ae.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS response_time,
+                ae.user_id,
+                u.name,
+                c.lat,
+                c.long,
+                CASE ae.event WHEN 'fence_response_yes' THEN true ELSE false END AS checkout
+            FROM analytics_event ae
+            JOIN users u ON ae.user_id = u.id
+            JOIN checkins c ON ae.user_id = c.user_id AND ae.created >= c.created
+            WHERE ae.event LIKE '%fence_response%'
+            ORDER BY ae.user_id, ae.created DESC, c.created DESC
+        """)
+        return [{key: value for key, value in row.items()} for row in res]
