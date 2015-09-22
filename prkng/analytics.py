@@ -183,7 +183,7 @@ class Analytics(object):
             FROM analytics_event ae
             JOIN users u ON ae.user_id = u.id
             JOIN checkins c ON ae.user_id = c.user_id AND ae.created >= c.created
-            WHERE ae.event LIKE '%fence_response%'
+            WHERE ae.event LIKE '%%fence_response%%'
             ORDER BY ae.user_id, ae.created DESC, c.created DESC
         """)
         return [{key: value for key, value in row.items()} for row in res]
