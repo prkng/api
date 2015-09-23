@@ -677,5 +677,5 @@ class Hello(Resource):
         """Send analytics event data"""
         args = hello_parser.parse_args()
         u = User.get(g.user.id)
-        u.hello(**args)
+        u.hello(args.get('device_type'), args.get('device_id'), args.get('lang'))
         return "Hello there!", 200
