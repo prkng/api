@@ -1,4 +1,4 @@
-from prkng import create_app
+from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
 import datetime
@@ -36,7 +36,38 @@ def run_backup(username, database):
         shell=True)
     return os.path.join("/backup", file_name)
 
+def send_notifications():
+    r = Redis(db=1)
+    data = r.lrange('prkng:pushnotif', 0, -1)
+    r.delete('prkng:pushnotif')
+
+    for x in data:
+        if x["device_type"] == "ios":
+            notifications.send_apple_notification(x["device_id"], x["text"])
+
+def clear_expired_apple_device_ids():
+    """
+    Task to check for failed notification delivery attempts due to unregistered iOS device IDs.
+    Purge these device IDs from our users.
+    """
+    queries = []
+    for (device_id, fail_time) in notifications.get_apple_notification_failures():
+        queries.append("""
+            UPDATE users SET device_id = NULL
+            WHERE device_id = '{device_id}'
+                AND last_hello < '{dtime}'
+        """.format(device_id=device_id, dtime=fail_time.isoformat()))
+    if queries:
+        CONFIG = create_app().config
+        db = PostgresWrapper(
+            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+        db.queries(queries)
+
 def update_car2go():
+    """
+    Task to check with the car2go API, find moved cars and update their positions/slots
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
@@ -116,6 +147,9 @@ def update_car2go():
 
 
 def update_free_spaces():
+    """
+    Task to check recently departed car2go spaces and record
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
@@ -136,6 +170,9 @@ def update_free_spaces():
 
 
 def update_analytics():
+    """
+    Task to push analytics submissions from Redis to DB
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "

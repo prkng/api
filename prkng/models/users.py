@@ -26,6 +26,10 @@ user_table = Table(
     Column('gender', String(10)),
     Column('email', String(60), index=True, unique=True, nullable=False),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
+    Column('device_type', String, nullable=True),
+    Column('device_id', String, nullable=True),
+    Column('lang', String, nullable=True),
+    Column('last_hello', DateTime, server_default=text('NOW()'), nullable=True),
     Column('apikey', String),
     Column('image_url', String)
 )
@@ -85,6 +89,19 @@ class User(UserMixin):
         self.email = email.encode('utf-8') if email else self.email
         self.gender = gender or self.gender
         self.image_url = image_url or self.image_url
+
+    def hello(self, device_type, device_id, lang):
+        """
+        Update profile information with app hello data
+        """
+        db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
+            .values(device_type=device_type or None, device_id=device_id or None,
+                    lang=lang or None
+            )
+        )
+        self.device_type = device_type or None
+        self.device_id = device_id or None
+        self.lang = lang or None
 
     @property
     def json(self):

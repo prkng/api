@@ -1,6 +1,7 @@
 from prkng.api import auth_required, create_token
 from prkng.analytics import Analytics
-from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots
+from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, Users
+from prkng.notifications import schedule_notifications
 
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
@@ -264,3 +265,19 @@ def get_geofences():
     """
     res = Analytics.get_geofence_checks()
     return jsonify(geofences=res), 200
+
+
+@admin.route('/api/notification', methods=['POST'])
+@auth_required()
+def send_apns():
+    """
+    Send push notifications by user ID
+    """
+    device_ids = {"ios": [], "android": []}
+    for x in request.args.get('user_ids'):
+        u = Users.get(x)
+        if u and u.device_id:
+            device_ids[u.device_type].append(u.device_id)
+    schedule_notifications("ios", device_ids["ios"], request.args.get('text'))
+    schedule_notifications("android", device_ids["android"], request.args.get('text'))
+    return jsonify(device_ids=device_ids), 200

@@ -658,3 +658,24 @@ class Event(Resource):
         Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
             args["event"])
         return "Resource created", 201
+
+
+hello_parser = copy.deepcopy(api_key_parser)
+hello_parser.add_argument(
+    'device_type', type=str, required=True, help='Either `ios` or `android`', location='form')
+hello_parser.add_argument(
+    'device_id', type=str, required=True, help='Device ID', location='form')
+hello_parser.add_argument(
+    'lang', type=str, required=True, help='User\'s preferred language (`en`, `fr`)', location='form')
+
+@ns.route('/hello', endpoint='hello_v1')
+class Hello(Resource):
+    @api.secure
+    @api.doc(parser=hello_parser,
+        responses={200: "Hello there!"})
+    def post(self):
+        """Send analytics event data"""
+        args = hello_parser.parse_args()
+        u = User.get_byid(g.user.id)
+        u.hello(**args)
+        return "Hello there!", 200
