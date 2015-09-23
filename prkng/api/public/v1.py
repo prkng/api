@@ -676,6 +676,6 @@ class Hello(Resource):
     def post(self):
         """Send analytics event data"""
         args = hello_parser.parse_args()
-        u = User.get_byid(g.user.id)
+        u = User.get(g.user.id)
         u.hello(**args)
         return "Hello there!", 200
