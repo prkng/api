@@ -110,6 +110,7 @@ class User(UserMixin):
         }
         # since datetime is not JSON serializable
         vals['created'] = self.created.strftime("%Y-%m-%dT%H:%M:%SZ")
+        vals['last_hello'] = self.last_hello.strftime("%Y-%m-%dT%H:%M:%SZ")
         return vals
 
     @staticmethod
