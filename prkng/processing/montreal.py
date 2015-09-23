@@ -17,11 +17,15 @@ CREATE TABLE sign (
 )
 """
 
-create_paid_temp = """
-DROP TABLE IF EXISTS montreal_paid_temp;
-CREATE TABLE montreal_paid_temp (
-    id serial PRIMARY KEY
-    , signposts integer[]
+create_bornes_raw = """
+DROP TABLE IF EXISTS montreal_bornes_raw;
+CREATE TABLE montreal_bornes_raw (
+    id serial PRIMARY KEY,
+    no_borne varchar,
+    isleft integer,
+    geom geometry,
+    road_id integer,
+    road_pos float
 )
 """
 
@@ -153,7 +157,6 @@ SELECT
     , geom
 FROM tmp
 WHERE rank = 1
-
 """
 
 # project signposts on road and
@@ -198,6 +201,116 @@ CREATE TABLE signposts_orphans AS
 FROM tmp t
 JOIN signpost s using(id)
 )
+"""
+
+# insert montreal virtual signposts for paid slots
+create_paid_signpost = """
+WITH bornes AS (
+    SELECT
+        b.*,
+        st_azimuth(st_closestpoint(r.geom, b.geom)::geometry(point, 3857), b.geom) AS azi,
+        r.id AS road_id,
+        r.geom AS road_geom,
+        r.name AS nom_topog
+    FROM montreal_bornes b
+    JOIN roads_geobase r ON b.geobase_id = r.id_trc
+), bornes_proj AS (
+    SELECT
+        s.no_borne,
+        s.nom_topog,
+        s.road_id,
+        s.road_geom,
+        ST_isLeft(s.road_geom, s.geom) AS isleft,
+        CASE WHEN (s.azi - radians(90.0) > 2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) - (2*pi())))::geometry, 3857)
+        WHEN (s.azi - radians(90.0) < -2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) + (2*pi())))::geometry, 3857)
+        ELSE
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, s.azi - radians(90.0))::geometry, 3857)
+        END AS geom
+    FROM bornes s
+    UNION ALL
+    SELECT
+        s.no_borne,
+        s.nom_topog,
+        s.road_id,
+        s.road_geom,
+        ST_isLeft(s.road_geom, s.geom) AS isleft,
+        CASE WHEN (s.azi + radians(90.0) > 2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) - (2*pi())))::geometry, 3857)
+        WHEN (s.azi + radians(90.0) < -2*pi()) THEN
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) + (2*pi())))::geometry, 3857)
+        ELSE
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, s.azi + radians(90.0))::geometry, 3857)
+        END AS geom
+    FROM bornes s
+)
+INSERT INTO montreal_bornes_raw (no_borne, nom_topog, isleft, geom, road_id, road_pos)
+    SELECT
+        s.no_borne,
+        s.nom_topog,
+        s.isleft,
+        s.geom,
+        s.road_id,
+        st_line_locate_point(s.road_geom, s.geom)
+    FROM bornes_proj s
+"""
+
+aggregate_paid_signposts = """
+DO
+$$
+DECLARE
+  borne record;
+  id_match integer;
+BEGIN
+  DROP TABLE IF EXISTS montreal_bornes_clustered;
+  CREATE TABLE montreal_bornes_clustered (id serial primary key, ids integer[], bornes integer[], geom geometry, way_name varchar, isleft integer, road_id integer);
+  DROP TABLE IF EXISTS montreal_paid_slots_raw;
+  CREATE TABLE montreal_paid_slots_raw (id serial primary key, road_id integer, bornes integer[], geom geometry, isleft integer);
+  CREATE INDEX ON montreal_paid_slots_raw USING GIST(geom);
+
+  FOR borne IN SELECT * FROM montreal_bornes_raw ORDER BY road_id, road_pos LOOP
+    SELECT id FROM montreal_bornes_clustered
+      WHERE borne.road_id = montreal_bornes_clustered.road_id
+      AND borne.isleft = montreal_bornes_clustered.isleft
+      AND ST_DWithin(borne.geom, montreal_bornes_clustered.geom, 10)
+      LIMIT 1 INTO id_match;
+
+    IF id_match IS NULL THEN
+      INSERT INTO montreal_bornes_clustered (ids, bornes, geom, way_name, isleft, road_id) VALUES
+        (ARRAY[borne.id], ARRAY[borne.no_borne], borne.geom, borne.nom_topog, borne.isleft, borne.road_id);
+    ELSE
+      UPDATE montreal_bornes_clustered SET geom = ST_MakeLine(borne.geom, geom),
+        ids = uniq(sort(array_prepend(borne.id, ids))), bornes = uniq(sort(array_prepend(borne.no_borne, bornes)))
+      WHERE montreal_bornes_clustered.id = id_match;
+    END IF;
+  END LOOP;
+
+  WITH tmp_slots as (
+    SELECT
+      road_id,
+      bornes,
+      isleft,
+      ST_Line_Locate_Point(r.geom, ST_StartPoint(mtl.geom)) AS start,
+      ST_Line_Locate_Point(r.geom, ST_EndPoint(mtl.geom)) AS end
+    FROM montreal_bornes_clustered mtl
+    JOIN roads_geobase r ON r.id = mtl.road_id
+  )
+  INSERT INTO montreal_paid_slots_raw (road_id, geom, bornes, isleft)
+    SELECT
+      r.id,
+      CASE
+          WHEN isleft = 1 then
+              ST_OffsetCurve(ST_Line_Substring(r.geom, LEAST(s.start, s.end), GREATEST(s.start, s.end)), {offset}, 'quad_segs=4 join=round')
+          ELSE
+              ST_OffsetCurve(ST_Line_Substring(r.geom, LEAST(s.start, s.end), GREATEST(s.start, s.end)), -{offset}, 'quad_segs=4 join=round')
+      END AS geom,
+      s.bornes,
+      s.isleft
+    FROM tmp_slots s
+    JOIN roads r ON r.id = s.road_id;
+END;
+$$ language plpgsql;
 """
 
 # create potential slots determined with signposts projected as start and end points
@@ -374,49 +487,160 @@ FROM selection
 """
 
 overlay_paid_rules = """
-WITH tmp AS (
-  SELECT
-      DISTINCT ON (s.id) s.id,
-      jsonb_array_elements(rules) AS rules_array,
-      CASE
-        WHEN mpzt.name LIKE '%Zone 1%' THEN 3.00
-        WHEN mpzt.name LIKE '%Zone 2%' THEN 2.50
-        WHEN mpzt.name LIKE '%Zone 3%' THEN 2.00
-        WHEN mpzt.name LIKE '%Zone 4%' THEN 1.50
-        ELSE 1.00
-      END AS zone_rate
-    FROM slots_temp s
-    JOIN cities ct ON ST_Intersects(s.geom, ct.geom) AND ct.name = 'montreal'
-    LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
-    JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
-    GROUP BY s.id, mpzt.name
-), tmp_rules AS (
-  SELECT
-    id, array_agg(rules_array) AS rules
-  FROM tmp
-  GROUP BY id
+WITH segments AS (
+    SELECT
+        id, rid, rgeom, ST_Intersection(geom, exclude) AS geom_paid, ST_Difference(geom, exclude) AS geom_normal,
+        exclude, signposts, way_name, orig_rules, array_agg(orig_rules_arr) AS orig_rules_arr, paid_rules, rate
+    FROM (
+        SELECT
+            s.id, r.id AS rid, r.geom AS rgeom, s.geom, s.signposts, s.way_name, s.rules AS orig_rules,
+            jsonb_array_elements(s.rules) AS orig_rules_arr,
+            ST_Union(ST_Buffer(mps.geom, 1, 'endcap=flat join=round')) AS exclude,
+            mps.rules AS paid_rules, mps.rate
+        FROM slots_temp s
+        JOIN montreal_paid_slots_raw mps ON ST_Intersects(s.geom, ST_Buffer(mps.geom, 1, 'endcap=flat join=round'))
+        JOIN roads_geobase r ON r.id = mps.road_id AND s.way_name = r.name
+        GROUP BY s.id, r.id, r.geom
+    ) AS foo
+    WHERE ST_Length(ST_Intersection(geom, exclude)) >= 4
+    GROUP BY id, rid, rgeom, geom, exclude, signposts, way_name, orig_rules
+    ORDER BY id
+), update_normal AS (
+    DELETE FROM slots_temp
+    USING segments
+    WHERE slots_temp.id = segments.id
+), new_slots AS (
+    SELECT
+        g.signposts,
+        g.rid,
+        g.rgeom,
+        g.way_name,
+        array_to_json(array_append(g.rules,
+            json_build_object(
+                'code', z.code,
+                'description', z.description,
+                'address', g.way_name,
+                'season_start', z.season_start,
+                'season_end', z.season_end,
+                'agenda', z.agenda,
+                'time_max_parking', z.time_max_parking,
+                'special_days', z.special_days,
+                'restrict_typ', z.restrict_typ,
+                'paid_hourly_rate', g.rate
+            )::jsonb)
+        )::jsonb AS rules,
+        CASE ST_GeometryType(g.geom_paid)
+            WHEN 'ST_LineString' THEN
+                g.geom_paid
+            ELSE
+                (ST_Dump(g.geom_paid)).geom
+        END AS geom
+    FROM segments g
+    JOIN rules z ON z.code = ANY(regexp_split_to_array(g.paid_rules, ', '))
+    UNION
+    SELECT
+        g.signposts,
+        g.rid,
+        g.rgeom,
+        g.way_name,
+        g.orig_rules AS rules,
+        CASE ST_GeometryType(g.geom_normal)
+            WHEN 'ST_LineString' THEN
+                g.geom_normal
+            ELSE
+                (ST_Dump(g.geom_normal)).geom
+        END AS geom
+    FROM segments g
 )
-UPDATE slots_temp s
-  SET rules = array_to_json(
-    array_append(
-      r.rules,
-      json_build_object(
-          'code', z.code,
-          'description', z.description,
-          'address', s.way_name,
-          'season_start', z.season_start,
-          'season_end', z.season_end,
-          'agenda', z.agenda,
-          'time_max_parking', z.time_max_parking,
-          'special_days', z.special_days,
-          'restrict_typ', z.restrict_typ,
-          'paid_hourly_rate', g.zone_rate
-      )::jsonb)
-    )::jsonb
-  FROM tmp g, tmp_rules r, rules z
-  WHERE s.id = g.id
-    AND r.id = g.id
-    AND z.code = 'MTLPAID'
+INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
+    SELECT
+        nn.signposts,
+        nn.rid,
+        st_line_locate_point(nn.rgeom, st_startpoint(nn.geom)),
+        nn.rules,
+        nn.way_name,
+        nn.geom
+    FROM new_slots nn
+    WHERE ST_Length(nn.geom) >= 4
+"""
+
+create_paid_slots_standalone = """
+WITH exclusions AS (
+    SELECT
+        id, rid, rgeom, way_name, ST_Union(exclude) AS exclude
+    FROM (
+        SELECT
+            mps.id,
+            r.id AS rid,
+            r.name AS way_name,
+            r.geom AS rgeom,
+            mps.rules,
+            mps.rate,
+            ST_Buffer(s.geom, 1, 'endcap=flat join=round') AS exclude
+        FROM montreal_paid_slots_raw mps
+        JOIN slots_temp s ON ST_Intersects(s.geom, ST_Buffer(mps.geom, 1, 'endcap=flat join=round'))
+        JOIN roads_geobase r ON r.id = mps.road_id AND s.way_name = r.name
+    ) AS foo
+    GROUP BY id, rid, rgeom, way_name
+), update_raw AS (
+    SELECT
+        ex.rid,
+        ex.rgeom,
+        ex.way_name,
+        ex.rules,
+        ex.rate,
+        ST_Difference(mps.geom, ex.exclude) AS geom
+    FROM montreal_paid_slots_raw mps
+    JOIN exclusions ex ON ex.id = mps.id
+    UNION
+    SELECT
+        r.id AS rid,
+        r.geom AS rgeom,
+        r.name,
+        mps.rules,
+        mps.rate,
+        mps.geom
+    FROM montreal_paid_slots_raw mps
+    JOIN roads_geobase r ON r.id = mps.road_id
+    WHERE mps.id NOT IN (SELECT id FROM exclusions)
+), new_paid AS (
+    SELECT
+        ur.rid,
+        ur.way_name,
+        ur.rgeom,
+        array_to_json(
+            array[json_build_object(
+                'code', z.code,
+                'description', z.description,
+                'address', ur.way_name,
+                'season_start', z.season_start,
+                'season_end', z.season_end,
+                'agenda', z.agenda,
+                'time_max_parking', z.time_max_parking,
+                'special_days', z.special_days,
+                'restrict_typ', z.restrict_typ,
+                'paid_hourly_rate', ur.rate
+            )::jsonb]
+        )::jsonb AS rules,
+        CASE ST_GeometryType(ur.geom)
+            WHEN 'ST_LineString' THEN
+                ur.geom
+            ELSE
+                (ST_Dump(ur.geom)).geom
+        END AS geom
+    FROM update_raw ur
+    JOIN rules z ON z.code = ANY(regexp_split_to_array(ur.rules, ', '))
+)
+INSERT INTO slots_temp (signposts, rid, position, rules, way_name, geom)
+    SELECT
+        ARRAY[0,0],
+        nn.rid,
+        st_line_locate_point(nn.rgeom, st_startpoint(nn.geom)),
+        nn.rules,
+        nn.way_name,
+        nn.geom
+    FROM new_paid nn
+    WHERE ST_Length(nn.geom) >= 4
 """
 
 create_slots_for_debug = """

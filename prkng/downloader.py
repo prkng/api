@@ -165,8 +165,7 @@ class Montreal(DataSource):
         self.db.vacuum_analyze("public", "montreal_poteaux")
 
         check_call(
-            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I "
-            "{filename} montreal_geobase | "
+            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I {filename} montreal_geobase | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=self.road_shapefile, **CONFIG),
             shell=True
@@ -174,12 +173,12 @@ class Montreal(DataSource):
         self.db.vacuum_analyze("public", "montreal_geobase")
 
         check_call(
-            'ogr2ogr -f "PostgreSQL" PG:"dbname=prkng user={PG_USERNAME}  '
-            'password={PG_PASSWORD} port={PG_PORT} host={PG_HOST}" -overwrite '
-            '-s_srs EPSG:4326 -t_srs EPSG:3857 -lco GEOMETRY_NAME=geom  '
-            '-nln montreal_paid_zones {}'.format(self.paid_zone_shapefile, **CONFIG),
+            "shp2pgsql -d -g geom -s 2145:3857 -W LATIN1 -I {filename} montreal_bornes | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('bornes_montreal.shp'), **CONFIG),
             shell=True
         )
+        self.db.vacuum_analyze("public", "montreal_bornes")
 
         # loading csv data using script
         Logger.debug("loading file '%s' with script '%s'" %

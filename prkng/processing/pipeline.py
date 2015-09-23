@@ -198,21 +198,22 @@ def process_montreal():
 
     db.query(mrl.insert_slots_temp.format(offset=LINE_OFFSET))
 
+    info("Creating and overlaying paid slots")
+    db.query(mrl.create_bornes_raw)
+    db.query(mrl.create_paid_signpost)
+    db.query(mrl.aggregate_paid_signposts.format(offset=LINE_OFFSET))
+    db.query(mrl.overlay_paid_rules)
+    db.query(mrl.create_paid_slots_standalone)
+    db.create_index('slots_temp', 'id')
+    db.create_index('slots_temp', 'geom', index_type='gist')
+    db.create_index('slots_temp', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'slots_temp')
+
     if CONFIG['DEBUG']:
         db.query(mrl.create_slots_for_debug.format(offset=LINE_OFFSET))
         db.create_index('slots_debug', 'pkid')
         db.create_index('slots_debug', 'geom', index_type='gist')
         db.vacuum_analyze('public', 'slots_debug')
-
-    info("Overlaying paid slots")
-    db.query(mrl.create_paid_temp)
-    db.query("""
-        COPY montreal_paid_temp (signposts)
-        FROM '{}'
-        WITH CSV
-    """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/paid_montreal.csv')))
-    db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
-    db.query(mrl.overlay_paid_rules)
 
 
 def cleanup_table():
@@ -226,13 +227,15 @@ def cleanup_table():
     db.query("DROP TABLE signpost_onroad")
     db.query("DROP TABLE slots_likely")
     db.query("DROP TABLE nextpoints")
-    db.query("DROP TABLE montreal_paid_temp")
     db.query("DROP TABLE quebec_signpost_temp")
     db.query("DROP TABLE quebec_nextpoints")
     db.query("DROP TABLE quebec_slots_likely")
     db.query("DROP TABLE quebec_paid_slots_raw")
     db.query("DROP TABLE quebec_bornes_raw")
     db.query("DROP TABLE quebec_bornes_clustered")
+    db.query("DROP TABLE montreal_paid_slots_raw")
+    db.query("DROP TABLE montreal_bornes_raw")
+    db.query("DROP TABLE montreal_bornes_clustered")
     db.query("DROP TABLE permit_zones")
     db.query("DROP TABLE slots_temp")
 
