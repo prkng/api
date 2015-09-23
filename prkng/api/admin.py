@@ -1,6 +1,6 @@
 from prkng.api import auth_required, create_token
 from prkng.analytics import Analytics
-from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, Users
+from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, User
 from prkng.notifications import schedule_notifications
 
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
@@ -275,7 +275,7 @@ def send_apns():
     """
     device_ids = {"ios": [], "android": []}
     for x in request.args.get('user_ids'):
-        u = Users.get(x)
+        u = User.get(x)
         if u and u.device_id:
             device_ids[u.device_type].append(u.device_id)
     schedule_notifications("ios", device_ids["ios"], request.args.get('text'))
