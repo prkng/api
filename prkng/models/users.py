@@ -2,6 +2,7 @@ from prkng.database import db, metadata
 from prkng.utils import random_string
 
 import boto.ses
+import datetime
 from flask import current_app
 from flask.ext.login import UserMixin
 from itsdangerous import JSONWebSignatureSerializer
@@ -94,14 +95,16 @@ class User(UserMixin):
         """
         Update profile information with app hello data
         """
+        now = datetime.datetime.now()
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
             .values(device_type=device_type or None, device_id=device_id or None,
-                    lang=lang or None
+                    lang=lang or None, last_hello=now
             )
         )
         self.device_type = device_type or None
         self.device_id = device_id or None
         self.lang = lang or None
+        self.last_hello = now
 
     @property
     def json(self):

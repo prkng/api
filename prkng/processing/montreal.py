@@ -22,8 +22,11 @@ DROP TABLE IF EXISTS montreal_bornes_raw;
 CREATE TABLE montreal_bornes_raw (
     id serial PRIMARY KEY,
     no_borne varchar,
+    nom_topog varchar,
     isleft integer,
     geom geometry,
+    rules varchar,
+    rate integer,
     road_id integer,
     road_pos float
 )
@@ -218,37 +221,43 @@ WITH bornes AS (
     SELECT
         s.no_borne,
         s.nom_topog,
+        s.rules,
+        s.rate,
         s.road_id,
         s.road_geom,
         ST_isLeft(s.road_geom, s.geom) AS isleft,
         CASE WHEN (s.azi - radians(90.0) > 2*pi()) THEN
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) - (2*pi())))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, (s.azi - radians(90.0) - (2*pi())))::geometry, 3857)
         WHEN (s.azi - radians(90.0) < -2*pi()) THEN
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi - radians(90.0) + (2*pi())))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, (s.azi - radians(90.0) + (2*pi())))::geometry, 3857)
         ELSE
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, s.azi - radians(90.0))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, s.azi - radians(90.0))::geometry, 3857)
         END AS geom
     FROM bornes s
     UNION ALL
     SELECT
         s.no_borne,
         s.nom_topog,
+        s.rules,
+        s.rate,
         s.road_id,
         s.road_geom,
         ST_isLeft(s.road_geom, s.geom) AS isleft,
         CASE WHEN (s.azi + radians(90.0) > 2*pi()) THEN
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) - (2*pi())))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, (s.azi + radians(90.0) - (2*pi())))::geometry, 3857)
         WHEN (s.azi + radians(90.0) < -2*pi()) THEN
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, (s.azi + radians(90.0) + (2*pi())))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, (s.azi + radians(90.0) + (2*pi())))::geometry, 3857)
         ELSE
-            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 3, s.azi + radians(90.0))::geometry, 3857)
+            st_transform(st_project(st_transform(st_closestpoint(s.road_geom, s.geom), 4326)::geography, 5, s.azi + radians(90.0))::geometry, 3857)
         END AS geom
     FROM bornes s
 )
-INSERT INTO montreal_bornes_raw (no_borne, nom_topog, isleft, geom, road_id, road_pos)
+INSERT INTO montreal_bornes_raw (no_borne, nom_topog, rules, rate, isleft, geom, road_id, road_pos)
     SELECT
         s.no_borne,
         s.nom_topog,
+        s.rules,
+        s.rate,
         s.isleft,
         s.geom,
         s.road_id,
@@ -264,24 +273,27 @@ DECLARE
   id_match integer;
 BEGIN
   DROP TABLE IF EXISTS montreal_bornes_clustered;
-  CREATE TABLE montreal_bornes_clustered (id serial primary key, ids integer[], bornes integer[], geom geometry, way_name varchar, isleft integer, road_id integer);
+  CREATE TABLE montreal_bornes_clustered (id serial primary key, ids integer[], bornes varchar[], rules varchar, rate integer, geom geometry, way_name varchar, isleft integer, road_id integer);
   DROP TABLE IF EXISTS montreal_paid_slots_raw;
-  CREATE TABLE montreal_paid_slots_raw (id serial primary key, road_id integer, bornes integer[], geom geometry, isleft integer);
+  CREATE TABLE montreal_paid_slots_raw (id serial primary key, road_id integer, bornes varchar[], rules varchar[], rate float, geom geometry, isleft integer);
   CREATE INDEX ON montreal_paid_slots_raw USING GIST(geom);
 
   FOR borne IN SELECT * FROM montreal_bornes_raw ORDER BY road_id, road_pos LOOP
     SELECT id FROM montreal_bornes_clustered
       WHERE borne.road_id = montreal_bornes_clustered.road_id
       AND borne.isleft = montreal_bornes_clustered.isleft
-      AND ST_DWithin(borne.geom, montreal_bornes_clustered.geom, 10)
-      LIMIT 1 INTO id_match;
+      AND borne.rules = montreal_bornes_clustered.rules
+      AND borne.rate = montreal_bornes_clustered.rate
+      AND ST_DWithin(borne.geom, montreal_bornes_clustered.geom, 15)
+    LIMIT 1 INTO id_match;
 
     IF id_match IS NULL THEN
-      INSERT INTO montreal_bornes_clustered (ids, bornes, geom, way_name, isleft, road_id) VALUES
-        (ARRAY[borne.id], ARRAY[borne.no_borne], borne.geom, borne.nom_topog, borne.isleft, borne.road_id);
+      INSERT INTO montreal_bornes_clustered (ids, bornes, rules, rate, geom, way_name, isleft, road_id) VALUES
+        (ARRAY[borne.id], ARRAY[borne.no_borne], borne.rules, borne.rate, borne.geom, borne.nom_topog, borne.isleft, borne.road_id);
     ELSE
       UPDATE montreal_bornes_clustered SET geom = ST_MakeLine(borne.geom, geom),
-        ids = uniq(sort(array_prepend(borne.id, ids))), bornes = uniq(sort(array_prepend(borne.no_borne, bornes)))
+        ids = (CASE WHEN borne.id = ANY(ids) THEN ids ELSE array_prepend(borne.id, ids) END),
+        bornes = (CASE WHEN borne.no_borne = ANY(bornes) THEN bornes ELSE array_prepend(borne.no_borne, bornes) END)
       WHERE montreal_bornes_clustered.id = id_match;
     END IF;
   END LOOP;
@@ -291,12 +303,14 @@ BEGIN
       road_id,
       bornes,
       isleft,
+      rules,
+      rate,
       ST_Line_Locate_Point(r.geom, ST_StartPoint(mtl.geom)) AS start,
       ST_Line_Locate_Point(r.geom, ST_EndPoint(mtl.geom)) AS end
     FROM montreal_bornes_clustered mtl
     JOIN roads_geobase r ON r.id = mtl.road_id
   )
-  INSERT INTO montreal_paid_slots_raw (road_id, geom, bornes, isleft)
+  INSERT INTO montreal_paid_slots_raw (road_id, geom, bornes, rules, rate, isleft)
     SELECT
       r.id,
       CASE
@@ -306,6 +320,8 @@ BEGIN
               ST_OffsetCurve(ST_Line_Substring(r.geom, LEAST(s.start, s.end), GREATEST(s.start, s.end)), -{offset}, 'quad_segs=4 join=round')
       END AS geom,
       s.bornes,
+      string_to_array(s.rules, ', '),
+      (s.rate::float / 100),
       s.isleft
     FROM tmp_slots s
     JOIN roads r ON r.id = s.road_id;
