@@ -472,13 +472,14 @@ get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
 checkin_model = api.model('Checkin', {
-    'created': fields.String(),
+    'checkin_time': fields.String(),
+    'checkout_time': fields.String(),
     'long': fields.String(),
     'lat': fields.String(),
-    'wayname': fields.String(),
-    'slot_id': fields.String(),
-    'id': fields.String(),
-    'active': fields.String()
+    'way_name': fields.String(),
+    'slot_id': fields.Integer(),
+    'id': fields.Integer(),
+    'active': fields.Boolean()
 })
 
 

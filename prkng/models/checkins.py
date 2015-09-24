@@ -72,7 +72,10 @@ class Checkins(object):
             FROM slots WHERE id = {slot_id}
             RETURNING *
         """.format(user_id=user_id, slot_id=slot_id)).first()
-        return dict(res)
+        res = dict(res)
+        res["checkin_time"] = res["checkin_time"].isoformat()
+        res["checkout_time"] = res["checkout_time"].isoformat() if res["checkout_time"] else None
+        return
 
     @staticmethod
     def delete(user_id, checkin_id):
