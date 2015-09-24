@@ -506,10 +506,9 @@ class CheckinList(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        ok = Checkins.add(g.user.id, args['slot_id'])
-        if not ok:
+        res = Checkins.add(g.user.id, args['slot_id'])
+        if not res:
             api.abort(404, "No slot existing with this id")
-        res = Checkins.get(g.user.id)
         return res, 201
 
 

@@ -38,15 +38,16 @@ class City(object):
             SELECT
                 c.id,
                 c.user_id,
-                s.id AS slot_id,
-                c.way_name,
-                to_char(c.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as created,
+                c.slot_id,
+                s.way_name,
+                to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
+                to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time,
                 u.name,
                 u.email,
                 u.gender,
                 c.long,
                 c.lat,
-                c.active,
+                c.checkout_time IS NOT NULL AS active,
                 a.auth_type AS user_type,
                 s.rules
             FROM checkins c
@@ -60,8 +61,8 @@ class City(object):
             WHERE ct.name = '{}'
             {}
             """.format(city,
-                ((" AND (c.created AT TIME ZONE 'UTC') >= '{}'".format(aniso8601.parse_datetime(start).strftime("%Y-%m-%d %H:%M:%S"))) if start else "") +
-                ((" AND (c.created AT TIME ZONE 'UTC') <= '{}'".format(aniso8601.parse_datetime(end).strftime("%Y-%m-%d %H:%M:%S"))) if end else "")
+                ((" AND (c.checkin_time AT TIME ZONE 'UTC') >= '{}'".format(aniso8601.parse_datetime(start).strftime("%Y-%m-%d %H:%M:%S"))) if start else "") +
+                ((" AND (c.checkin_time AT TIME ZONE 'UTC') <= '{}'".format(aniso8601.parse_datetime(end).strftime("%Y-%m-%d %H:%M:%S"))) if end else "")
             )).fetchall()
 
         return [
