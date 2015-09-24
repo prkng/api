@@ -274,7 +274,10 @@ def send_apns():
     Send push notifications by user ID
     """
     device_ids = {"ios": [], "android": []}
-    for x in request.args.get('user_ids'):
+    user_ids = request.args.get('user_ids')
+    if user_ids:
+        user_ids = user_ids.split(", ")
+    for x in user_ids:
         u = User.get(x)
         if u and u.device_id:
             device_ids[u.device_type].append(u.device_id)
