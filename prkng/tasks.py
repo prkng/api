@@ -45,6 +45,7 @@ def send_notifications():
     r.delete('prkng:pushnotif')
 
     for x in data:
+        x = json.loads(x)
         if x["device_type"] == "ios":
             notifications.send_apple_notification(x["device_id"], x["text"])
 
