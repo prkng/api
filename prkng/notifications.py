@@ -40,4 +40,4 @@ def schedule_notifications(device_type, device_ids, text):
     """
     for x in device_ids:
         db.redis.rpush('prkng:pushnotif', json.dumps({"device_id": x,
-            "device_type": dtype, "text": text}))
+            "device_type": device_type, "text": text}))
