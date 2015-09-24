@@ -55,7 +55,7 @@ class Checkins(object):
     def add(user_id, slot_id):
         exists = db.engine.execute("""
             SELECT 1 FROM slots WHERE id = {slot_id}
-            """.format(slot_id=slot_id)).first()
+        """.format(slot_id=slot_id)).first()
         if not exists:
             return False
 
@@ -79,10 +79,6 @@ class Checkins(object):
 
     @staticmethod
     def delete(user_id, checkin_id):
-        db.engine.execute("""
-            UPDATE checkins
-            SET checkout_time = NOW()
-            WHERE user_id = {uid}
-            AND id = {cid}
-        """.format(uid=user_id, cid=checkin_id))
+        db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
+            (checkin_table.c.id == cid)).values(checkout_time=text('NOW()'))
         return True

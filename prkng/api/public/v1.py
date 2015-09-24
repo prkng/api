@@ -391,7 +391,7 @@ class Login(Resource):
             return "Authorization required", 401
         if args.get("type") == "facebook":
             return facebook_signin(args['access_token'])
-        elif args.get("type") == "facebook":
+        elif args.get("type") == "google":
             return google_signin(args['access_token'])
         else:
             return email_signin(args['email'], args['password'])
