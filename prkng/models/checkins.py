@@ -80,5 +80,5 @@ class Checkins(object):
     @staticmethod
     def delete(user_id, checkin_id):
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
-            (checkin_table.c.id == cid)).values(checkout_time=text('NOW()'))
+            (checkin_table.c.id == cid)).values(checkout_time=text('NOW()')))
         return True
