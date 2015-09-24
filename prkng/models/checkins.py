@@ -60,8 +60,8 @@ class Checkins(object):
             return False
 
         # if the user is already checked in elsewhere, deactivate their old checkin
-        db.engine.execute(checkin_table.update().where(checkin_table.c.user_id == user_id,
-            checkin_table.c.checkout_time == None).values(checkout_time=text('NOW()')))
+        db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
+            (checkin_table.c.checkout_time == None)).values(checkout_time=text('NOW()')))
 
         res = db.engine.execute("""
             INSERT INTO checkins (user_id, slot_id, long, lat)
