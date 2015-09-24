@@ -47,7 +47,7 @@ class City(object):
                 u.gender,
                 c.long,
                 c.lat,
-                c.checkout_time IS NOT NULL AS active,
+                c.checkout_time IS NULL AS active,
                 a.auth_type AS user_type,
                 s.rules
             FROM checkins c

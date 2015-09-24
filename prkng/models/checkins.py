@@ -24,7 +24,7 @@ class Checkins(object):
             SELECT c.id, c.slot_id, s.way_name, c.long, c.lat,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time,
-                c.checkout_time IS NOT NULL AS active
+                c.checkout_time IS NULL AS active
             FROM checkins c
             JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
@@ -42,7 +42,7 @@ class Checkins(object):
             SELECT c.id, c.slot_id, s.way_name, c.long, c.lat,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time,
-                c.checkout_time IS NOT NULL AS active
+                c.checkout_time IS NULL AS active
             FROM checkins c
             JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
