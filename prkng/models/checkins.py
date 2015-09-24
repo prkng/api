@@ -75,7 +75,7 @@ class Checkins(object):
         res = dict(res)
         res["checkin_time"] = res["checkin_time"].isoformat()
         res["checkout_time"] = res["checkout_time"].isoformat() if res["checkout_time"] else None
-        return
+        return res
 
     @staticmethod
     def delete(user_id, checkin_id):
