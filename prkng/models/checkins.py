@@ -1,5 +1,6 @@
 from prkng.database import db, metadata
-from sqlalchemy import Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table, text
+from prkng.models.analytics import event_table
+from sqlalchemy import desc, Boolean, Column, DateTime, Float, ForeignKey, Integer, String, Table, text
 
 
 checkin_table = Table(
@@ -11,7 +12,8 @@ checkin_table = Table(
     Column('long', Float),
     Column('lat', Float),
     Column('checkin_time', DateTime, server_default=text('NOW()'), index=True),
-    Column('checkout_time', DateTime)
+    Column('checkout_time', DateTime),
+    Column('active', Boolean)
 )
 
 class Checkins(object):
@@ -21,14 +23,13 @@ class Checkins(object):
         Get info on the user's current check-in
         """
         res = db.engine.execute("""
-            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat,
+            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat, c.active,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time,
-                c.checkout_time IS NULL AS active
             FROM checkins c
             JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
-                AND c.checkout_time IS NULL
+                AND c.active = false
             ORDER BY c.checkin_time DESC
             LIMIT 1
         """.format(uid=user_id)).first()
@@ -39,10 +40,9 @@ class Checkins(object):
     @staticmethod
     def get_all(user_id, limit):
         res = db.engine.execute("""
-            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat,
+            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat, c.active,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time,
-                c.checkout_time IS NULL AS active
             FROM checkins c
             JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
@@ -61,7 +61,7 @@ class Checkins(object):
 
         # if the user is already checked in elsewhere, deactivate their old checkin
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
-            (checkin_table.c.checkout_time == None)).values(checkout_time=text('NOW()')))
+            (checkin_table.c.checkout_time == None)).values(active=False))
 
         res = db.engine.execute("""
             INSERT INTO checkins (user_id, slot_id, long, lat)
@@ -78,7 +78,19 @@ class Checkins(object):
         return res
 
     @staticmethod
-    def delete(user_id, checkin_id):
+    def remove(user_id, checkin_id=None, left=True):
+        # get last fence departure time, use as checkout time if user has left
+        res = event_table.select((event_table.c.user_id == user_id) &\
+                (event_table.c.event == 'left_fence')).order_by(desc(event_table.c.created))\
+                .execute().first()
+
+        # FIXME for 1.3
+        # geofence checkouts don't have the checkin ID, so get the last one
+        if not checkin_id:
+            checkin_id = checkin_table.select((checkin_table.c.user_id == user_id))\
+                .order_by(desc(checkin_table.c.checkin_time)).execute().first()["id"]
+
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
-            (checkin_table.c.id == cid)).values(checkout_time=text('NOW()')))
+            (checkin_table.c.id == checkin_id)).values(active=False,
+            checkout_time=res["created"] if res and left else None))
         return True

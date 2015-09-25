@@ -305,7 +305,7 @@ class Checkin(Resource):
         Deactivate an existing checkin
         """
         args = delete_checkin_parser.parse_args()
-        Checkins.delete(g.user.id, args['checkin_id'])
+        Checkins.remove(g.user.id, args['checkin_id'])
         return "Resource deleted", 204
 
 

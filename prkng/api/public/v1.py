@@ -523,7 +523,7 @@ class Checkin(Resource):
         """
         Deactivate an existing checkin
         """
-        Checkins.delete(g.user.id, id)
+        Checkins.remove(g.user.id, id)
         return "Resource deleted", 204
 
 
@@ -655,8 +655,21 @@ class Event(Resource):
     def post(self):
         """Send analytics event data"""
         args = event_parser.parse_args()
-        Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
-            args["event"])
+
+        # buffer map displacement analytics and feature selection
+        # enter geofence arrival/departure data directly into database
+        if "fence" in args["event"]:
+            Analytics.add_event(g.user.id, args.get("latitude"), args.get("longitude"),
+                args["event"])
+        else:
+            Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
+                args["event"])
+
+        # FIXME when we migrate to 1.3
+        # checkout of the last spot and add departure time
+        if args["event"] == "fence_response_yes":
+            Checkins.remove(g.user.id, left=True)
+
         return "Resource created", 201
 
 

@@ -212,7 +212,7 @@ class UserAuth(object):
     @staticmethod
     def update_password(auth_id, password, reset_code=None):
         if reset_code:
-            u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().fetchone()
+            u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().first()
             if not u or reset_code != u["reset_code"]:
                 return False
         crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)

@@ -257,16 +257,6 @@ def get_heatmap():
     return jsonify(heatmap=usage), 200
 
 
-@admin.route('/api/geofences', methods=['GET'])
-@auth_required()
-def get_geofences():
-    """
-    Get geofence response data
-    """
-    res = Analytics.get_geofence_checks()
-    return jsonify(geofences=res), 200
-
-
 @admin.route('/api/notification', methods=['POST'])
 @auth_required()
 def send_apns():
