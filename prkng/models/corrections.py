@@ -1,6 +1,8 @@
 from prkng.database import db
 from prkng.processing.common import process_corrected_rules, process_corrections
 
+from sqlalchemy import text
+
 
 class Corrections(object):
     @staticmethod
