@@ -66,6 +66,7 @@ CREATE TABLE IF NOT EXISTS corrections
   description varchar,
   season_start varchar,
   season_end varchar,
+  address varchar,
   time_max_parking float,
   agenda jsonb,
   special_days varchar,
@@ -114,10 +115,12 @@ WITH r AS (
         'description', description,
         'season_start', season_start,
         'season_end', season_end,
+        'address', address,
         'agenda', agenda,
         'time_max_parking', time_max_parking,
         'special_days', special_days,
-        'restrict_typ', restrict_typ
+        'restrict_typ', restrict_typ,
+        'permit_no', NULL
       )::jsonb
     ))::jsonb AS rules
   FROM corrections
@@ -331,5 +334,7 @@ UPDATE slots SET
             'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.333), 4326))),
         json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.666), 4326)),
             'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.666), 4326)))])::jsonb
-        else array_to_json(array[button_location])::jsonb end)
+        else array_to_json(array[
+            json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
+            'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))])::jsonb end)
 """

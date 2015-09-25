@@ -11,23 +11,22 @@ class Corrections(object):
             time_max_parking, agenda, special_days, restrict_typ):
         # get signposts by slot ID
         res = db.engine.execute("""
-            SELECT signposts FROM slots WHERE id = {}
+            SELECT address, signposts FROM slots WHERE id = {}
         """.format(slot_id)).first()
         if not res:
             return False
-        signposts = res[0]
 
         # map correction to signposts and save
         res = db.engine.execute(
             """
             INSERT INTO corrections
-                (initials, signposts, code, city, description, season_start, season_end,
+                (initials, address, signposts, code, city, description, season_start, season_end,
                     time_max_parking, agenda, special_days, restrict_typ)
-            SELECT '{initials}', ARRAY{signposts}, '{code}', '{city}', '{description}',
+            SELECT '{initials}', '{address}', ARRAY{signposts}, '{code}', '{city}', '{description}',
                 '{season_start}', '{season_end}', {time_max_parking}, '{agenda}'::jsonb,
                 '{special_days}', '{restrict_typ}'
             RETURNING *
-            """.format(initials=initials, signposts=signposts, code=code, city=city,
+            """.format(initials=initials, address=res[0], signposts=res[1], code=code, city=city,
                 description=description, season_start=season_start,
                 season_end=season_end, time_max_parking=time_max_parking,
                 agenda=agenda, special_days=special_days, restrict_typ=restrict_typ)
