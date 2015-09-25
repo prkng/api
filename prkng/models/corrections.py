@@ -23,13 +23,15 @@ class Corrections(object):
                 (initials, address, signposts, code, city, description, season_start, season_end,
                     time_max_parking, agenda, special_days, restrict_typ)
             SELECT '{initials}', '{address}', ARRAY{signposts}, '{code}', '{city}', '{description}',
-                '{season_start}', '{season_end}', {time_max_parking}, '{agenda}'::jsonb,
-                '{special_days}', '{restrict_typ}'
+                {season_start}, {season_end}, {time_max_parking}, '{agenda}'::jsonb,
+                {special_days}, {restrict_typ}
             RETURNING *
             """.format(initials=initials, address=res[0], signposts=res[1], code=code, city=city,
-                description=description, season_start=season_start,
-                season_end=season_end, time_max_parking=time_max_parking,
-                agenda=agenda, special_days=special_days, restrict_typ=restrict_typ)
+                description=description, season_start="'"+season_start+"'" if season_start else "NULL",
+                season_end="'"+season_end+"'" if season_end else "NULL",
+                time_max_parking=time_max_parking or "NULL", agenda=agenda,
+                special_days="'"+special_days+"'" if special_days else "NULL",
+                restrict_typ="'"+restrict_typ+"'" if restrict_typ else "NULL")
         ).first()
         return {key: value for key, value in res.items()}
 
