@@ -41,6 +41,7 @@ class Checkins(object):
     def get_all(user_id, limit):
         res = db.engine.execute("""
             SELECT c.id, c.slot_id, s.way_name, c.long, c.lat, c.active,
+                to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
             FROM checkins c
