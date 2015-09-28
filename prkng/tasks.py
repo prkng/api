@@ -31,13 +31,14 @@ def stop_tasks():
         scheduler.cancel(x)
 
 def run_backup(username, database):
+    backup_dir = os.path.join(os.path.dirname(os.environ["PRKNG_SETTINGS"]), 'backup')
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-    if not os.path.exists("/backup"):
-        os.mkdir("/backup")
-    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join("/backup", file_name),
+    if not os.path.exists(backup_dir):
+        os.mkdir(backup_dir)
+    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name),
         PG_USERNAME=username, PG_DATABASE=database),
         shell=True)
-    return os.path.join("/backup", file_name)
+    return os.path.join(backup_dir, file_name)
 
 def send_notifications():
     r = Redis(db=1)
