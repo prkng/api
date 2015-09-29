@@ -200,7 +200,7 @@ def process_montreal():
 
     info("Creating and overlaying paid slots")
     db.query(mrl.overlay_paid_rules)
-    
+
     db.create_index('slots_temp', 'id')
     db.create_index('slots_temp', 'geom', index_type='gist')
     db.create_index('slots_temp', 'rules', index_type='gin')
@@ -299,8 +299,8 @@ def run():
     Logger.info("Processing parking lot / garage data")
     db.query(common.create_parking_lots_raw)
     db.query(common.create_parking_lots)
-    insert_raw_lots("lots_stationnement_mtl.csv")
-    insert_raw_lots("lots_vinci.csv")
+    insert_raw_lots("lots_montreal.csv")
+    insert_raw_lots("lots_quebec.csv")
     insert_parking_lots()
     db.create_index('parking_lots', 'id')
     db.create_index('parking_lots', 'geom', index_type='gist')
