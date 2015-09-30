@@ -368,7 +368,7 @@ overlay_paid_rules = """
 WITH tmp AS (
     SELECT DISTINCT ON (foo.id)
         b.gid AS id,
-        b.rate,
+        (b.rate / 100) AS rate,
         string_to_array(b.rules, ', ') AS rules,
         foo.id AS slot_id,
         foo.way_name,
@@ -401,6 +401,7 @@ WITH tmp AS (
     ))::jsonb AS rules
     FROM tmp t
     JOIN rules r ON r.code = ANY(t.rules)
+    WHERE r.code NOT LIKE '%%MTLPAID-M%%'
     GROUP BY t.slot_id, t.orig_rules
 )
 UPDATE slots_temp s
