@@ -381,7 +381,7 @@ WITH tmp AS (
         ) foo
     WHERE r.id_trc = b.geobase_id
         AND r.id = foo.rid
-        AND ST_DWithin(foo.geom, b.geom, 10)
+        AND ST_DWithin(foo.geom, b.geom, 12)
     GROUP BY b.gid, b.geom, b.rate, b.rules, foo.id, foo.geom, foo.way_name
     ORDER BY foo.id, ST_Distance(foo.geom, b.geom)
 ), new_slots AS (
