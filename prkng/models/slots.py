@@ -46,46 +46,6 @@ class Slots(object):
         )
 
     @staticmethod
-    def get_within_ext(x, y, radius, duration, checkin=None, paid=True, permit=False):
-        """
-        Retrieve the nearest slots and all properties within ``radius`` meters of a
-        given location (x, y).
-
-        Apply restrictions before sending the response
-        """
-        checkin = checkin or datetime.datetime.now()
-        duration = duration or 0.5
-
-        req = """
-        SELECT 1 FROM cities
-        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
-        """.format(x=x, y=y)
-        if not db.engine.execute(req).first():
-            return False
-
-        req = """
-        SELECT {properties} FROM slots
-        WHERE
-            ST_Dwithin(
-                st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                geom,
-                {radius}
-            )
-        """.format(
-            properties=','.join(properties),
-            x=x,
-            y=y,
-            radius=radius
-        )
-
-        features = db.engine.execute(req).fetchall()
-
-        return filter(
-            lambda x: not on_restriction(x.rules, checkin, duration, paid, permit),
-            features
-        )
-
-    @staticmethod
     def get_boundbox(
             nelat, nelng, swlat, swlng, properties, checkin=None, duration=0.25, type=None,
             permit=False, invert=False):
