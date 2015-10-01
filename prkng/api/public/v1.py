@@ -245,6 +245,13 @@ slot_parser.add_argument(
     default=False,
     help='Filter automatically by carsharing rules'
 )
+slot_parser.add_argument(
+    'compact',
+    type=str,
+    location='args',
+    default=False,
+    help='Return only IDs and geometries for slots'
+)
 
 
 @ns.route('/slots', endpoint='slots_v1')
@@ -266,16 +273,27 @@ class SlotsResource(Resource):
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
             args["longitude"], args["radius"])
 
-        res = Slots.get_within(
-            args['longitude'],
-            args['latitude'],
-            args['radius'],
-            24.0 if args['carsharing'] else args['duration'],
-            slot_props,
-            args['checkin'],
-            not args['carsharing'],
-            'all' if args['carsharing'] else False
-        )
+        if args.get('compact', False):
+            res = Slots.get_within(
+                args['longitude'],
+                args['latitude'],
+                args['radius'],
+                24.0 if args['carsharing'] else args['duration'],
+                args['checkin'],
+                not args['carsharing'],
+                'all' if args['carsharing'] else False
+            )
+        else:
+            res = Slots.get_within_ext(
+                args['longitude'],
+                args['latitude'],
+                args['radius'],
+                24.0 if args['carsharing'] else args['duration'],
+                slot_props,
+                args['checkin'],
+                not args['carsharing'],
+                'all' if args['carsharing'] else False
+            )
         if res == False:
             api.abort(404, "no feature found")
 
@@ -283,10 +301,10 @@ class SlotsResource(Resource):
             Feature(
                 id=feat[0],
                 geometry=feat[1],
-                properties={
+                properties=({
                     field: feat[num]
                     for num, field in enumerate(slot_props[2:], start=2)
-                }
+                } if not args.get('compact') else {"compact": True})
             )
             for feat in res
         ]), 200
