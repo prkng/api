@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(x, y, radius, duration, checkin=None, paid=True, permit=False):
+    def get_within(x, y, radius, duration, properties, checkin=None, paid=True, permit=False):
         """
         Retrieve the nearest slots (geometry and ID) within ``radius`` meters of a
         given location (x, y).
@@ -24,7 +24,7 @@ class Slots(object):
             return False
 
         req = """
-        SELECT id, geojson FROM slots
+        SELECT {properties} FROM slots
         WHERE
             ST_Dwithin(
                 st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -32,6 +32,7 @@ class Slots(object):
                 {radius}
             )
         """.format(
+            properties=','.join(properties),
             x=x,
             y=y,
             radius=radius
