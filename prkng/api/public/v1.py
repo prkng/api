@@ -245,6 +245,13 @@ slot_parser.add_argument(
     default=False,
     help='Filter automatically by carsharing rules'
 )
+slot_parser.add_argument(
+    'compact',
+    type=str,
+    location='args',
+    default=False,
+    help='Return only IDs, types and geometries for slots'
+)
 
 
 @ns.route('/slots', endpoint='slots_v1')
@@ -281,12 +288,16 @@ class SlotsResource(Resource):
 
         return FeatureCollection([
             Feature(
-                id=feat[0],
-                geometry=feat[1],
-                properties={
-                    field: feat[num]
-                    for num, field in enumerate(slot_props[2:], start=2)
-                }
+                id=feat['id'],
+                geometry=feat['geojson'],
+                properties=({
+                    "button_locations": feat["button_locations"],
+                    "restrict_typ": feat["restrict_typ"],
+                    "compact": True
+                } if args.get('compact') else {
+                    field: feat[field]
+                    for field in props
+                })
             )
             for feat in res
         ]), 200

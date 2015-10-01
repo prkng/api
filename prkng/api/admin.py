@@ -193,8 +193,9 @@ def get_slots():
     if res == False:
         return jsonify(status="no feature found"), 404
 
+    props = ["id", "geojson", "button_locations", "restrict_typ"]
     slots = [
-        {key: value for key, value in row.items()}
+        {field: row[field] for field in props}
         for row in res
     ]
 

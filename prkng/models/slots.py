@@ -1,5 +1,5 @@
 from prkng.database import db
-from prkng.processing.filters import on_restriction
+from prkng.processing.filters import assign_type, on_restriction
 
 import datetime
 
@@ -39,11 +39,10 @@ class Slots(object):
         )
 
         features = db.engine.execute(req).fetchall()
-
-        return filter(
-            lambda x: not on_restriction(x.rules, checkin, duration, paid, permit),
+        features = filter(lambda x: not on_restriction(x.rules, checkin, duration, paid, permit),
             features
         )
+        return map(lambda x: assign_type(dict(x), checkin), features)
 
     @staticmethod
     def get_boundbox(
@@ -90,7 +89,7 @@ class Slots(object):
         elif type == 3:
             slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
 
-        return slots
+        return map(lambda x: assign_type(dict(x), checkin), slots)
 
     @staticmethod
     def get_byid(sid, properties):
