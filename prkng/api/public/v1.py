@@ -295,8 +295,9 @@ class SlotsResource(Resource):
                     "restrict_typ": feat["restrict_typ"],
                     "compact": True
                 } if args.get('compact') else {
-                    field: feat[field]
-                    for field in props
+                    "button_locations": feat["button_locations"],
+                    "rules": feat["rules"],
+                    "way_name": feat["way_name"]
                 })
             )
             for feat in res
