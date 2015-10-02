@@ -128,8 +128,8 @@ class SlotsResource(Resource):
 
         return FeatureCollection([
             Feature(
-                id=feat[0],
-                geometry=feat[1],
+                id=feat['id'],
+                geometry=feat['geojson'],
                 properties={
                     "button_locations": feat["button_locations"],
                     "rules": feat["rules"],
