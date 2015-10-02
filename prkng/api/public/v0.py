@@ -131,8 +131,9 @@ class SlotsResource(Resource):
                 id=feat[0],
                 geometry=feat[1],
                 properties={
-                    field: feat[num]
-                    for num, field in enumerate(slot_props[2:], start=2)
+                    "button_locations": feat["button_locations"],
+                    "rules": feat["rules"],
+                    "way_name": feat["way_name"]
                 }
             )
             for feat in res
