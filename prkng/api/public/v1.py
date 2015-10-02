@@ -24,6 +24,20 @@ slot_props = (
     'way_name'
 )
 
+nrm_props = lambda x: {
+    "button_locations": x["button_locations"],
+    "rules": x["rules"],
+    "way_name": x["way_name"],
+    "compact": False
+}
+
+cpt_props = lambda x: {
+    "button_locations": x["button_locations"],
+    "restrict_typ": x["restrict_typ"],
+    "way_name": x["way_name"],
+    "compact": True
+}
+
 
 # define header parser for the API key
 api_key_parser = api.parser()
@@ -290,15 +304,7 @@ class SlotsResource(Resource):
             Feature(
                 id=feat['id'],
                 geometry=feat['geojson'],
-                properties=({
-                    "button_locations": feat["button_locations"],
-                    "restrict_typ": feat["restrict_typ"],
-                    "compact": True
-                } if args.get('compact') else {
-                    "button_locations": feat["button_locations"],
-                    "rules": feat["rules"],
-                    "way_name": feat["way_name"]
-                })
+                properties=cpt_props(feat) if args.get('compact') else nrm_props(feat)
             )
             for feat in res
         ]), 200
