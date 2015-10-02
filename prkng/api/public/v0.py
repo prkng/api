@@ -131,7 +131,7 @@ class SlotsResource(Resource):
                 id=feat['id'],
                 geometry=feat['geojson'],
                 properties={
-                    "button_locations": feat["button_locations"],
+                    "button_location": feat["button_location"],
                     "rules": feat["rules"],
                     "way_name": feat["way_name"]
                 }
