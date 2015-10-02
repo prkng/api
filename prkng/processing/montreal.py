@@ -17,14 +17,6 @@ CREATE TABLE montreal_sign (
 )
 """
 
-create_paid_temp = """
-DROP TABLE IF EXISTS montreal_paid_temp;
-CREATE TABLE montreal_paid_temp (
-    id serial PRIMARY KEY
-    , signposts integer[]
-)
-"""
-
 # insert montreal signs with associated postsigns
 # only treat fleche_pan 0, 2, 3 for direction
 # don't know what others mean
@@ -153,7 +145,6 @@ SELECT
     , geom
 FROM tmp
 WHERE rank = 1
-
 """
 
 # project signposts on road and
@@ -375,48 +366,48 @@ FROM selection
 
 overlay_paid_rules = """
 WITH tmp AS (
-  SELECT
-      DISTINCT ON (s.id) s.id,
-      jsonb_array_elements(rules) AS rules_array,
-      CASE
-        WHEN mpzt.name LIKE '%Zone 1%' THEN 3.00
-        WHEN mpzt.name LIKE '%Zone 2%' THEN 2.50
-        WHEN mpzt.name LIKE '%Zone 3%' THEN 2.00
-        WHEN mpzt.name LIKE '%Zone 4%' THEN 1.50
-        ELSE 1.00
-      END AS zone_rate
-    FROM montreal_slots_temp s
-    JOIN cities ct ON ST_Intersects(s.geom, ct.geom) AND ct.name = 'montreal'
-    LEFT JOIN montreal_paid_zones mpzt ON ST_Contains(mpzt.geom, s.geom)
-    JOIN montreal_paid_temp mpt ON s.signposts = mpt.signposts
-    GROUP BY s.id, mpzt.name
-), tmp_rules AS (
-  SELECT
-    id, array_agg(rules_array) AS rules
-  FROM tmp
-  GROUP BY id
+    SELECT DISTINCT ON (foo.id)
+        b.gid AS id,
+        (b.rate / 100) AS rate,
+        string_to_array(b.rules, ', ') AS rules,
+        foo.id AS slot_id,
+        foo.way_name,
+        array_agg(foo.rules) AS orig_rules
+    FROM montreal_bornes b, montreal_roads_geobase r,
+        (
+            SELECT id, rid, way_name, geom, jsonb_array_elements(rules) AS rules
+            FROM montreal_slots_temp
+            GROUP BY id
+        ) foo
+    WHERE r.id_trc = b.geobase_id
+        AND r.id = foo.rid
+        AND ST_DWithin(foo.geom, b.geom, 12)
+    GROUP BY b.gid, b.geom, b.rate, b.rules, foo.id, foo.geom, foo.way_name
+    ORDER BY foo.id, ST_Distance(foo.geom, b.geom)
+), new_slots AS (
+    SELECT t.slot_id, array_to_json(array_cat(t.orig_rules, array_agg(
+        distinct json_build_object(
+            'code', r.code,
+            'description', r.description,
+            'address', t.way_name,
+            'season_start', r.season_start,
+            'season_end', r.season_end,
+            'agenda', r.agenda,
+            'time_max_parking', r.time_max_parking,
+            'special_days', r.special_days,
+            'restrict_typ', r.restrict_typ,
+            'paid_hourly_rate', t.rate
+        )::jsonb)
+    ))::jsonb AS rules
+    FROM tmp t
+    JOIN rules r ON r.code = ANY(t.rules)
+    WHERE r.code NOT LIKE '%%MTLPAID-M%%'
+    GROUP BY t.slot_id, t.orig_rules
 )
 UPDATE montreal_slots_temp s
-  SET rules = array_to_json(
-    array_append(
-      r.rules,
-      json_build_object(
-          'code', z.code,
-          'description', z.description,
-          'address', s.way_name,
-          'season_start', z.season_start,
-          'season_end', z.season_end,
-          'agenda', z.agenda,
-          'time_max_parking', z.time_max_parking,
-          'special_days', z.special_days,
-          'restrict_typ', z.restrict_typ,
-          'paid_hourly_rate', g.zone_rate
-      )::jsonb)
-    )::jsonb
-  FROM tmp g, tmp_rules r, rules z
-  WHERE s.id = g.id
-    AND r.id = g.id
-    AND z.code = 'MTLPAID'
+SET rules = n.rules
+FROM new_slots n
+WHERE n.slot_id = s.id
 """
 
 create_slots_for_debug = """

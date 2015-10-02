@@ -1,6 +1,7 @@
 from prkng.api import auth_required, create_token
 from prkng.analytics import Analytics
-from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots
+from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, User
+from prkng.notifications import schedule_notifications
 
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
 from geojson import Feature, FeatureCollection
@@ -192,12 +193,27 @@ def get_slots():
     if res == False:
         return jsonify(status="no feature found"), 404
 
+    props = ["id", "geojson", "button_locations", "restrict_typ"]
     slots = [
-        {key: value for key, value in row.items()}
+        {field: row[field] for field in props}
         for row in res
     ]
 
     return jsonify(slots=slots), 200
+
+
+@admin.route('/api/slots/<int:id>')
+@auth_required()
+def get_slot(id):
+    """
+    Returns data on a specific slot
+    """
+    res = Slots.get_byid(id, slot_props)
+    if not res:
+        return jsonify(status="feature not found"), 404
+
+    slot = {field: res[0][num] for num, field in enumerate(slot_props)}
+    return jsonify(slot=slot), 200
 
 
 @admin.route('/api/lots')
@@ -254,3 +270,23 @@ def get_heatmap():
     """
     usage = Analytics.get_map_usage(request.args.get('hours', 24))
     return jsonify(heatmap=usage), 200
+
+
+@admin.route('/api/notification', methods=['POST'])
+@auth_required()
+def send_apns():
+    """
+    Send push notifications by user ID
+    """
+    device_ids = {"ios": [], "android": []}
+    data = request.get_json()
+    if data["user_ids"]:
+        for x in data["user_ids"]:
+            u = User.get(x)
+            if u and u.device_id:
+                device_ids[u.device_type].append(u.device_id)
+        schedule_notifications("ios", device_ids["ios"], data.get('text'))
+        schedule_notifications("android", device_ids["android"], data.get('text'))
+        return jsonify(device_ids=device_ids), 200
+    else:
+        return "No user IDs supplied", 400

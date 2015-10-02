@@ -128,11 +128,12 @@ class SlotsResource(Resource):
 
         return FeatureCollection([
             Feature(
-                id=feat[0],
-                geometry=feat[1],
+                id=feat['id'],
+                geometry=feat['geojson'],
                 properties={
-                    field: feat[num]
-                    for num, field in enumerate(slot_props[2:], start=2)
+                    "button_location": feat["button_location"],
+                    "rules": feat["rules"],
+                    "way_name": feat["way_name"]
                 }
             )
             for feat in res
@@ -305,7 +306,7 @@ class Checkin(Resource):
         Deactivate an existing checkin
         """
         args = delete_checkin_parser.parse_args()
-        Checkins.delete(g.user.id, args['checkin_id'])
+        Checkins.remove(g.user.id, args['checkin_id'])
         return "Resource deleted", 204
 
 

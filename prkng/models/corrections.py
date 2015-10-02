@@ -1,6 +1,8 @@
 from prkng.database import db
 from prkng.processing.common import process_corrected_rules, process_corrections
 
+from sqlalchemy import text
+
 
 class Corrections(object):
     @staticmethod
@@ -9,26 +11,27 @@ class Corrections(object):
             time_max_parking, agenda, special_days, restrict_typ):
         # get signposts by slot ID
         res = db.engine.execute("""
-            SELECT signposts FROM slots WHERE city = '{city}' AND id = {id}
+            SELECT address, signposts FROM slots WHERE city = '{city}' AND id = {id}
         """.format(city=city, id=slot_id)).first()
         if not res:
             return False
-        signposts = res[0]
 
         # map correction to signposts and save
         res = db.engine.execute(
             """
             INSERT INTO corrections
-                (initials, signposts, code, city, description, season_start, season_end,
+                (initials, address, signposts, code, city, description, season_start, season_end,
                     time_max_parking, agenda, special_days, restrict_typ)
-            SELECT '{initials}', ARRAY{signposts}, '{code}', '{city}', '{description}',
-                '{season_start}', '{season_end}', {time_max_parking}, '{agenda}'::jsonb,
-                '{special_days}', '{restrict_typ}'
+            SELECT '{initials}', '{address}', ARRAY{signposts}, '{code}', '{city}', '{description}',
+                {season_start}, {season_end}, {time_max_parking}, '{agenda}'::jsonb,
+                {special_days}, {restrict_typ}
             RETURNING *
-            """.format(initials=initials, signposts=signposts, code=code, city=city,
-                description=description, season_start=season_start,
-                season_end=season_end, time_max_parking=time_max_parking,
-                agenda=agenda, special_days=special_days, restrict_typ=restrict_typ)
+            """.format(initials=initials, address=res[0], signposts=res[1], code=code, city=city,
+                description=description, season_start="'"+season_start+"'" if season_start else "NULL",
+                season_end="'"+season_end+"'" if season_end else "NULL",
+                time_max_parking=time_max_parking or "NULL", agenda=agenda,
+                special_days="'"+special_days+"'" if special_days else "NULL",
+                restrict_typ="'"+restrict_typ+"'" if restrict_typ else "NULL")
         ).first()
         return {key: value for key, value in res.items()}
 
@@ -52,10 +55,10 @@ class Corrections(object):
                 slots s,
                 jsonb_array_elements(s.rules) codes
             WHERE c.id = {id}
-              AND s.city = '{city}'
+              AND s.city = c.city
               AND s.signposts = c.signposts
             GROUP BY c.id, s.id
-        """.format(id=id, city=city)).first()
+        """.format(id=id)).first()
         if not res:
             return False
 

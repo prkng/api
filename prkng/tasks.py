@@ -1,4 +1,4 @@
-from prkng import create_app
+from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
 import datetime
@@ -20,23 +20,59 @@ def init_tasks(debug=True):
     if not debug:
         scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
         scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
+        scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.time(8)),
             func=run_backup, args=["prkng", "prkng"], interval=86400, result_ttl=172800, repeat=None)
+        scheduler.schedule(scheduled_time=now, func=clear_expired_apple_device_ids, interval=86400,
+            result_ttl=172800, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():
         scheduler.cancel(x)
 
 def run_backup(username, database):
+    backup_dir = os.path.join(os.path.dirname(os.environ["PRKNG_SETTINGS"]), 'backup')
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-    if not os.path.exists("/backup"):
-        os.mkdir("/backup")
-    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join("/backup", file_name),
+    if not os.path.exists(backup_dir):
+        os.mkdir(backup_dir)
+    check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name),
         PG_USERNAME=username, PG_DATABASE=database),
         shell=True)
-    return os.path.join("/backup", file_name)
+    return os.path.join(backup_dir, file_name)
+
+def send_notifications():
+    r = Redis(db=1)
+    data = r.lrange('prkng:pushnotif', 0, -1)
+    r.delete('prkng:pushnotif')
+
+    for x in data:
+        x = json.loads(x)
+        if x["device_type"] == "ios":
+            notifications.send_apple_notification(x["device_id"], x["text"])
+
+def clear_expired_apple_device_ids():
+    """
+    Task to check for failed notification delivery attempts due to unregistered iOS device IDs.
+    Purge these device IDs from our users.
+    """
+    queries = []
+    for (device_id, fail_time) in notifications.get_apple_notification_failures():
+        queries.append("""
+            UPDATE users SET device_id = NULL
+            WHERE device_id = '{device_id}'
+                AND last_hello < '{dtime}'
+        """.format(device_id=device_id, dtime=fail_time.isoformat()))
+    if queries:
+        CONFIG = create_app().config
+        db = PostgresWrapper(
+            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+        db.queries(queries)
 
 def update_car2go():
+    """
+    Task to check with the car2go API, find moved cars and update their positions/slots
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
@@ -116,6 +152,9 @@ def update_car2go():
 
 
 def update_free_spaces():
+    """
+    Task to check recently departed car2go spaces and record
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
@@ -136,6 +175,9 @@ def update_free_spaces():
 
 
 def update_analytics():
+    """
+    Task to push analytics submissions from Redis to DB
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "

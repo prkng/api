@@ -2,6 +2,7 @@ from prkng.database import db, metadata
 from prkng.utils import random_string
 
 import boto.ses
+import datetime
 from flask import current_app
 from flask.ext.login import UserMixin
 from itsdangerous import JSONWebSignatureSerializer
@@ -26,6 +27,10 @@ user_table = Table(
     Column('gender', String(10)),
     Column('email', String(60), index=True, unique=True, nullable=False),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
+    Column('device_type', String, nullable=True),
+    Column('device_id', String, nullable=True),
+    Column('lang', String, nullable=True),
+    Column('last_hello', DateTime, server_default=text('NOW()'), nullable=True),
     Column('apikey', String),
     Column('image_url', String)
 )
@@ -86,6 +91,21 @@ class User(UserMixin):
         self.gender = gender or self.gender
         self.image_url = image_url or self.image_url
 
+    def hello(self, device_type, device_id, lang):
+        """
+        Update profile information with app hello data
+        """
+        now = datetime.datetime.now()
+        db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
+            .values(device_type=device_type or None, device_id=device_id or None,
+                    lang=lang or None, last_hello=now
+            )
+        )
+        self.device_type = device_type or None
+        self.device_id = device_id or None
+        self.lang = lang or None
+        self.last_hello = now
+
     @property
     def json(self):
         vals = {
@@ -93,6 +113,8 @@ class User(UserMixin):
         }
         # since datetime is not JSON serializable
         vals['created'] = self.created.strftime("%Y-%m-%dT%H:%M:%SZ")
+        if vals.get('last_hello'):
+            vals['last_hello'] = self.last_hello.strftime("%Y-%m-%dT%H:%M:%SZ")
         return vals
 
     @staticmethod
@@ -191,7 +213,7 @@ class UserAuth(object):
     @staticmethod
     def update_password(auth_id, password, reset_code=None):
         if reset_code:
-            u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().fetchone()
+            u = userauth_table.select(userauth_table.c.auth_id == auth_id).execute().first()
             if not u or reset_code != u["reset_code"]:
                 return False
         crypt_pass = pbkdf2_sha256.encrypt(password, rounds=200, salt_size=16)

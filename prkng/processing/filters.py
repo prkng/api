@@ -109,6 +109,62 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
     return False
 
 
+def assign_type(slot, checkin):
+    slot['restrict_typ'] = None
+
+    if not [(x.get("metered") or x["restrict_typ"] == "paid") for x in slot['rules']]:
+        # simple, the slot has no paid rules
+        # give it back as-is
+        return feature
+
+    checkin = parse_datetime(checkin) if checkin else datetime.now()
+    month = checkin.date().month  # month as number
+    isodow = checkin.isoweekday()  # 1->7
+    year = checkin.year  # 2015
+    day = checkin.strftime('%d')  # 07
+
+    for rule in [x for x in slot['rules'] if (x.get("metered") or x["restrict_typ"] == "paid")]:
+        # first test season day/month
+        start_month, start_day = ('-' or rule['season_start']).split('-')
+        end_month, end_day = ('-' or rule['season_end']).split('-')
+        season_match = season_matching(
+            start_day,
+            start_month,
+            end_day,
+            end_month,
+            day,
+            month
+        )
+
+        if not season_match:
+            # not concerned, going to the next rule
+            continue
+
+        # extract time range for each day and test overlapping with checkin + duration
+        # start at current day and slice over days
+        iterto = chain(range(1, 8)[isodow-1:], range(1, 8)[:isodow-1])
+
+        for absoluteday, numday in enumerate(iterto):
+            tsranges = rule['agenda'][str(numday)]
+            for start, stop in filter(bool, tsranges):
+                try:
+                    start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
+                        + timedelta(days=absoluteday)
+                    #  hack to avoid ValueError: hour must be in 0..23
+                    stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
+                        + timedelta(days=absoluteday, hours=1)
+                except TypeError:
+                    raise Exception("Data integrity error on {}, please review rules".format(rule['code']))
+                except Exception, e:
+                    raise Exception("Exception occurred on {} :  {}".format(rule['code'], str(e)))
+
+                if start_time < checkin and stop_time > checkin:
+                    # we are in the period, say we're paid and get out
+                    slot['restrict_typ'] = "paid"
+                    return slot
+    return slot
+
+
 def season_matching(start_day, start_month, end_day, end_month,
                     day, month):
     if not start_month:

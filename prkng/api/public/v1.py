@@ -24,6 +24,20 @@ slot_props = (
     'way_name'
 )
 
+nrm_props = lambda x: {
+    "button_locations": x["button_locations"],
+    "rules": x["rules"],
+    "way_name": x["way_name"],
+    "compact": False
+}
+
+cpt_props = lambda x: {
+    "button_locations": x["button_locations"],
+    "restrict_typ": x["restrict_typ"],
+    "way_name": x["way_name"],
+    "compact": True
+}
+
 
 # define header parser for the API key
 api_key_parser = api.parser()
@@ -175,6 +189,33 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
     'features': api.as_list(fields.Nested(slots_fields))
 })
 
+
+@ns.route('/slots/<string:id>', endpoint='slot_v1')
+class SlotResource(Resource):
+    @api.marshal_list_with(slots_fields)
+    @api.doc(
+        params={'id': 'slot id'},
+        responses={404: "feature not found"}
+    )
+    def get(self, id):
+        """
+        Returns the parking slot corresponding to the id
+        """
+        res = Slots.get_byid(id, slot_props)
+        if not res:
+            api.abort(404, "feature not found")
+
+        res = res[0]
+        return Feature(
+            id=res[0],
+            geometry=res[1],
+            properties={
+                field: res[num]
+                for num, field in enumerate(slot_props[2:], start=2)
+            }
+        ), 200
+
+
 slot_parser = copy.deepcopy(api_key_parser)
 slot_parser.add_argument(
     'radius',
@@ -218,6 +259,13 @@ slot_parser.add_argument(
     default=False,
     help='Filter automatically by carsharing rules'
 )
+slot_parser.add_argument(
+    'compact',
+    type=str,
+    location='args',
+    default=False,
+    help='Return only IDs, types and geometries for slots'
+)
 
 
 @ns.route('/slots', endpoint='slots_v1')
@@ -257,12 +305,9 @@ class SlotsResource(Resource):
 
         return FeatureCollection([
             Feature(
-                id=feat[0],
-                geometry=feat[1],
-                properties={
-                    field: feat[num]
-                    for num, field in enumerate(slot_props[2:], start=2)
-                }
+                id=feat['id'],
+                geometry=feat['geojson'],
+                properties=cpt_props(feat) if args.get('compact') else nrm_props(feat)
             )
             for feat in res
         ]), 200
@@ -371,7 +416,7 @@ class Login(Resource):
             return "Authorization required", 401
         if args.get("type") == "facebook":
             return facebook_signin(args['access_token'])
-        elif args.get("type") == "facebook":
+        elif args.get("type") == "google":
             return google_signin(args['access_token'])
         else:
             return email_signin(args['email'], args['password'])
@@ -454,10 +499,10 @@ get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
 checkin_model = api.model('Checkin', {
-    'created': fields.String(),
+    'checkin_time': fields.String(),
+    'checkout_time': fields.String(),
     'long': fields.String(),
     'lat': fields.String(),
-    'way_name': fields.String(),
     'city': fields.String(),
     'slot_id': fields.String(),
     'id': fields.String(),
@@ -489,10 +534,9 @@ class CheckinList(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        ok = Checkins.add(g.user.id, args['city'], args['slot_id'])
-        if not ok:
+        res = Checkins.add(g.user.id, args['city'], args['slot_id'])
+        if not res:
             api.abort(404, "No slot existing with this id")
-        res = Checkins.get(g.user.id)
         return res, 201
 
 
@@ -506,7 +550,7 @@ class Checkin(Resource):
         """
         Deactivate an existing checkin
         """
-        Checkins.delete(g.user.id, id)
+        Checkins.remove(g.user.id, id)
         return "Resource deleted", 204
 
 
@@ -641,6 +685,40 @@ class Event(Resource):
     def post(self):
         """Send analytics event data"""
         args = event_parser.parse_args()
-        Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
-            args["event"])
+
+        # buffer map displacement analytics and feature selection
+        # enter geofence arrival/departure data directly into database
+        if "fence" in args["event"]:
+            Analytics.add_event(g.user.id, args.get("latitude"), args.get("longitude"),
+                args["event"])
+        else:
+            Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
+                args["event"])
+
+        # FIXME when we migrate to 1.3
+        # checkout of the last spot and add departure time
+        if args["event"] == "fence_response_yes":
+            Checkins.remove(g.user.id, left=True)
+
         return "Resource created", 201
+
+
+hello_parser = copy.deepcopy(api_key_parser)
+hello_parser.add_argument(
+    'device_type', type=str, required=True, help='Either `ios` or `android`', location='form')
+hello_parser.add_argument(
+    'device_id', type=str, required=True, help='Device ID', location='form')
+hello_parser.add_argument(
+    'lang', type=str, required=True, help='User\'s preferred language (`en`, `fr`)', location='form')
+
+@ns.route('/hello', endpoint='hello_v1')
+class Hello(Resource):
+    @api.secure
+    @api.doc(parser=hello_parser,
+        responses={200: "Hello there!"})
+    def post(self):
+        """Send analytics event data"""
+        args = hello_parser.parse_args()
+        u = User.get(g.user.id)
+        u.hello(args.get('device_type'), args.get('device_id'), args.get('lang'))
+        return "Hello there!", 200

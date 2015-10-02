@@ -196,12 +196,15 @@ def process_montreal():
     db.create_index('montreal_nextpoints', 'id')
     db.create_index('montreal_nextpoints', 'slot_id')
     db.create_index('montreal_nextpoints', 'direction')
-    db.vacuum_analyze('public', 'nextpoints')
+    db.vacuum_analyze('public', 'montreal_nextpoints')
 
-    db.query(mrl.insert_slots_temp.format(offset=LINE_OFFSET))
     db.create_index('montreal_slots_temp', 'id')
     db.create_index('montreal_slots_temp', 'geom', index_type='gist')
     db.create_index('montreal_slots_temp', 'rules', index_type='gin')
+    db.query(mrl.insert_slots_temp.format(offset=LINE_OFFSET))
+
+    info("Creating and overlaying paid slots")
+    db.query(mrl.overlay_paid_rules)
     db.vacuum_analyze('public', 'montreal_slots_temp')
 
     if CONFIG['DEBUG']:
@@ -209,16 +212,6 @@ def process_montreal():
         db.create_index('montreal_slots_debug', 'pkid')
         db.create_index('montreal_slots_debug', 'geom', index_type='gist')
         db.vacuum_analyze('public', 'montreal_slots_debug')
-
-    info("Overlaying paid slots")
-    db.query(mrl.create_paid_temp)
-    db.query("""
-        COPY montreal_paid_temp (signposts)
-        FROM '{}'
-        WITH CSV
-    """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data/paid_montreal.csv')))
-    db.query('ALTER TABLE montreal_paid_temp ALTER COLUMN signposts TYPE integer[] USING signposts::integer[]')
-    db.query(mrl.overlay_paid_rules)
 
 
 def cleanup_table():
@@ -303,8 +296,8 @@ def run(cities=CITIES, osm=False):
     Logger.info("Processing parking lot / garage data")
     db.query(common.create_parking_lots_raw)
     db.query(common.create_parking_lots)
-    insert_raw_lots("lots_stationnement_mtl.csv")
-    insert_raw_lots("lots_vinci.csv")
+    insert_raw_lots("lots_montreal.csv")
+    insert_raw_lots("lots_quebec.csv")
     insert_parking_lots()
     db.create_index('parking_lots', 'id')
     db.create_index('parking_lots', 'geom', index_type='gist')
