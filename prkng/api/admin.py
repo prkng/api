@@ -202,6 +202,20 @@ def get_slots():
     return jsonify(slots=slots), 200
 
 
+@admin.route('/api/slots/<int:id>')
+@auth_required()
+def get_slot(id):
+    """
+    Returns data on a specific slot
+    """
+    res = Slots.get_byid(id, slot_props)
+    if not res:
+        return jsonify(status="feature not found"), 404
+
+    slot = {field: res[0][num] for num, field in enumerate(slot_props)}
+    return jsonify(slot=slot), 200
+
+
 @admin.route('/api/lots')
 @auth_required()
 def get_lots():
