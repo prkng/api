@@ -88,11 +88,10 @@ class Checkins(object):
         # FIXME for 1.3
         # geofence checkouts don't have the checkin ID, so get the last one
         if not checkin_id:
-            checkin_id = checkin_table.select((checkin_table.c.user_id == user_id) & \
-                (checkin_table.c.checkin_time < res["created"]))\
+            checkin_id = checkin_table.select((checkin_table.c.user_id == user_id))\
                 .order_by(desc(checkin_table.c.checkin_time)).execute().first()["id"]
 
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
-            (checkin_table.c.id == checkin_id)).values(active=False,
-            checkout_time=res["created"] if res and left else None))
+            (checkin_table.c.id == checkin_id) & (checkin_table.c.checkin_time < res["created"]))\
+            .values(active=False, checkout_time=res["created"] if res and left else None))
         return True
