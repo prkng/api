@@ -227,7 +227,7 @@ def cleanup_table():
 
     # drop per-city temp tables
     for x in ["slots_likely", "slots_temp", "nextpoints", "paid_temp", "signpost_temp",
-            "paid_slots_raw", "bornes_raw", "bornes_clustered"]
+            "paid_slots_raw", "bornes_raw", "bornes_clustered"]:
         for y in CITIES:
             db.query("DROP TABLE IF EXISTS {}_{}".format(y, x))
 

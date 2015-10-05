@@ -18,12 +18,13 @@ CREATE TABLE montreal_rules_translation (
     dim smallint,
     daily float,
     special_days varchar DEFAULT '',
+    metered smallint,
     restrict_typ varchar DEFAULT '',
     permit_no varchar DEFAULT ''
 );
 
 copy montreal_rules_translation (code,description,season_start,season_end,
     time_max_parking,time_start,time_end,time_duration,lun,mar,mer,jeu,ven,
-    sam,dim,daily,special_days,restrict_typ)
+    sam,dim,daily,special_days,metered,restrict_typ)
 from '{}'
 WITH CSV HEADER DELIMITER ',' ENCODING 'UTF-8';

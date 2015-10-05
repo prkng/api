@@ -16,7 +16,7 @@ import requests
 def timestamp(x):
     return aniso8601.parse_datetime(x).isoformat(str('T'))
 
-def download_progress(url, filename, directory):
+def download_progress(url, filename, directory, ua=False):
     """
     Downloads from ``url`` and shows a simple progress bar
 
@@ -24,7 +24,7 @@ def download_progress(url, filename, directory):
     :param filename: destination filename
     :param directory: destination directory
     """
-    req = requests.get(url, stream=True)
+    req = requests.get(url, headers={'User-Agent': 'Mozilla/5.0'} if ua else {}, stream=True)
 
     resource_size = req.headers.get('content-length')
 

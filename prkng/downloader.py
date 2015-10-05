@@ -12,6 +12,7 @@ Each downloader will :
 """
 from __future__ import print_function, unicode_literals
 
+import csv
 from subprocess import check_call
 from os.path import join, basename, dirname
 from zipfile import ZipFile
@@ -43,7 +44,6 @@ class DataSource(object):
     Base class for datasource
     """
     def __init__(self):
-        self.name = self.__class__.__name__
         self.db = PostgresWrapper(
             "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
             "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
@@ -55,6 +55,7 @@ class Montreal(DataSource):
     """
     def __init__(self):
         super(Montreal, self).__init__()
+        self.name = 'Montréal'
         self.city = 'montreal'
         # ckan API
         self.url_signs = "http://donnees.ville.montreal.qc.ca/api/3/action/package_show?id=stationnement-sur-rue-signalisation-courant"
@@ -221,6 +222,7 @@ class Quebec(DataSource):
     """
     def __init__(self):
         super(Quebec, self).__init__()
+        self.name = 'Quebec City'
         self.city = 'quebec'
         self.url = "http://donnees.ville.quebec.qc.ca/Handler.ashx?id=7&f=SHP"
         self.url_payant = "http://donnees.ville.quebec.qc.ca/Handler.ashx?id=8&f=SHP"
@@ -318,14 +320,18 @@ class NewYork(DataSource):
     """
     def __init__(self):
         super(NewYork, self).__init__()
+        self.name = 'New York'
         self.city = 'newyork'
-        # ckan API
         self.url_signs = "http://a841-dotweb01.nyc.gov/datafeeds/ParkingReg/Parking_Regulation_Shapefile.zip"
         self.url_roads = "https://data.cityofnewyork.us/api/geospatial/exjm-f27b?method=export&format=Shapefile"
+        self.url_snd = "http://www.nyc.gov/html/dcp/download/bytes/snd15c.zip"
+        self.url_loc = "https://data.cityofnewyork.us/download/jpjb-rq49/CSV"
 
     def download(self):
         self.download_signs()
         self.download_roads()
+        self.download_snd()
+        self.download_locations()
 
     def download_roads(self):
         """
@@ -335,7 +341,8 @@ class NewYork(DataSource):
         zipfile = download_progress(
             self.url_roads,
             "nyc_cscl.zip",
-            CONFIG['DOWNLOAD_DIRECTORY']
+            CONFIG['DOWNLOAD_DIRECTORY'],
+            ua=True
         )
 
         Logger.info("Unzipping")
@@ -348,7 +355,7 @@ class NewYork(DataSource):
 
     def download_signs(self):
         """
-        Download signs using CKAN API
+        Download signs
         """
         Logger.info("Downloading New York sign data")
         zipfile = download_progress(
@@ -365,9 +372,41 @@ class NewYork(DataSource):
             ][0])
             zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
 
+    def download_snd(self):
+        """
+        Download Street Name Dictionary
+        """
+        Logger.info("Downloading New York Street Name Dictionary")
+        zipfile = download_progress(
+            self.url_snd,
+            "nyc_snd.zip",
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+
+        Logger.info("Unzipping")
+        with ZipFile(zipfile) as zip:
+            self.snd_file = join(CONFIG['DOWNLOAD_DIRECTORY'], [
+                name for name in zip.namelist()
+                if name.lower().endswith('.txt')
+            ][0])
+            self.snd_csv = join(CONFIG['DOWNLOAD_DIRECTORY'], self.snd_file.split(".txt")[0] + ".csv")
+            zip.extractall(CONFIG['DOWNLOAD_DIRECTORY'])
+
+    def download_locations(self):
+        """
+        Download Street Locations
+        """
+        Logger.info("Downloading New York Street Locations Index")
+        csvfile = download_progress(
+            self.url_loc,
+            "nyc_loc.csv",
+            CONFIG['DOWNLOAD_DIRECTORY']
+        )
+        self.loc_file = join(CONFIG['DOWNLOAD_DIRECTORY'], "nyc_loc.csv")
+
     def load(self):
         """
-        Loads shapefiles into database
+        Loads data into database
         """
         check_call(
             'shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I {filename} newyork_sign | '
@@ -379,20 +418,64 @@ class NewYork(DataSource):
         self.db.vacuum_analyze("public", "newyork_sign")
 
         check_call(
-            'shp2pgsql -d -g geom -s 2263:3857 -W LATIN1 -I {filename} newyork_lines | '
+            'shp2pgsql -d -g geom -s 2263:3857 -W LATIN1 -I {filename} newyork_geobase | '
             'psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}'
             .format(filename=self.road_shapefile, **CONFIG),
             shell=True
         )
-        self.db.vacuum_analyze("public", "newyork_lines")
+        self.db.vacuum_analyze("public", "newyork_geobase")
 
-        # TODO process and import NYC street terms dictionary
+        snd_lines = []
+        with open(self.snd_file, "r") as f:
+            for x in f.readlines():
+                if not x.startswith("1") or x[34:36] != "PF":
+                    continue
+                snd_lines.append([x[1], x[2:34], x[36:43]])
+        with open(self.snd_csv, "wb") as f:
+            csvwriter = csv.writer(f)
+            csvwriter.writerows(snd_lines)
+
+        self.db.query("""
+            DROP TABLE IF EXISTS newyork_snd;
+            CREATE TABLE newyork_snd (
+                id SERIAL PRIMARY KEY,
+                boro smallint,
+                stname_lab varchar,
+                b7sc integer UNIQUE
+            );
+
+            COPY newyork_snd (boro, stname_lab, b7sc) FROM '{}' CSV;
+        """.format(self.snd_csv))
+
+        self.db.query("""
+            DROP TABLE IF EXISTS newyork_roads_locations;
+            CREATE TABLE newyork_roads_locations (
+                id SERIAL PRIMARY KEY,
+                boro varchar,
+                order_no varchar,
+                main_st varchar,
+                from_st varchar,
+                to_st varchar,
+                sos varchar
+            );
+
+            COPY newyork_roads_locations (boro, order_no, main_st, from_st, to_st, sos) FROM '{}' CSV HEADER;
+        """.format(self.loc_file))
 
     def load_rules(self):
         """
         load parking rules translation
         """
-        pass
+        Logger.info("Loading parking rules for {}".format(self.name))
+
+        filename = script("rules_newyork.csv")
+
+        Logger.debug("loading file '%s' with script '%s'" %
+                     (filename, script('quebec_load_rules.sql')))
+
+        with open(script('quebec_load_rules.sql'), 'rb') as infile:
+            self.db.query(infile.read().format(filename))
+            self.db.vacuum_analyze("public", "quebec_rules_translation")
 
     def get_extent(self):
         """
@@ -419,7 +502,7 @@ class OsmLoader(object):
             "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
     def download(self, name, extent):
-        Logger.info("Getting Openstreetmap ways for {}".format(name))
+        Logger.info("Getting OpenStreetMap ways for {}".format(name))
         Logger.debug("https://overpass-api.de/api/interpreter?data=(way({});>;);out;"
                      .format(','.join(map(str, extent))))
         osm_file = download_progress(

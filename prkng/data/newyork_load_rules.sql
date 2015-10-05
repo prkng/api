@@ -1,5 +1,5 @@
-DROP TABLE IF EXISTS quebec_rules_translation;
-CREATE TABLE quebec_rules_translation (
+DROP TABLE IF EXISTS newyork_rules_translation;
+CREATE TABLE newyork_rules_translation (
     id serial,
     code varchar,
     description varchar,
@@ -23,7 +23,7 @@ CREATE TABLE quebec_rules_translation (
     permit_no varchar DEFAULT ''
 );
 
-copy quebec_rules_translation (code,description,season_start,season_end,
+copy newyork_rules_translation (code,description,season_start,season_end,
     time_max_parking,time_start,time_end,time_duration,lun,mar,mer,jeu,ven,
     sam,dim,daily,special_days,metered,restrict_typ,permit_no)
 from '{}'

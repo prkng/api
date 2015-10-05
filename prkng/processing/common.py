@@ -25,6 +25,7 @@ CREATE TABLE rules (
     , time_max_parking float DEFAULT 0.0
     , agenda jsonb
     , special_days varchar DEFAULT ''
+    , metered boolean
     , restrict_typ varchar DEFAULT ''
     , permit_no varchar
 )
@@ -49,6 +50,7 @@ SELECT
     , dim
     , daily
     , special_days
+    , metered
     , restrict_typ
     , permit_no
 FROM {source}
