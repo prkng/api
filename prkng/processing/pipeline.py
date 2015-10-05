@@ -305,6 +305,7 @@ def run():
     insert_raw_lots("quebec", "lots_quebec.csv")
     insert_parking_lots("quebec")
     db.create_index('parking_lots', 'id')
+    db.create_index('parking_lots', 'city')
     db.create_index('parking_lots', 'geom', index_type='gist')
     db.create_index('parking_lots', 'agenda', index_type='gin')
 
