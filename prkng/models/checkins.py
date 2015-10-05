@@ -69,7 +69,8 @@ class Checkins(object):
             SELECT
                 {user_id}, {slot_id},
                 (button_location->>'long')::float,
-                (button_location->>'lat')::float
+                (button_location->>'lat')::float,
+                active = true
             FROM slots WHERE id = {slot_id}
             RETURNING *
         """.format(user_id=user_id, slot_id=slot_id)).first()
