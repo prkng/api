@@ -6,10 +6,11 @@ from __future__ import unicode_literals
 create_sign = """
 DROP TABLE IF EXISTS newyork_sign;
 CREATE TABLE newyork_sign (
-    id integer PRIMARY KEY
+    id serial PRIMARY KEY
+    , sid integer NOT NULL
     , geom geometry(Point, 3857)
     , direction varchar -- direction the rule applies (cardinal/intercardinal)
-    , elevation smallint -- higher is prioritary
+    , elevation integer -- higher is prioritary
     , code varchar -- code of rule
     , description varchar -- description of rule
 )
@@ -19,7 +20,7 @@ CREATE TABLE newyork_sign (
 insert_sign = """
 INSERT INTO newyork_sign
 (
-    id
+    sid
     , geom
     , direction
     , elevation
@@ -27,16 +28,16 @@ INSERT INTO newyork_sign
     , description
 )
 SELECT
-    DISTINCT ON (p.objectid)
+    DISTINCT ON (p.sg_order_n, p.sg_mutcd_c, p.x, p.y)
     p.objectid::int
     , p.geom
     , p.sg_arrow_d
-    , p.sg_seqno_n
+    , p.sg_seqno_n::int
     , p.sg_mutcd_c
     , r.description
-FROM newyork_rawsign p
+FROM newyork_signs_raw p
 JOIN rules r on r.code = p.sg_mutcd_c -- only keep those existing in rules
-ORDER BY p.objectid
+ORDER BY p.sg_order_n, p.sg_mutcd_c, p.x, p.y
 """
 
 # create signpost table
@@ -57,7 +58,7 @@ SELECT
     array_agg(DISTINCT s.id),
     ST_SetSRID(ST_MakePoint(avg(ST_X(s.geom)), avg(ST_Y(s.geom))), 3857)
 FROM newyork_sign s
-JOIN newyork_rawsign p ON p.id = s.id
+JOIN newyork_signs_raw p ON p.objectid = s.sid
 GROUP BY sg_order_n, sr_dist
 """
 
@@ -77,11 +78,12 @@ CREATE TABLE newyork_roads_geobase (
 WITH wsndname AS (
     SELECT
         DISTINCT ON (g.physicalid)
-        g.*,
-        s.stname_lab AS snd_name
+        g.physicalid,
+        g.geom,
+        btrim(s.stname_lab) AS snd_name
     FROM newyork_geobase g
-    JOIN newyork_snd s ON g.b7sc LIKE concat('^PF', g.b7sc, '.*')
-    GROUP BY g.id
+    JOIN newyork_snd s ON g.b7sc::integer = s.b7sc
+    ORDER BY g.physicalid
 ), wordnos AS (
     SELECT
         w1.physicalid,
@@ -90,8 +92,10 @@ WITH wsndname AS (
     JOIN wsndname w1 ON l.main_st = w1.snd_name
     JOIN wsndname w2 ON l.from_st = w2.snd_name
     JOIN wsndname w3 ON l.to_st   = w3.snd_name
+    WHERE ST_DWithin(w1.geom, w2.geom, 0.5)
+        AND ST_DWithin(w1.geom, w3.geom, 0.5)
     GROUP BY w1.physicalid
-), osm AS (
+), osm1 AS (
     SELECT
         o.*
         , m.stname_lab AS geobase_name
@@ -106,37 +110,8 @@ WITH wsndname AS (
     JOIN newyork_geobase m ON o.geom && ST_Expand(m.geom, 10)
     JOIN wordnos w ON m.physicalid = w.physicalid
     WHERE ST_Contains(ST_Buffer(m.geom, 30), o.geom)
-)
-INSERT INTO newyork_roads_geobase
-SELECT
-    id
-    , osm_id
-    , name
-    , geobase_name
-    , order_nos
-    , geom
-FROM osm
-WHERE rank = 1;
-
--- invert buffer comparison to catch more ways
-WITH wsndname AS (
-    SELECT
-        DISTINCT ON (g.physicalid)
-        g.*,
-        s.stname_lab AS snd_name
-    FROM newyork_geobase g
-    JOIN newyork_snd s ON g.b7sc LIKE concat('^PF', g.b7sc, '.*')
-    GROUP BY g.id
-), wordnos AS (
-    SELECT
-        w1.physicalid,
-        array_agg(DISTINCT l.order_no) AS order_nos
-    FROM newyork_roads_locations l
-    JOIN wsndname w1 ON l.main_st = w1.snd_name
-    JOIN wsndname w2 ON l.from_st = w2.snd_name
-    JOIN wsndname w3 ON l.to_st   = w3.snd_name
-    GROUP BY w1.physicalid
-), osm AS (
+), osm2 AS (
+      -- invert buffer comparison to catch more ways
       SELECT
           o.*
           , m.stname_lab AS geobase_name
@@ -148,7 +123,7 @@ WITH wsndname AS (
                 , abs(ST_Length(o.geom) - ST_Length(m.geom)) / greatest(ST_Length(o.geom), ST_Length(m.geom))
             ) AS rank
       FROM roads o
-      LEFT JOIN newyork_roads_geobase orig ON orig.id = o.id
+      LEFT JOIN osm1 orig ON orig.id = o.id AND orig.rank = 1;
       JOIN newyork_geobase m ON o.geom && ST_Expand(m.geom, 10)
       JOIN wordnos w ON m.physicalid = w.physicalid
       WHERE ST_Contains(ST_Buffer(o.geom, 30), m.geom)
@@ -162,7 +137,7 @@ SELECT
     , geobase_name
     , order_nos
     , geom
-FROM osm
+FROM osm1, osm2
 WHERE rank = 1;
 """
 

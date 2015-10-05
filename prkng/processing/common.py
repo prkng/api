@@ -10,6 +10,7 @@ rules_columns = (
     'time_max_parking',
     'agenda',
     'special_days',
+    'metered',
     'restrict_typ',
     'permit_no'
 )

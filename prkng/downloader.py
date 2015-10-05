@@ -409,7 +409,7 @@ class NewYork(DataSource):
         Loads data into database
         """
         check_call(
-            'shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I {filename} newyork_sign | '
+            'shp2pgsql -d -g geom -s 4326:3857 -W LATIN1 -I {filename} newyork_signs_raw | '
             'psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}'
             .format(filename=self.sign_shapefile, **CONFIG),
             shell=True
@@ -430,7 +430,7 @@ class NewYork(DataSource):
             for x in f.readlines():
                 if not x.startswith("1") or x[34:36] != "PF":
                     continue
-                snd_lines.append([x[1], x[2:34], x[36:43]])
+                snd_lines.append([x[1], x[2:34], x[36:44]])
         with open(self.snd_csv, "wb") as f:
             csvwriter = csv.writer(f)
             csvwriter.writerows(snd_lines)
@@ -461,6 +461,7 @@ class NewYork(DataSource):
 
             COPY newyork_roads_locations (boro, order_no, main_st, from_st, to_st, sos) FROM '{}' CSV HEADER;
         """.format(self.loc_file))
+        self.db.create_index("newyork_roads_locations", "main_st")
 
     def load_rules(self):
         """
