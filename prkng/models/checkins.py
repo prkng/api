@@ -8,7 +8,6 @@ checkin_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer, ForeignKey("users.id"), index=True, nullable=False),
-    Column('city', String),
     Column('slot_id', Integer),
     Column('long', Float),
     Column('lat', Float),
@@ -24,11 +23,11 @@ class Checkins(object):
         Get info on the user's current check-in
         """
         res = db.engine.execute("""
-            SELECT c.id, c.city, c.slot_id, s.way_name, c.long, c.lat, c.active,
+            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat, c.active,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
             FROM checkins c
-            JOIN slots s ON c.city = s.city AND c.slot_id = s.id
+            JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
                 AND c.active = true
             ORDER BY c.checkin_time DESC
@@ -41,12 +40,12 @@ class Checkins(object):
     @staticmethod
     def get_all(user_id, limit):
         res = db.engine.execute("""
-            SELECT c.id, c.city, c.slot_id, s.way_name, c.long, c.lat, c.active,
+            SELECT c.id, c.slot_id, s.way_name, c.long, c.lat, c.active,
                 to_char(c.checkin_time, 'YYYY-MM-DD HH24:MI:SS"Z"') AS created,
                 to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
             FROM checkins c
-            JOIN slots s ON c.city = s.city AND c.slot_id = s.id
+            JOIN slots s ON c.slot_id = s.id
             WHERE c.user_id = {uid}
             ORDER BY c.checkin_time DESC
             LIMIT {limit}
@@ -54,10 +53,10 @@ class Checkins(object):
         return [dict(row) for row in res]
 
     @staticmethod
-    def add(user_id, city, slot_id):
+    def add(user_id, slot_id):
         exists = db.engine.execute("""
-            SELECT 1 FROM slots WHERE city = '{city}' AND id = {slot_id}
-        """.format(city=city, slot_id=slot_id)).first()
+            SELECT 1 FROM slots WHERE id = {slot_id}
+        """.format(slot_id=slot_id)).first()
         if not exists:
             return False
 
@@ -66,14 +65,14 @@ class Checkins(object):
             (checkin_table.c.checkout_time == None)).values(active=False))
 
         res = db.engine.execute("""
-            INSERT INTO checkins (user_id, city, slot_id, long, lat, active)
+            INSERT INTO checkins (user_id, slot_id, long, lat, active)
             SELECT
-                {user_id}, '{city}', {slot_id},
+                {user_id}, {slot_id},
                 (button_location->>'long')::float,
                 (button_location->>'lat')::float
-            FROM slots WHERE city = '{city}' AND id = {slot_id}
+            FROM slots WHERE id = {slot_id}
             RETURNING *
-        """.format(city=city, user_id=user_id, slot_id=slot_id)).first()
+        """.format(user_id=user_id, slot_id=slot_id)).first()
         res = dict(res)
         res["checkin_time"] = res["checkin_time"].isoformat()
         res["checkout_time"] = res["checkout_time"].isoformat() if res["checkout_time"] else None
