@@ -418,7 +418,7 @@ class NewYork(DataSource):
         self.db.vacuum_analyze("public", "newyork_sign")
 
         check_call(
-            'shp2pgsql -d -g geom -s 2263:3857 -W LATIN1 -I {filename} newyork_geobase | '
+            'shp2pgsql -d -g geom -t 2D -s 2263:3857 -W LATIN1 -I {filename} newyork_geobase | '
             'psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}'
             .format(filename=self.road_shapefile, **CONFIG),
             shell=True
@@ -428,9 +428,9 @@ class NewYork(DataSource):
         snd_lines = []
         with open(self.snd_file, "r") as f:
             for x in f.readlines():
-                if not x.startswith("1") or x[34:36] != "PF":
+                if not x.startswith("1") or x[50] not in [" ", "H", "M"] or x[34:36] not in ["PF", "VF", "VS"]:
                     continue
-                snd_lines.append([x[1], x[2:34], x[36:44]])
+                snd_lines.append([x[1], x[2:34], x[36:42], x[36:44]])
         with open(self.snd_csv, "wb") as f:
             csvwriter = csv.writer(f)
             csvwriter.writerows(snd_lines)
@@ -441,10 +441,11 @@ class NewYork(DataSource):
                 id SERIAL PRIMARY KEY,
                 boro smallint,
                 stname_lab varchar,
-                b7sc integer UNIQUE
+                b5sc integer,
+                b7sc integer
             );
 
-            COPY newyork_snd (boro, stname_lab, b7sc) FROM '{}' CSV;
+            COPY newyork_snd (boro, stname_lab, b5sc, b7sc) FROM '{}' CSV;
         """.format(self.snd_csv))
 
         self.db.query("""

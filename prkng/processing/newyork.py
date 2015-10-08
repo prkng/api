@@ -45,15 +45,18 @@ create_signpost = """
 DROP TABLE IF EXISTS newyork_signpost;
 CREATE TABLE newyork_signpost (
     id serial PRIMARY KEY
-    , geobase_id varchar
+    , boro varchar
+    , geobase_id integer
+    , order_no varchar
     , signs integer[]
     , geom geometry(Point, 3857)
 );
 """
 
 insert_signpost = """
-INSERT INTO newyork_signpost (geobase_id, signs, geom)
+INSERT INTO newyork_signpost (boro, order_no, signs, geom)
 SELECT
+    min(p.sg_key_bor),
     min(p.sg_order_n),
     array_agg(DISTINCT s.id),
     ST_SetSRID(ST_MakePoint(avg(ST_X(s.geom)), avg(ST_Y(s.geom))), 3857)
@@ -69,63 +72,71 @@ DROP TABLE IF EXISTS newyork_roads_geobase;
 CREATE TABLE newyork_roads_geobase (
     id integer
     , osm_id bigint
+    , boro varchar
     , name varchar
-    , geobase_name varchar
-    , order_nos varchar[]
+    , physicalid integer
     , geom geometry(Linestring, 3857)
 );
 
-WITH wsndname AS (
-    SELECT
-        DISTINCT ON (g.physicalid)
-        g.physicalid,
-        g.geom,
-        btrim(s.stname_lab) AS snd_name
-    FROM newyork_geobase g
-    JOIN newyork_snd s ON g.b7sc::integer = s.b7sc
-    ORDER BY g.physicalid
-), wordnos AS (
-    SELECT
-        w1.physicalid,
-        array_agg(DISTINCT l.order_no) AS order_nos
-    FROM newyork_roads_locations l
-    JOIN wsndname w1 ON l.main_st = w1.snd_name
-    JOIN wsndname w2 ON l.from_st = w2.snd_name
-    JOIN wsndname w3 ON l.to_st   = w3.snd_name
-    WHERE ST_DWithin(w1.geom, w2.geom, 0.5)
-        AND ST_DWithin(w1.geom, w3.geom, 0.5)
-    GROUP BY w1.physicalid
-), osm1 AS (
+WITH tmp AS (
     SELECT
         o.*
-        , m.stname_lab AS geobase_name
-        , w.order_nos
+        , m.b5sc::int
+        , m.physicalid::int
+        , (CASE m.boroughcod::int
+            WHEN 1 THEN 'M' -- Manhattan
+            WHEN 2 THEN 'B' -- The Bronx
+            WHEN 3 THEN 'K' -- Brooklyn
+            WHEN 4 THEN 'Q' -- Queens
+            WHEN 5 THEN 'S' -- Staten Island
+          END) AS boro
         , rank() OVER (
             PARTITION BY o.id ORDER BY
               ST_HausdorffDistance(o.geom, m.geom)
-              , levenshtein(o.name, m.stname_lab)
+              , levenshtein(o.name, btrim(s.stname_lab))
               , abs(ST_Length(o.geom) - ST_Length(m.geom)) / greatest(ST_Length(o.geom), ST_Length(m.geom))
           ) AS rank
     FROM roads o
     JOIN newyork_geobase m ON o.geom && ST_Expand(m.geom, 10)
-    JOIN wordnos w ON m.physicalid = w.physicalid
+    JOIN newyork_snd s ON m.boroughcod::int = s.boro AND m.b7sc::int = s.b7sc
     WHERE ST_Contains(ST_Buffer(m.geom, 30), o.geom)
-), osm2 AS (
-      -- invert buffer comparison to catch more ways
+)
+INSERT INTO newyork_roads_geobase
+SELECT
+    id
+    , osm_id
+    , boro
+    , name
+    , physicalid
+    , b5sc
+    , geom
+FROM tmp
+WHERE rank = 1;
+
+
+-- invert buffer comparison to catch more ways
+WITH tmp AS (
       SELECT
           o.*
-          , m.stname_lab AS geobase_name
-          , w.order_nos
+          , m.b5sc::int
+          , m.physicalid::int
+          , (CASE m.boroughcod::int
+              WHEN 1 THEN 'M' -- Manhattan
+              WHEN 2 THEN 'B' -- The Bronx
+              WHEN 3 THEN 'K' -- Brooklyn
+              WHEN 4 THEN 'Q' -- Queens
+              WHEN 5 THEN 'S' -- Staten Island
+            END) AS boro
           , rank() OVER (
               PARTITION BY o.id ORDER BY
                 ST_HausdorffDistance(o.geom, m.geom)
-                , levenshtein(o.name, m.stname_lab)
+                , levenshtein(o.name, btrim(s.stname_lab))
                 , abs(ST_Length(o.geom) - ST_Length(m.geom)) / greatest(ST_Length(o.geom), ST_Length(m.geom))
             ) AS rank
       FROM roads o
-      LEFT JOIN osm1 orig ON orig.id = o.id AND orig.rank = 1;
+      LEFT JOIN newyork_roads_geobase orig ON orig.id = o.id
       JOIN newyork_geobase m ON o.geom && ST_Expand(m.geom, 10)
-      JOIN wordnos w ON m.physicalid = w.physicalid
+      JOIN newyork_snd s ON m.boroughcod::int = s.boro AND m.b7sc::int = s.b7sc
       WHERE ST_Contains(ST_Buffer(o.geom, 30), m.geom)
         AND orig.id IS NULL
 )
@@ -133,12 +144,38 @@ INSERT INTO newyork_roads_geobase
 SELECT
     id
     , osm_id
+    , boro
     , name
-    , geobase_name
-    , order_nos
+    , physicalid
+    , b5sc
     , geom
-FROM osm1, osm2
+FROM tmp
 WHERE rank = 1;
+"""
+
+match_signposts = """
+WITH wsndname AS (
+    SELECT
+        g.id,
+        g.boro,
+        btrim(s.stname_lab) AS snd_name
+    FROM newyork_roads_geobase g
+    JOIN newyork_snd s ON g.b5sc::int = s.b5sc
+), posts AS (
+    SELECT
+        DISTINCT ON (s.id)
+        s.id AS sid,
+        g.id AS gid
+    FROM newyork_signpost s
+    JOIN newyork_roads_locations l ON s.boro = l.boro AND s.order_no = l.order_no
+    JOIN wsndname x ON btrim(split_part(l.main_st, '*', 1)) = x.snd_name
+    JOIN newyork_roads_geobase g ON x.id = g.id
+    ORDER BY s.id, ST_Distance(g.geom, s.geom)
+)
+UPDATE newyork_signpost s
+SET geobase_id = p.gid
+FROM posts p
+WHERE s.id = p.sid
 """
 
 # project signposts on road and
