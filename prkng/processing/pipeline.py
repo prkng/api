@@ -15,6 +15,7 @@ from prkng.database import PostgresWrapper
 import osm
 import montreal as mrl
 import quebec as qbc
+import newyork as nyc
 import plfunctions
 import common
 from .filters import group_rules
@@ -173,7 +174,7 @@ def process_montreal():
     db.create_index('montreal_signpost_onroad', 'road_id')
     db.create_index('montreal_signpost_onroad', 'isleft')
     db.create_index('montreal_signpost_onroad', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'signpost_onroad')
+    db.vacuum_analyze('public', 'montreal_signpost_onroad')
 
     percent, total = db.query(mrl.count_signpost_projected)[0]
 
@@ -212,6 +213,113 @@ def process_montreal():
         db.create_index('montreal_slots_debug', 'pkid')
         db.create_index('montreal_slots_debug', 'geom', index_type='gist')
         db.vacuum_analyze('public', 'montreal_slots_debug')
+
+
+def process_newyork():
+    """
+    Process New York data
+    """
+    def info(msg):
+        return Logger.info("New York: {}".format(msg))
+
+    def debug(msg):
+        return Logger.debug("New York: {}".format(msg))
+
+    def warning(msg):
+        return Logger.warning("New York: {}".format(msg))
+
+    info('Loading and translating rules')
+    insert_rules('newyork_rules_translation')
+    db.vacuum_analyze('public', 'rules')
+
+    info("Loading signs")
+    db.query(nyc.create_sign)
+    db.query(nyc.insert_sign)
+    db.create_index('newyork_sign', 'direction')
+    db.create_index('newyork_sign', 'code')
+    db.create_index('newyork_sign', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'newyork_sign')
+
+    info("Creating signposts")
+    db.query(nyc.create_signpost)
+    db.query(nyc.insert_signpost)
+    db.create_index('newyork_signpost', 'id')
+    db.create_index('newyork_signpost', 'rid')
+    db.create_index('newyork_signpost', 'signs', index_type='gin')
+    db.create_index('newyork_signpost', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'newyork_signpost')
+
+    info("Matching osm roads with geobase")
+    db.query(nyc.match_roads_geobase)
+    db.create_index('newyork_roads_geobase', 'id')
+    db.create_index('newyork_roads_geobase', 'id_trc')
+    db.create_index('newyork_roads_geobase', 'osm_id')
+    db.create_index('newyork_roads_geobase', 'name')
+    db.create_index('newyork_roads_geobase', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'newyork_roads_geobase')
+
+    info("Match signposts to geobase")
+    db.query(nyc.match_signposts)
+    db.vacuum_analyze('public', 'newyork_signpost')
+
+    info("Add signpost id to signs")
+    db.query(nyc.add_signposts_to_sign)
+    db.vacuum_analyze('public', 'newyork_sign')
+
+    info("Projecting signposts on road")
+    duplicates = db.query(nyc.project_signposts)
+    if duplicates:
+        warning("Duplicates found for projected signposts : {}"
+                .format(str(duplicates)))
+
+    percent, total = db.query(nyc.count_signpost_projected)[0]
+
+    if percent < 100:
+        warning("Only {:.0f}% of signposts have been bound to a road. Total is {}"
+                .format(percent, total))
+        db.query(nyc.generate_signposts_orphans)
+        info("Table 'newyork_signpost_orphans' has been generated to check for orphans")
+
+    info("Creating slots between signposts")
+    db.query(nyc.create_slots_likely)
+    db.query(nyc.insert_slots_likely.format(isleft=1))
+    db.query(nyc.insert_slots_likely.format(isleft=-1))
+    db.create_index('newyork_slots_likely', 'id')
+    db.create_index('newyork_slots_likely', 'signposts', index_type='gin')
+    db.create_index('newyork_slots_likely', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'newyork_slots_likely')
+
+    # Get rid of problem segments FIXME
+    db.query("""
+        with tmp as (
+            select *
+            from (
+                select g.id, count(distinct s.order_no)
+                from newyork_roads_geobase g
+                join newyork_signpost s on s.geobase_id = g.id
+                group by g.id
+            ) foo where count > 2
+        )
+        delete from newyork_slots s using tmp t where t.id = s.rid;
+    """)
+
+    db.query(nyc.create_nextpoints_for_signposts)
+    db.create_index('newyork_nextpoints', 'id')
+    db.create_index('newyork_nextpoints', 'slot_id')
+    db.create_index('newyork_nextpoints', 'direction')
+    db.vacuum_analyze('public', 'newyork_nextpoints')
+
+    db.query(nyc.insert_slots_temp.format(offset=LINE_OFFSET))
+    db.create_index('newyork_slots_temp', 'id')
+    db.create_index('newyork_slots_temp', 'geom', index_type='gist')
+    db.create_index('newyork_slots_temp', 'rules', index_type='gin')
+    db.vacuum_analyze('public', 'newyork_slots_temp')
+
+    if CONFIG['DEBUG']:
+        db.query(nyc.create_slots_for_debug.format(offset=LINE_OFFSET))
+        db.create_index('newyork_slots_debug', 'pkid')
+        db.create_index('newyork_slots_debug', 'geom', index_type='gist')
+        db.vacuum_analyze('public', 'newyork_slots_debug')
 
 
 def cleanup_table():
@@ -289,9 +397,9 @@ def run(cities=CITIES, osm=False):
     db.query(common.create_slots)
 
     for x in cities:
-        db.query(common.create_slots_temp.format(x))
-        db.query(common.create_slots_partition.format(x))
-        db.query(common.create_corrections.format(x))
+        db.query(common.create_slots_temp.format(city=x))
+        db.query(common.create_slots_partition.format(city=x))
+        db.query(common.create_corrections.format(city=x))
 
     Logger.info("Processing parking lot / garage data")
     db.query(common.create_parking_lots_raw)
@@ -311,21 +419,21 @@ def run(cities=CITIES, osm=False):
     Logger.info("Shorten slots that intersect with roads or other slots")
     for x in cities:
         db.query(common.cut_slots_crossing_roads.format(city=x, offset=LINE_OFFSET))
-        db.query(common.cut_slots_crossing_slots.format(x))
+        db.query(common.cut_slots_crossing_slots.format(city=x))
 
     Logger.info("Aggregating like slots")
     for x in cities:
         db.create_index(x+'_slots', 'id')
         db.create_index(x+'_slots', 'geom', index_type='gist')
         db.create_index(x+'_slots', 'rules', index_type='gin')
-        db.query(common.aggregate_like_slots.format(x))
-        db.query(common.create_client_data.format(x))
+        db.query(common.aggregate_like_slots.format(city=x))
+        db.query(common.create_client_data.format(city=x))
         db.vacuum_analyze('public', x+'_slots')
 
     Logger.info("Mapping corrections to new slots")
     for x in cities:
         db.query(common.process_corrected_rules)
-        db.query(common.process_corrections.format(x))
+        db.query(common.process_corrections.format(city=x))
 
     if not CONFIG['DEBUG']:
         cleanup_table()

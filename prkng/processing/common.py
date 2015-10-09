@@ -58,7 +58,7 @@ FROM {source}
 """
 
 create_corrections = """
-CREATE TABLE IF NOT EXISTS {}_corrections
+CREATE TABLE IF NOT EXISTS {city}_corrections
 (
   id serial PRIMARY KEY,
   created timestamp DEFAULT NOW(),
@@ -131,14 +131,14 @@ WITH r AS (
 UPDATE slots s
   SET rules = r.rules
   FROM r
-  WHERE s.city = '{}'
+  WHERE s.city = '{city}'
     AND s.signposts = r.signposts
     AND s.rules <> r.rules
 """
 
 create_slots_temp = """
-DROP TABLE IF EXISTS {}_slots_temp;
-CREATE TABLE {}_slots_temp
+DROP TABLE IF EXISTS {city}_slots_temp;
+CREATE TABLE {city}_slots_temp
 (
   id serial PRIMARY KEY,
   rid integer,
@@ -167,16 +167,16 @@ CREATE TABLE IF NOT EXISTS slots
 """
 
 create_slots_partition = """
-DROP TABLE IF EXISTS {}_slots;
-CREATE TABLE {}_slots (
-    CHECK ( city = '{}' )
+DROP TABLE IF EXISTS {city}_slots;
+CREATE TABLE {city}_slots (
+    CHECK ( city = '{city}' )
 ) INHERITS (slots);
 
-CREATE RULE slots_insert_{} AS
+CREATE RULE slots_insert_{city} AS
     ON INSERT TO slots
-        WHERE ( city = '{}' )
+        WHERE ( city = '{city}' )
     DO INSTEAD
-        INSERT INTO slots_{} VALUES (NEW.*);
+        INSERT INTO {city}_slots VALUES (NEW.*);
 """
 
 create_parking_lots_raw = """
@@ -256,9 +256,9 @@ DECLARE
   slot record;
   id_match integer;
 BEGIN
-  FOR slot IN SELECT * FROM {}_slots_temp ORDER BY rid, position LOOP
+  FOR slot IN SELECT * FROM {city}_slots_temp ORDER BY rid, position LOOP
     SELECT id FROM slots s
-      WHERE slot.city = '{}'
+      WHERE slot.city = '{city}'
         AND slot.rid = s.rid
         AND slot.rules = s.rules
         AND ST_DWithin(slot.geom, s.geom, 0.1)
@@ -266,7 +266,7 @@ BEGIN
 
     IF id_match IS NULL THEN
       INSERT INTO slots (city, rid, signposts, rules, geom, way_name) VALUES
-        ('{}', slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
+        ('{city}', slot.rid, ARRAY[slot.signposts], slot.rules, slot.geom, slot.way_name);
     ELSE
       UPDATE slots SET geom =
         (CASE WHEN ST_DWithin(ST_StartPoint(slot.geom), ST_EndPoint(geom), 0.5)
@@ -274,7 +274,7 @@ BEGIN
             ELSE ST_MakeLine(slot.geom, geom)
         END),
         signposts = (signposts || ARRAY[slot.signposts])
-      WHERE city = '{}' AND slots.id = id_match;
+      WHERE city = '{city}' AND slots.id = id_match;
     END IF;
   END LOOP;
 END;
@@ -282,7 +282,7 @@ $$ language plpgsql;
 """
 
 cut_slots_crossing_slots = """
-UPDATE {}_slots_temp s set geom = (
+UPDATE {city}_slots_temp s set geom = (
 with tmp as (
 select
     array_sort(
@@ -290,7 +290,7 @@ select
             ST_Line_Locate_Point(s.geom, st_intersection(s.geom, o.geom))
         )
     ) as locations
-from {}_slots_temp o
+from {city}_slots_temp o
 where st_crosses(s.geom, o.geom) and s.id != o.id
 and st_geometrytype(st_intersection(s.geom, o.geom)) = 'ST_Point'
 )
@@ -299,7 +299,7 @@ select
 from tmp, get_max_range(tmp.locations) as locs
 )
 where exists (
-    select 1 from {}_slots_temp a
+    select 1 from {city}_slots_temp a
     where st_crosses(s.geom, a.geom)
           and s.id != a.id
           and st_geometrytype(st_intersection(s.geom, a.geom)) = 'ST_Point'
@@ -354,4 +354,5 @@ UPDATE slots SET
         else array_to_json(array[
             json_build_object('long', ST_X(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)),
             'lat', ST_Y(ST_Transform(ST_Line_Interpolate_Point(geom, 0.5), 4326)))])::jsonb end)
+    WHERE city = '{city}'
 """

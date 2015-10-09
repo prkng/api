@@ -9,7 +9,7 @@ CREATE TABLE newyork_sign (
     id serial PRIMARY KEY
     , sid integer NOT NULL
     , geom geometry(Point, 3857)
-    , direction varchar -- direction the rule applies (cardinal/intercardinal)
+    , direction integer -- direction the rule applies (cardinal/intercardinal)
     , elevation integer -- higher is prioritary
     , code varchar -- code of rule
     , description varchar -- description of rule
@@ -22,21 +22,27 @@ INSERT INTO newyork_sign
 (
     sid
     , geom
-    , direction
     , elevation
     , code
     , description
+    , direction
 )
 SELECT
     DISTINCT ON (p.sg_order_n, p.sg_mutcd_c, p.x, p.y)
     p.objectid::int
     , p.geom
-    , p.sg_arrow_d
     , p.sg_seqno_n::int
     , p.sg_mutcd_c
     , r.description
+    , CASE left(l.sos, 1)
+        WHEN 'N' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'E' THEN 1 WHEN 'W' THEN 2 ELSE 0 END)
+        WHEN 'S' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'W' THEN 1 WHEN 'E' THEN 2 ELSE 0 END)
+        WHEN 'E' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'S' THEN 1 WHEN 'N' THEN 2 ELSE 0 END)
+        WHEN 'W' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'N' THEN 1 WHEN 'S' THEN 2 ELSE 0 END)
+      END
 FROM newyork_signs_raw p
-JOIN rules r on r.code = p.sg_mutcd_c -- only keep those existing in rules
+JOIN rules r ON r.code = p.sg_mutcd_c -- only keep those existing in rules
+JOIN newyork_roads_locations l ON p.sg_order_n = l.order_no
 ORDER BY p.sg_order_n, p.sg_mutcd_c, p.x, p.y
 """
 
@@ -75,6 +81,7 @@ CREATE TABLE newyork_roads_geobase (
     , boro varchar
     , name varchar
     , physicalid integer
+    , b5sc integer
     , geom geometry(Linestring, 3857)
 );
 
@@ -189,7 +196,8 @@ CREATE TABLE newyork_signpost_onroad AS
         , ST_ClosestPoint(s.geom, sp.geom)::geometry(point, 3857) AS geom
         , ST_isLeft(s.geom, sp.geom) AS isleft
     FROM newyork_signpost sp
-    JOIN newyork_roads_geobase s ON sp.geobase_id = ANY(s.order_nos)
+    JOIN newyork_roads_geobase s ON sp.geobase_id = s.id
+    WHERE sp.boro = 'K' -- FIXME
     ORDER BY sp.id, ST_Distance(s.geom, sp.geom);
 
 SELECT id FROM newyork_signpost_onroad GROUP BY id HAVING count(*) > 1
@@ -220,6 +228,11 @@ CREATE TABLE newyork_signposts_orphans AS
 FROM tmp t
 JOIN newyork_signpost s USING (id)
 )
+"""
+
+add_signposts_to_sign = """
+UPDATE newyork_sign
+SET signpost = (select distinct id from newyork_signpost where ARRAY[newyork_sign.id] <@ signs)
 """
 
 # create potential slots determined with signposts projected as start and end points
@@ -305,7 +318,7 @@ CREATE TABLE newyork_nextpoints AS (
             , sp.geom as sgeom
         FROM newyork_signpost_onroad spo
         JOIN newyork_signpost sp ON sp.id = spo.id
-        JOIN newyork_slots_likely sl ON ARRAY[spo.id] <@ sl.signposts
+        JOIN newyork_slots_likely sl ON spo.id = ANY(sl.signposts)
     )
     SELECT
         id
@@ -332,7 +345,7 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM newyork_slots_likely sl
-    JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts
+    JOIN newyork_sign s ON s.signpost = ANY(sl.signposts)
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
     JOIN newyork_nextpoints np ON np.slot_id = sl.id AND
                           s.signpost = np.id AND
@@ -349,7 +362,7 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM newyork_slots_likely sl
-    JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts AND direction = 0
+    JOIN newyork_sign s ON s.signpost = ANY(sl.signposts) AND direction = 0
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
     JOIN newyork_roads_geobase rb ON spo.road_id = rb.id
 ), selection AS (
@@ -372,7 +385,7 @@ SELECT
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
             'restrict_typ', r.restrict_typ,
-            'permit_no', z.number
+            'permit_no', (CASE WHEN r.permit_no = '' THEN NULL ELSE r.permit_no END)
         )::jsonb
     ))::jsonb as rules
     , CASE
@@ -383,9 +396,8 @@ SELECT
       END as geom
 FROM tmp t
 JOIN rules r ON t.code = r.code
-LEFT JOIN permit_zones z ON r.restrict_typ = 'permit' AND ST_Intersects(t.geom, z.geom)
 GROUP BY t.id
-) INSERT INTO montreal_slots_temp (rid, position, signposts, rules, geom, way_name)
+) INSERT INTO newyork_slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT
     rid
     , position
@@ -396,55 +408,10 @@ SELECT
 FROM selection
 """
 
-overlay_paid_rules = """
-WITH tmp AS (
-    SELECT DISTINCT ON (foo.id)
-        b.gid AS id,
-        (b.rate / 100) AS rate,
-        string_to_array(b.rules, ', ') AS rules,
-        foo.id AS slot_id,
-        foo.way_name,
-        array_agg(foo.rules) AS orig_rules
-    FROM montreal_bornes b, montreal_roads_geobase r,
-        (
-            SELECT id, rid, way_name, geom, jsonb_array_elements(rules) AS rules
-            FROM montreal_slots_temp
-            GROUP BY id
-        ) foo
-    WHERE r.id_trc = b.geobase_id
-        AND r.id = foo.rid
-        AND ST_DWithin(foo.geom, b.geom, 12)
-    GROUP BY b.gid, b.geom, b.rate, b.rules, foo.id, foo.geom, foo.way_name
-    ORDER BY foo.id, ST_Distance(foo.geom, b.geom)
-), new_slots AS (
-    SELECT t.slot_id, array_to_json(array_cat(t.orig_rules, array_agg(
-        distinct json_build_object(
-            'code', r.code,
-            'description', r.description,
-            'address', t.way_name,
-            'season_start', r.season_start,
-            'season_end', r.season_end,
-            'agenda', r.agenda,
-            'time_max_parking', r.time_max_parking,
-            'special_days', r.special_days,
-            'restrict_typ', r.restrict_typ,
-            'paid_hourly_rate', t.rate
-        )::jsonb)
-    ))::jsonb AS rules
-    FROM tmp t
-    JOIN rules r ON r.code = ANY(t.rules)
-    WHERE r.code NOT LIKE '%%MTLPAID-M%%'
-    GROUP BY t.slot_id, t.orig_rules
-)
-UPDATE montreal_slots_temp s
-SET rules = n.rules
-FROM new_slots n
-WHERE n.slot_id = s.id
-"""
 
 create_slots_for_debug = """
-DROP TABLE IF EXISTS montreal_slots_debug;
-CREATE TABLE montreal_slots_debug as
+DROP TABLE IF EXISTS newyork_slots_debug;
+CREATE TABLE newyork_slots_debug as
 (
     WITH tmp as (
     -- select north and south from signpost
@@ -455,13 +422,13 @@ CREATE TABLE montreal_slots_debug as
         , s.direction
         , spo.isleft
         , rb.name
-    FROM montreal_slots_likely sl
-    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts
-    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
-    JOIN montreal_nextpoints np on np.slot_id = sl.id AND
+    FROM newyork_slots_likely sl
+    JOIN newyork_sign s on ARRAY[s.signpost] <@ sl.signposts
+    JOIN newyork_signpost_onroad spo on s.signpost = spo.id
+    JOIN newyork_nextpoints np on np.slot_id = sl.id AND
                           s.signpost = np.id AND
                           s.direction = np.direction
-    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
+    JOIN newyork_roads_geobase rb on spo.road_id = rb.id
 
     UNION ALL
     -- both direction from signpost
@@ -472,10 +439,10 @@ CREATE TABLE montreal_slots_debug as
         , s.direction
         , spo.isleft
         , rb.name
-    FROM montreal_slots_likely sl
-    JOIN montreal_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
-    JOIN montreal_signpost_onroad spo on s.signpost = spo.id
-    JOIN montreal_roads_geobase rb on spo.road_id = rb.id
+    FROM newyork_slots_likely sl
+    JOIN newyork_sign s on ARRAY[s.signpost] <@ sl.signposts and direction = 0
+    JOIN newyork_signpost_onroad spo on s.signpost = spo.id
+    JOIN newyork_roads_geobase rb on spo.road_id = rb.id
 )
 SELECT
     distinct on (t.id, t.code)
@@ -501,7 +468,9 @@ SELECT
     , rt.dim
     , rt.daily
     , rt.special_days
+    , rt.metered
     , rt.restrict_typ
+    , rt.permit_no
     , r.agenda::text as agenda
     , CASE
         WHEN isleft = 1 then
@@ -511,6 +480,6 @@ SELECT
       END as geom
 FROM tmp t
 JOIN rules r on t.code = r.code
-JOIN montreal_rules_translation rt on rt.code = r.code
+JOIN newyork_rules_translation rt on rt.code = r.code
 )
 """

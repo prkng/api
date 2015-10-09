@@ -55,16 +55,14 @@ class Slots(object):
 
         res = db.engine.execute("""
         SELECT name FROM cities
-        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
-        """.format(x=x, y=y)).first()
+        WHERE ST_Intersects(geom, ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857))
+        """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)).first()
         if not res:
             return False
 
         req = """
-
-        req = """
-        SELECT {properties} WHERE city = '{city}' ANDslots
-        WHERE
+        SELECT {properties} FROM slots
+        WHERE city = '{city}' AND
             ST_intersects(
                 ST_Transform(
                     ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
@@ -73,8 +71,8 @@ class Slots(object):
                 slots.geom
             )
         """.format(
-            properties=',
-            city=res[0],'.join(properties),
+            properties=','.join(properties),
+            city=res[0],
             nelat=nelat,
             nelng=nelng,
             swlat=swlat,
