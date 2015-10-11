@@ -56,5 +56,6 @@ def get_checkins():
     """
     Get all car2go checkins
     """
-    cars = Car2Go.get_all()
+    city = request.args.get('city', 'montreal')
+    cars = Car2Go.get_all(city)
     return jsonify(cars=cars), 200

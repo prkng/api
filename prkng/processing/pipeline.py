@@ -244,7 +244,7 @@ def process_newyork():
     db.query(nyc.create_signpost)
     db.query(nyc.insert_signpost)
     db.create_index('newyork_signpost', 'id')
-    db.create_index('newyork_signpost', 'rid')
+    db.create_index('newyork_signpost', 'geobase_id')
     db.create_index('newyork_signpost', 'signs', index_type='gin')
     db.create_index('newyork_signpost', 'geom', index_type='gist')
     db.vacuum_analyze('public', 'newyork_signpost')
@@ -252,7 +252,6 @@ def process_newyork():
     info("Matching osm roads with geobase")
     db.query(nyc.match_roads_geobase)
     db.create_index('newyork_roads_geobase', 'id')
-    db.create_index('newyork_roads_geobase', 'id_trc')
     db.create_index('newyork_roads_geobase', 'osm_id')
     db.create_index('newyork_roads_geobase', 'name')
     db.create_index('newyork_roads_geobase', 'geom', index_type='gist')
@@ -284,10 +283,6 @@ def process_newyork():
     db.query(nyc.create_slots_likely)
     db.query(nyc.insert_slots_likely.format(isleft=1))
     db.query(nyc.insert_slots_likely.format(isleft=-1))
-    db.create_index('newyork_slots_likely', 'id')
-    db.create_index('newyork_slots_likely', 'signposts', index_type='gin')
-    db.create_index('newyork_slots_likely', 'geom', index_type='gist')
-    db.vacuum_analyze('public', 'newyork_slots_likely')
 
     # Get rid of problem segments FIXME
     db.query("""
@@ -300,8 +295,13 @@ def process_newyork():
                 group by g.id
             ) foo where count > 2
         )
-        delete from newyork_slots s using tmp t where t.id = s.rid;
+        delete from newyork_slots_likely s using tmp t where t.id = s.rid;
     """)
+
+    db.create_index('newyork_slots_likely', 'id')
+    db.create_index('newyork_slots_likely', 'signposts', index_type='gin')
+    db.create_index('newyork_slots_likely', 'geom', index_type='gist')
+    db.vacuum_analyze('public', 'newyork_slots_likely')
 
     db.query(nyc.create_nextpoints_for_signposts)
     db.create_index('newyork_nextpoints', 'id')
@@ -431,8 +431,8 @@ def run(cities=CITIES, osm=False):
         db.vacuum_analyze('public', x+'_slots')
 
     Logger.info("Mapping corrections to new slots")
+    db.query(common.process_corrected_rules)
     for x in cities:
-        db.query(common.process_corrected_rules)
         db.query(common.process_corrections.format(city=x))
 
     if not CONFIG['DEBUG']:

@@ -29,13 +29,14 @@ class Car2Go(object):
         return {key: value for key, value in res.items()}
 
     @staticmethod
-    def get_all():
+    def get_all(city):
         """
         Get all active car2go records.
         """
         res = db.engine.execute("""
             SELECT
                 c.id,
+                c.city,
                 c.name,
                 c.vin,
                 c.address,
@@ -44,10 +45,11 @@ class Car2Go(object):
                 c.lat,
                 s.rules
             FROM car2go c
-            JOIN slots s ON c.slot_id = s.id
-            WHERE c.in_lot = false
+            JOIN slots s ON c.city = s.city AND c.slot_id = s.id
+            WHERE c.city = '{city}'
+                AND c.in_lot = false
                 AND c.parked = true
-        """).fetchall()
+        """.format(city=city)).fetchall()
         return [
             {key: value for key, value in row.items()}
             for row in res

@@ -12,6 +12,7 @@ CREATE TABLE newyork_sign (
     , direction integer -- direction the rule applies (cardinal/intercardinal)
     , elevation integer -- higher is prioritary
     , code varchar -- code of rule
+    , signpost integer
     , description varchar -- description of rule
 )
 """
@@ -35,10 +36,10 @@ SELECT
     , p.sg_mutcd_c
     , r.description
     , CASE left(l.sos, 1)
-        WHEN 'N' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'E' THEN 1 WHEN 'W' THEN 2 ELSE 0 END)
-        WHEN 'S' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'W' THEN 1 WHEN 'E' THEN 2 ELSE 0 END)
-        WHEN 'E' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'S' THEN 1 WHEN 'N' THEN 2 ELSE 0 END)
-        WHEN 'W' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'N' THEN 1 WHEN 'S' THEN 2 ELSE 0 END)
+        WHEN 'N' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'W' THEN 1 WHEN 'E' THEN 2 ELSE 0 END)
+        WHEN 'S' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'E' THEN 1 WHEN 'W' THEN 2 ELSE 0 END)
+        WHEN 'E' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'N' THEN 1 WHEN 'S' THEN 2 ELSE 0 END)
+        WHEN 'W' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'S' THEN 1 WHEN 'N' THEN 2 ELSE 0 END)
       END
 FROM newyork_signs_raw p
 JOIN rules r ON r.code = p.sg_mutcd_c -- only keep those existing in rules
@@ -110,6 +111,7 @@ WITH tmp AS (
 )
 INSERT INTO newyork_roads_geobase
 SELECT
+    DISTINCT ON (id)
     id
     , osm_id
     , boro
@@ -149,6 +151,7 @@ WITH tmp AS (
 )
 INSERT INTO newyork_roads_geobase
 SELECT
+    DISTINCT ON (id)
     id
     , osm_id
     , boro
@@ -231,8 +234,15 @@ JOIN newyork_signpost s USING (id)
 """
 
 add_signposts_to_sign = """
-UPDATE newyork_sign
-SET signpost = (select distinct id from newyork_signpost where ARRAY[newyork_sign.id] <@ signs)
+WITH tmp AS (
+    SELECT DISTINCT s.id AS sign_id, p.id AS post_id
+    FROM newyork_sign s
+    JOIN newyork_signpost p ON s.id = ANY(p.signs)
+)
+UPDATE newyork_sign s
+SET signpost = tmp.post_id
+FROM tmp
+WHERE s.id = tmp.sign_id;
 """
 
 # create potential slots determined with signposts projected as start and end points
@@ -318,7 +328,7 @@ CREATE TABLE newyork_nextpoints AS (
             , sp.geom as sgeom
         FROM newyork_signpost_onroad spo
         JOIN newyork_signpost sp ON sp.id = spo.id
-        JOIN newyork_slots_likely sl ON spo.id = ANY(sl.signposts)
+        JOIN newyork_slots_likely sl ON ARRAY[spo.id] <@ sl.signposts
     )
     SELECT
         id
@@ -345,7 +355,7 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM newyork_slots_likely sl
-    JOIN newyork_sign s ON s.signpost = ANY(sl.signposts)
+    JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
     JOIN newyork_nextpoints np ON np.slot_id = sl.id AND
                           s.signpost = np.id AND
@@ -362,7 +372,7 @@ WITH tmp AS (
         , spo.isleft
         , rb.name
     FROM newyork_slots_likely sl
-    JOIN newyork_sign s ON s.signpost = ANY(sl.signposts) AND direction = 0
+    JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts AND direction = 0
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
     JOIN newyork_roads_geobase rb ON spo.road_id = rb.id
 ), selection AS (
@@ -384,6 +394,7 @@ SELECT
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
+            'metered', r.metered,
             'restrict_typ', r.restrict_typ,
             'permit_no', (CASE WHEN r.permit_no = '' THEN NULL ELSE r.permit_no END)
         )::jsonb

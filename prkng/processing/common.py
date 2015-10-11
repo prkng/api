@@ -167,6 +167,7 @@ CREATE TABLE IF NOT EXISTS slots
 """
 
 create_slots_partition = """
+DROP RULE IF EXISTS slots_insert_{city} ON slots;
 DROP TABLE IF EXISTS {city}_slots;
 CREATE TABLE {city}_slots (
     CHECK ( city = '{city}' )
@@ -258,8 +259,7 @@ DECLARE
 BEGIN
   FOR slot IN SELECT * FROM {city}_slots_temp ORDER BY rid, position LOOP
     SELECT id FROM slots s
-      WHERE slot.city = '{city}'
-        AND slot.rid = s.rid
+      WHERE slot.rid = s.rid
         AND slot.rules = s.rules
         AND ST_DWithin(slot.geom, s.geom, 0.1)
       LIMIT 1 INTO id_match;

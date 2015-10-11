@@ -54,22 +54,24 @@ class Slots(object):
         """
 
         res = db.engine.execute("""
-        SELECT name FROM cities
-        WHERE ST_Intersects(geom, ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857))
+            SELECT name FROM cities
+            WHERE ST_Intersects(geom,
+                ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857)
+            )
         """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)).first()
         if not res:
             return False
 
         req = """
-        SELECT {properties} FROM slots
-        WHERE city = '{city}' AND
-            ST_intersects(
-                ST_Transform(
-                    ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
-                    3857
-                ),
-                slots.geom
-            )
+            SELECT {properties} FROM slots
+            WHERE city = '{city}' AND
+                ST_intersects(
+                    ST_Transform(
+                        ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
+                        3857
+                    ),
+                    slots.geom
+                )
         """.format(
             properties=','.join(properties),
             city=res[0],
@@ -94,12 +96,12 @@ class Slots(object):
         return map(lambda x: assign_type(dict(x), checkin), slots)
 
     @staticmethod
-    def get_byid(city, sid, properties):
+    def get_byid(sid, properties):
         """
         Retrieve slot information by its ID
         """
         return db.engine.execute("""
             SELECT {properties}
             FROM slots
-            WHERE city = '{city}' AND id = {sid}
-            """.format(city=city, sid=sid, properties=','.join(properties))).fetchall()
+            WHERE id = {sid}
+            """.format(sid=sid, properties=','.join(properties))).fetchall()

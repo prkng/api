@@ -80,8 +80,8 @@ def update_car2go():
     queries = []
 
     insert_car2go = """
-        INSERT INTO car2go (vin, name, long, lat, address, slot_id, in_lot)
-            SELECT '{vin}', '{name}', {long}, {lat}, '{address}', {slot_id}, {in_lot};
+        INSERT INTO car2go (city, vin, name, long, lat, address, slot_id, in_lot)
+            SELECT '{city}', '{vin}', '{name}', {long}, {lat}, '{address}', {slot_id}, {in_lot};
     """
 
     update_car2go = """
@@ -90,63 +90,68 @@ def update_car2go():
         WHERE vin = '{vin}'
     """
 
-    # grab data from car2go api
-    raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/vehicles?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
-    data = json.loads(raw.read())["placemarks"]
+    for city in ["montreal", "newyork"]:
+        # grab data from car2go api
+        c2city = city
+        if c2city == "newyork":
+            c2city = "newyorkcity"
+        raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/vehicles?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
+        data = json.loads(raw.read())["placemarks"]
 
-    raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc=montreal&format=json&oauth_consumer_key=%s" % CONFIG["CAR2GO_CONSUMER"])
-    lot_data = json.loads(raw.read())["placemarks"]
-    lots = [x["name"] for x in lot_data]
+        raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
+        lot_data = json.loads(raw.read())["placemarks"]
+        lots = [x["name"] for x in lot_data]
 
-    # unpark stale entries in our database
-    our_vins = db.query("SELECT vin FROM car2go")
-    our_vins = [x[0] for x in our_vins]
-    parked_vins = db.query("SELECT vin FROM car2go WHERE parked = true")
-    parked_vins = [x[0] for x in parked_vins]
-    their_vins = [x["vin"] for x in data]
-    for x in parked_vins:
-        if not x in their_vins:
-            queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE vin = '{}'".format(x))
+        # unpark stale entries in our database
+        our_vins = db.query("SELECT vin FROM car2go")
+        our_vins = [x[0] for x in our_vins]
+        parked_vins = db.query("SELECT vin FROM car2go WHERE parked = true")
+        parked_vins = [x[0] for x in parked_vins]
+        their_vins = [x["vin"] for x in data]
+        for x in parked_vins:
+            if not x in their_vins:
+                queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE vin = '{}'".format(x))
 
-    # create or update car2go tracking with new data
-    for x in data:
-        query = None
+        # create or update car2go tracking with new data
+        for x in data:
+            query = None
 
-        # if the address matches a car2go reserved lot, don't bother with a slot
-        if x["address"] in lots:
-            slot_id = "NULL"
-            in_lot = True
-        # otherwise grab the most likely slot within 5m
-        else:
-            slot = db.query("""
-                SELECT id
-                FROM slots
-                WHERE ST_Dwithin(
-                    st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                    geom,
-                    5
+            # if the address matches a car2go reserved lot, don't bother with a slot
+            if x["address"] in lots:
+                slot_id = "NULL"
+                in_lot = True
+            # otherwise grab the most likely slot within 5m
+            else:
+                slot = db.query("""
+                    SELECT id
+                    FROM slots
+                    WHERE city = '{city}'
+                        AND ST_DWithin(
+                            ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
+                            geom,
+                            5
+                        )
+                    ORDER BY ST_Distance(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom)
+                    LIMIT 1
+                """.format(city=city, x=x["coordinates"][0], y=x["coordinates"][1]))
+                slot_id = slot[0][0] if slot else "NULL"
+                in_lot = False
+
+            # update or insert
+            if x["vin"] in our_vins and not x["vin"] in parked_vins:
+                query = update_car2go.format(
+                    vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
+                    address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
+                    in_lot=in_lot
                 )
-                ORDER BY ST_Distance(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom)
-                LIMIT 1
-            """.format(x=x["coordinates"][0], y=x["coordinates"][1]))
-            slot_id = slot[0][0] if slot else "NULL"
-            in_lot = False
-
-        # update or insert
-        if x["vin"] in our_vins and not x["vin"] in parked_vins:
-            query = update_car2go.format(
-                vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
-                address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                in_lot=in_lot
-            )
-        elif not x["vin"] in our_vins:
-            query = insert_car2go.format(
-                vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
-                address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                in_lot=in_lot
-            )
-        if query:
-            queries.append(query)
+            elif not x["vin"] in our_vins:
+                query = insert_car2go.format(
+                    city=city, vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
+                    address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
+                    in_lot=in_lot
+                )
+            if query:
+                queries.append(query)
 
     db.queries(queries)
 

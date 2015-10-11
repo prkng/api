@@ -208,8 +208,7 @@ def get_slot(id):
     """
     Returns data on a specific slot
     """
-    city = request.args.get('city', 'montreal')
-    res = Slots.get_byid(city, id, slot_props)
+    res = Slots.get_byid(id, slot_props)
     if not res:
         return jsonify(status="feature not found"), 404
 
