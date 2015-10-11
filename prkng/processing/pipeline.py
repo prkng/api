@@ -402,12 +402,15 @@ def run(cities=CITIES, osm=False):
         db.query(common.create_corrections.format(city=x))
 
     Logger.info("Processing parking lot / garage data")
-    db.query(common.create_parking_lots_raw)
     db.query(common.create_parking_lots)
-    insert_raw_lots("lots_montreal.csv")
-    insert_raw_lots("lots_quebec.csv")
-    insert_parking_lots()
+    db.query(common.create_parking_lots_raw.format(city="montreal"))
+    insert_raw_lots("montreal", "lots_montreal.csv")
+    insert_parking_lots("montreal")
+    db.query(common.create_parking_lots_raw.format(city="quebec"))
+    insert_raw_lots("quebec", "lots_quebec.csv")
+    insert_parking_lots("quebec")
     db.create_index('parking_lots', 'id')
+    db.create_index('parking_lots', 'city')
     db.create_index('parking_lots', 'geom', index_type='gist')
     db.create_index('parking_lots', 'agenda', index_type='gin')
 
@@ -461,9 +464,9 @@ def insert_rules(from_table):
     ])
 
 
-def insert_raw_lots(filename):
+def insert_raw_lots(city, filename):
     db.query("""
-        COPY parking_lots_raw (name, operator, address, description, lun_normal, mar_normal, mer_normal,
+        COPY {}_parking_lots (name, operator, address, description, lun_normal, mar_normal, mer_normal,
             jeu_normal, ven_normal, sam_normal, dim_normal, hourly_normal, daily_normal, max_normal,
             lun_special, mar_special, mer_special, jeu_special, ven_special, sam_special, dim_special,
             hourly_special, daily_special, max_special, lun_free, mar_free, mer_free, jeu_free,
@@ -471,18 +474,18 @@ def insert_raw_lots(filename):
             capacity, street_view_lat, street_view_long, street_view_head, street_view_id, active)
         FROM '{}'
         WITH CSV HEADER
-    """.format(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
+    """.format(city, os.path.join(os.path.dirname(os.path.dirname(__file__)), 'data', filename)))
 
 
-def insert_parking_lots():
-    columns = ["name", "operator", "address", "description", "agenda", "capacity", "attrs", "geom", "active", "street_view", "geojson"]
+def insert_parking_lots(city):
+    columns = ["city", "name", "operator", "address", "description", "agenda", "capacity", "attrs", "geom", "active", "street_view", "geojson"]
     days = ["lun", "mar", "mer", "jeu", "ven", "sam", "dim"]
     lots, queries = [], []
 
     for row in db.query("""
         SELECT *, ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857) AS geom
-        FROM parking_lots_raw
-    """, namedtuple=True):
+        FROM {}_parking_lots
+    """.format(city), namedtuple=True):
         lot = [(x.decode('utf-8').replace("'", "''") if x else '') for x in [row.name, row.operator, row.address, row.description]]
         agenda = {}
 
@@ -529,8 +532,8 @@ def insert_parking_lots():
 
     for x in lots:
         queries.append("""
-            INSERT INTO parking_lots ({}) VALUES ('{}', '{}', '{}', '{}', '{}'::jsonb, {}, '{}'::jsonb,
-                '{}'::geometry, '{}', json_build_object('head', {}, 'id', '{}')::jsonb,
+            INSERT INTO parking_lots ({}) VALUES ('{city}', '{}', '{}', '{}', '{}', '{}'::jsonb, {},
+                '{}'::jsonb, '{}'::geometry, '{}', json_build_object('head', {}, 'id', '{}')::jsonb,
                 ST_AsGeoJSON(ST_Transform('{geom}'::geometry, 4326))::jsonb)
-        """.format(",".join(columns), *[y for y in x], geom=x[-4]))
+        """.format(",".join(columns), *[y for y in x], city=city, geom=x[-4]))
     db.queries(queries)

@@ -181,8 +181,8 @@ CREATE RULE slots_insert_{city} AS
 """
 
 create_parking_lots_raw = """
-DROP TABLE IF EXISTS parking_lots_raw;
-CREATE TABLE parking_lots_raw (
+DROP TABLE IF EXISTS {city}_parking_lots;
+CREATE TABLE {city}_parking_lots (
   id serial primary key,
   name varchar,
   operator varchar,
@@ -237,6 +237,7 @@ CREATE TABLE parking_lots
 (
   id serial PRIMARY KEY,
   active boolean,
+  city varchar,
   name varchar,
   capacity integer,
   operator varchar,

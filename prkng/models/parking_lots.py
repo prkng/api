@@ -5,6 +5,7 @@ class ParkingLots(object):
     properties = (
         'id',
         'geojson',
+        'city',
         'name',
         'operator',
         'capacity',
