@@ -473,11 +473,11 @@ class NewYork(DataSource):
         filename = script("rules_newyork.csv")
 
         Logger.debug("loading file '%s' with script '%s'" %
-                     (filename, script('quebec_load_rules.sql')))
+                     (filename, script('newyork_load_rules.sql')))
 
-        with open(script('quebec_load_rules.sql'), 'rb') as infile:
+        with open(script('newyork_load_rules.sql'), 'rb') as infile:
             self.db.query(infile.read().format(filename))
-            self.db.vacuum_analyze("public", "quebec_rules_translation")
+            self.db.vacuum_analyze("public", "newyork_rules_translation")
 
     def get_extent(self):
         """
