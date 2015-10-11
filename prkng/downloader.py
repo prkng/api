@@ -526,7 +526,7 @@ class OsmLoader(object):
             # merge files before loading because osm2pgsql failed to load 2 osm files
             # at the same time
             check_call("osmconvert {files} -o={merge}".format(
-                files=' '.join(self.queue),
+                files=' '.join(['"'+x+'"' for x in self.queue]),
                 merge=process_file),
                 shell=True)
         else:
