@@ -415,7 +415,7 @@ class NewYork(DataSource):
             shell=True
         )
 
-        self.db.vacuum_analyze("public", "newyork_sign")
+        self.db.vacuum_analyze("public", "newyork_signs_raw")
 
         check_call(
             'shp2pgsql -d -g geom -t 2D -s 2263:3857 -W LATIN1 -I {filename} newyork_geobase | '
