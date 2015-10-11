@@ -486,7 +486,7 @@ class NewYork(DataSource):
         res = self.db.query(
             """WITH tmp AS (
                 SELECT st_transform(st_envelope(st_collect(geom)), 4326) as geom
-                FROM newyork_sign
+                FROM newyork_signs_raw
             ) select st_ymin(geom), st_xmin(geom), st_ymax(geom), st_xmax(geom) from tmp
             """)[0]
         return res
