@@ -177,8 +177,20 @@ class AreaAssets(Resource):
         }, 200
 
 
+cities_fields = api.model('CitiesFields', {
+    'id': fields.String(required=True),
+    'name': fields.String(required=True),
+    'display_name': fields.String(required=True),
+    'lat': fields.Float(required=True),
+    'long': fields.Float(required=True),
+    'urban_area_radius': fields.Integer(required=True),
+})
+
+
 @ns.route('/cities', endpoint='cities_v1')
 class Cities(Resource):
+    @api.secure
+    @api.marshal_list_with(cities_fields)
     def get(self):
         """
         Returns coverage area information
@@ -201,6 +213,7 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
 
 @ns.route('/slots/<string:id>', endpoint='slot_v1')
 class SlotResource(Resource):
+    @api.secure
     @api.marshal_list_with(slots_fields)
     @api.doc(
         params={'id': 'slot id'},
