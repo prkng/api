@@ -177,9 +177,8 @@ class AreaAssets(Resource):
         }, 200
 
 
-@ns.route('/cities', endpoint='servicearea_v1')
+@ns.route('/cities', endpoint='cities_v1')
 class Cities(Resource):
-    @api.doc(model=service_areas_model)
     def get(self):
         """
         Returns coverage area information
