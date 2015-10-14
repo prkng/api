@@ -161,7 +161,7 @@ service_areas_model = api.model('ServiceAreasMeta', {
 
 
 @ns.route('/areas', endpoint='servicearea_v1')
-class ServiceAreas(Resource):
+class AreaAssets(Resource):
     @api.doc(model=service_areas_model)
     def get(self):
         """
@@ -175,6 +175,16 @@ class ServiceAreas(Resource):
                 x["version"]: x for x in res
             }
         }, 200
+
+
+@ns.route('/cities', endpoint='servicearea_v1')
+class Cities(Resource):
+    @api.doc(model=service_areas_model)
+    def get(self):
+        """
+        Returns coverage area information
+        """
+        return City.get_all(), 200
 
 
 slots_fields = api.model('v1SlotsGeoJSONFeature', {

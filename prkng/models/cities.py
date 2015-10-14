@@ -13,15 +13,19 @@ class City(object):
         return city[0] if city else None
 
     @staticmethod
-    def get_all(returns="json"):
-        return db.engine.execute("""
+    def get_all():
+        res = db.engine.execute("""
             SELECT
                 gid AS id,
                 name,
-                name_disp,
-                ST_As{}(ST_Transform(geom, 4326)) AS geom
+                name_disp AS display_name,
+                lat,
+                long,
+                ua_rad AS urban_area_radius
             FROM cities
-        """.format("GeoJSON" if returns == "json" else "KML")).fetchall()
+        """).fetchall()
+
+        return [{key: value for key, value in row.items()} for row in res]
 
     @staticmethod
     def get_assets():
