@@ -418,6 +418,8 @@ def run(cities=CITIES, osm=False):
         process_montreal()
     if 'quebec' in cities:
         process_quebec()
+    if 'newyork' in cities:
+        process_newyork()
 
     Logger.info("Shorten slots that intersect with roads or other slots")
     for x in cities:

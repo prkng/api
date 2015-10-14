@@ -103,14 +103,14 @@ def update_car2go():
         lots = [x["name"] for x in lot_data]
 
         # unpark stale entries in our database
-        our_vins = db.query("SELECT vin FROM car2go")
+        our_vins = db.query("SELECT vin FROM car2go WHERE city = '{city}'".format(city=city))
         our_vins = [x[0] for x in our_vins]
-        parked_vins = db.query("SELECT vin FROM car2go WHERE parked = true")
+        parked_vins = db.query("SELECT vin FROM car2go WHERE city = '{city}' AND parked = true".format(city=city))
         parked_vins = [x[0] for x in parked_vins]
         their_vins = [x["vin"] for x in data]
         for x in parked_vins:
             if not x in their_vins:
-                queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE vin = '{}'".format(x))
+                queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE city = '{city}' AND vin = '{vin}'".format(city=city, vin=x))
 
         # create or update car2go tracking with new data
         for x in data:

@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(x, y, radius, duration, properties, checkin=None, paid=True, permit=False):
+    def get_within(city, x, y, radius, duration, properties, checkin=None, paid=True, permit=False):
         """
         Retrieve the nearest slots (geometry and ID) within ``radius`` meters of a
         given location (x, y).
@@ -15,13 +15,6 @@ class Slots(object):
         """
         checkin = checkin or datetime.datetime.now()
         duration = duration or 0.5
-
-        res = db.engine.execute("""
-        SELECT name FROM cities
-        WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
-        """.format(x=x, y=y)).first()
-        if not res:
-            return False
 
         req = """
         SELECT {properties} FROM slots
@@ -33,7 +26,7 @@ class Slots(object):
             )
         """.format(
             properties=','.join(properties),
-            city=res[0],
+            city=city,
             x=x,
             y=y,
             radius=radius
