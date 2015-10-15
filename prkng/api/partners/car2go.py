@@ -1,5 +1,5 @@
 from prkng.api import auth_required, create_token
-from prkng.models.car2gos import Car2Go
+from prkng.models.carshares import Carshares
 
 import datetime
 from flask import current_app, jsonify, Blueprint, request, send_from_directory
@@ -41,10 +41,9 @@ def generate_token():
     uname, passwd = data.get("username"), data.get("password")
     if uname in current_app.config["CAR2GO_ACCTS"] \
     and passwd == current_app.config["CAR2GO_ACCTS"][uname]:
-        if uname == "jeremi":
-            with open(os.path.join(os.path.expanduser('~'), 'jeremi.log'), 'a') as f:
-                f.write('[LOGIN] User jeremi at {} with IP {}\n'.format(datetime.datetime.now().isoformat(),
-                    request.environ['REMOTE_ADDR']))
+        with open(os.path.join(os.path.expanduser('~'), 'car2go_access.log'), 'a') as f:
+            f.write('[LOGIN] User {} at {} with IP {}\n'.format(uname, datetime.datetime.now().isoformat(),
+                request.environ['REMOTE_ADDR']))
         return jsonify(token=create_token(uname))
     else:
         return jsonify(message="Username or password incorrect"), 401
@@ -57,5 +56,5 @@ def get_checkins():
     Get all car2go checkins
     """
     city = request.args.get('city', 'montreal')
-    cars = Car2Go.get_all(city)
+    cars = Carshares.get_all('car2go', city)
     return jsonify(cars=cars), 200

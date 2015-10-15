@@ -33,7 +33,11 @@ SELECT
     p.objectid::int
     , p.geom
     , p.sg_seqno_n::int
-    , p.sg_mutcd_c
+    , CASE WHEN right(p.sg_mutcd_c, 1) = 'A' AND (SELECT 1 FROM rules WHERE code = left(p.sg_mutcd_c, -1)
+                                                  AND r.description = description LIMIT 1) = 1
+        THEN left(p.sg_mutcd_c, -1)
+        ELSE p.sg_mutcd_c
+      END -- Fix aggregation for superseded sign styles
     , r.description
     , CASE left(l.sos, 1)
         WHEN 'N' THEN (CASE left(p.sg_arrow_d, 1) WHEN 'W' THEN 1 WHEN 'E' THEN 2 ELSE 0 END)
@@ -200,7 +204,7 @@ CREATE TABLE newyork_signpost_onroad AS
         , ST_isLeft(s.geom, sp.geom) AS isleft
     FROM newyork_signpost sp
     JOIN newyork_roads_geobase s ON sp.geobase_id = s.id
-    WHERE sp.boro = 'K' -- FIXME
+    WHERE sp.boro = 'K' OR sp.boro = 'M' -- FIXME
     ORDER BY sp.id, ST_Distance(s.geom, sp.geom);
 
 SELECT id FROM newyork_signpost_onroad GROUP BY id HAVING count(*) > 1

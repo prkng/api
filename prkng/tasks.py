@@ -80,13 +80,15 @@ def update_car2go():
     queries = []
 
     insert_car2go = """
-        INSERT INTO car2go (city, vin, name, long, lat, address, slot_id, in_lot)
-            SELECT '{city}', '{vin}', '{name}', {long}, {lat}, '{address}', {slot_id}, {in_lot};
+        INSERT INTO carshares (company, city, vin, name, long, lat, address, slot_id, in_lot, fuel, geojson)
+            SELECT 'car2go', '{city}', '{vin}', '{name}', {long}, {lat}, '{address}', {slot_id}, {in_lot}, {fuel},
+                    ST_AsGeoJSON(ST_Transform('SRID=4326;POINT({lat} {long})'::geometry, 3857))::jsonb;
     """
 
     update_car2go = """
-        UPDATE car2go SET since = NOW(), name = '{name}', long = {long}, lat = {lat}, address = '{address}',
-            slot_id = {slot_id}, in_lot = {in_lot}, parked = true
+        UPDATE carshares SET since = NOW(), name = '{name}', long = {long}, lat = {lat}, address = '{address}',
+            slot_id = {slot_id}, in_lot = {in_lot}, parked = true, fuel = {fuel},
+            geojson = ST_AsGeoJSON(ST_Transform('SRID=4326;POINT({lat} {long})'::geometry, 3857))::jsonb
         WHERE vin = '{vin}'
     """
 
@@ -103,14 +105,14 @@ def update_car2go():
         lots = [x["name"] for x in lot_data]
 
         # unpark stale entries in our database
-        our_vins = db.query("SELECT vin FROM car2go WHERE city = '{city}'".format(city=city))
+        our_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}'".format(city=city))
         our_vins = [x[0] for x in our_vins]
-        parked_vins = db.query("SELECT vin FROM car2go WHERE city = '{city}' AND parked = true".format(city=city))
+        parked_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}' AND parked = true".format(city=city))
         parked_vins = [x[0] for x in parked_vins]
         their_vins = [x["vin"] for x in data]
         for x in parked_vins:
             if not x in their_vins:
-                queries.append("UPDATE car2go SET since = NOW(), parked = false WHERE city = '{city}' AND vin = '{vin}'".format(city=city, vin=x))
+                queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE city = '{city}' AND vin = '{vin}'".format(city=city, vin=x))
 
         # create or update car2go tracking with new data
         for x in data:
@@ -142,13 +144,13 @@ def update_car2go():
                 query = update_car2go.format(
                     vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
                     address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                    in_lot=in_lot
+                    in_lot=in_lot, fuel=x["fuel"]
                 )
             elif not x["vin"] in our_vins:
                 query = insert_car2go.format(
                     city=city, vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
                     address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                    in_lot=in_lot
+                    in_lot=in_lot, fuel=x["fuel"]
                 )
             if query:
                 queries.append(query)
@@ -158,7 +160,7 @@ def update_car2go():
 
 def update_free_spaces():
     """
-    Task to check recently departed car2go spaces and record
+    Task to check recently departed carshare spaces and record
     """
     CONFIG = create_app().config
     db = PostgresWrapper(
@@ -171,7 +173,7 @@ def update_free_spaces():
     db.query("""
         INSERT INTO free_spaces (slot_ids)
           SELECT array_agg(s.id) FROM slots s
-            JOIN car2go c ON c.slot_id = s.id
+            JOIN carshares c ON c.slot_id = s.id
             WHERE c.in_lot = false
               AND c.parked = false
               AND c.since  > '{}'

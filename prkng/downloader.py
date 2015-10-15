@@ -668,15 +668,13 @@ class ServiceAreasLoader(object):
 
         Logger.info("Importing service area shapefiles")
         check_call(
-            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} cities | "
+            "shp2pgsql -d -g geom -s 3857 -I {filename} cities | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=script('service_areas.shp'), **CONFIG),
             shell=True
         )
         check_call(
-            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} cities_mask | "
+            "shp2pgsql -d -g geom -s 3857 -I {filename} cities_mask | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=script('service_areas_mask.shp'), **CONFIG),
             shell=True

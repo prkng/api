@@ -1,6 +1,6 @@
 from analytics import Analytics
 from assets import Images
-from car2gos import Car2Go
+from carshares import Carshares
 from checkins import Checkins
 from cities import City
 from corrections import Corrections
