@@ -142,13 +142,13 @@ def update_car2go():
             # update or insert
             if x["vin"] in our_vins and not x["vin"] in parked_vins:
                 query = update_car2go.format(
-                    vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
+                    vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
                     address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
                     in_lot=in_lot, fuel=x["fuel"]
                 )
             elif not x["vin"] in our_vins:
                 query = insert_car2go.format(
-                    city=city, vin=x["vin"], name=x["name"], long=x["coordinates"][0], lat=x["coordinates"][1],
+                    city=city, vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
                     address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
                     in_lot=in_lot, fuel=x["fuel"]
                 )
