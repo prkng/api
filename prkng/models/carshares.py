@@ -2,23 +2,37 @@ from prkng.database import db, metadata
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Table, text
 from sqlalchemy.dialects.postgresql import JSONB
+from geoalchemy2 import Geometry
 
 
 carshares_table = Table(
     'carshares',
     metadata,
     Column('id', Integer, primary_key=True),
+    Column('city', String),
     Column('slot_id', Integer),
+    Column('lot_id', Integer),
     Column('company', String),
     Column('vin', String, unique=True, nullable=True),
     Column('name', String),
-    Column('long', Float),
-    Column('lat', Float),
+    Column('geom', Geometry('POINT', 3857)),
     Column('address', String),
     Column('fuel', Integer),
     Column('since', DateTime, server_default=text('NOW()')),
     Column('parked', Boolean),
-    Column('in_lot', Boolean),
+    Column('geojson', JSONB)
+)
+
+carshare_lots_table = Table(
+    'carshare_lots',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('city', String),
+    Column('company', String),
+    Column('name', String),
+    Column('geom', Geometry('POINT', 3857)),
+    Column('capacity', Integer),
+    Column('available', Integer),
     Column('geojson', JSONB)
 )
 
@@ -30,6 +44,14 @@ class Carshares(object):
         'company',
         'name',
         'fuel'
+    )
+    lot_properties = (
+        'id',
+        'geojson',
+        'company',
+        'name',
+        'capacity',
+        'available'
     )
 
     @staticmethod
@@ -45,19 +67,34 @@ class Carshares(object):
     @staticmethod
     def get_within(city, x, y, radius, company=False):
         """
-        Get all carshares in a city within a particular radius.
+        Get all parked carshares in a city within a particular radius.
         """
-        res = db.engine.execute("""
+        return db.engine.execute("""
             SELECT {properties} FROM carshares c
-            WHERE c.city = '{city}' AND
+            WHERE c.city = '{city}' AND c.parked = true AND
+                ST_Dwithin(
+                    st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
+                    c.geom,
+                    {radius}
+                )
+        """.format(properties=', '.join(Carshares.properties), city=city, x=x, y=y, radius=radius)\
+        + ("AND c.company = '{co}'".format(co=company) if company else "")).fetchall()
+
+    @staticmethod
+    def get_lots_within(city, x, y, radius, company=False):
+        """
+        Get all carshare lots in a city within a particular radius.
+        """
+        return db.engine.execute("""
+            SELECT {properties} FROM carshare_lots
+            WHERE city = '{city}' AND
                 ST_Dwithin(
                     st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
                     geom,
                     {radius}
                 )
-        """.format(properties=', '.join(Carshares.properties), city=city, x=x, y=y, radius=radius)\
-        + ("AND c.company = '{co}'".format(co=company) if company else ""))
-        return [{key: value for key, value in row.items()} for row in res]
+        """.format(properties=', '.join(Carshares.lot_properties), city=city, x=x, y=y, radius=radius)\
+        + ("AND c.company = '{co}'".format(co=company) if company else "")).fetchall()
 
     @staticmethod
     def get_all(company, city):
@@ -72,8 +109,7 @@ class Carshares(object):
                 c.vin,
                 c.address,
                 to_char(c.since, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since,
-                c.long,
-                c.lat,
+                c.geojson,
                 s.rules
             FROM carshares c
             JOIN slots s ON c.city = s.city AND c.slot_id = s.id

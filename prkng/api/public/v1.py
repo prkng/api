@@ -133,6 +133,22 @@ class CarsharesField(fields.Raw):
 
 
 @api.model(fields={
+    'company': fields.String(
+        description='name of carshare operator',
+        required=True),
+    'name': fields.String(
+        description='name of car (usually licence plate)',
+        required=True),
+    'capacity': fields.Integer(
+        description='Max capacity of carshares in this lot'),
+    'available': fields.Integer(
+        description='Spaces currently available for carshares in this lot')
+})
+class CarshareLotsField(fields.Raw):
+    pass
+
+
+@api.model(fields={
     'name': fields.String(
         description='name of parking lot / operator',
         required=True),
@@ -203,7 +219,6 @@ cities_fields = api.model('CitiesFields', {
 
 @ns.route('/cities', endpoint='cities_v1')
 class Cities(Resource):
-    @api.secure
     @api.marshal_list_with(cities_fields)
     def get(self):
         """
@@ -437,6 +452,13 @@ carshare_parser.add_argument(
     required=True,
     help='Longitude in degrees (WGS84)'
 )
+carshare_parser.add_argument(
+    'company',
+    type=str,
+    location='args',
+    required=False,
+    help='Return carshares for a particular company only'
+)
 
 carshares_fields = api.model('CarsharesGeoJSONFeature', {
     'id': fields.String(required=True),
@@ -469,7 +491,7 @@ class CarsharesResource(Resource):
         if not city:
             api.abort(404, "no feature found")
 
-        res = Carshares.get_within(city, args['longitude'], args['latitude'], args['radius'])
+        res = Carshares.get_within(city, args['longitude'], args['latitude'], args['radius'], args['company'] or False)
 
         return FeatureCollection([
             Feature(
@@ -478,6 +500,53 @@ class CarsharesResource(Resource):
                 properties={
                     field: feat[num]
                     for num, field in enumerate(Carshares.properties[2:], start=2)
+                }
+            )
+            for feat in res
+        ]), 200
+
+
+carshare_lots_fields = api.model('CarshareLotsGeoJSONFeature', {
+    'id': fields.String(required=True),
+    'type': fields.String(required=True, enum=['Feature']),
+    'geometry': Geometry(required=True),
+    'properties': CarshareLotsField(required=True),
+})
+
+carshare_lots_collection_fields = api.model('CarshareLotsGeoJSONFeatureCollection', {
+    'type': fields.String(required=True, enum=['FeatureCollection']),
+    'features': api.as_list(fields.Nested(carshare_lots_fields))
+})
+
+
+@ns.route('/carshare_lots', endpoint='carsharelots_v1')
+class CarshareLotsResource(Resource):
+    @api.secure
+    @api.marshal_list_with(carshare_lots_collection_fields)
+    @api.doc(
+        responses={404: "no feature found"}
+    )
+    @api.doc(parser=carshare_parser)
+    def get(self):
+        """
+        Return carshare lots and data around the point defined by (x, y)
+        """
+        args = carshare_parser.parse_args()
+
+        city = City.get(args['longitude'], args['latitude'])
+        if not city:
+            api.abort(404, "no feature found")
+
+        res = Carshares.get_lots_within(city, args['longitude'], args['latitude'], args['radius'],
+            args['company'] or False)
+
+        return FeatureCollection([
+            Feature(
+                id=feat[0],
+                geometry=feat[1],
+                properties={
+                    field: feat[num]
+                    for num, field in enumerate(Carshares.lot_properties[2:], start=2)
                 }
             )
             for feat in res

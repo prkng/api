@@ -80,16 +80,30 @@ def update_car2go():
     queries = []
 
     insert_car2go = """
-        INSERT INTO carshares (company, city, vin, name, long, lat, address, slot_id, in_lot, fuel, geojson)
-            SELECT 'car2go', '{city}', '{vin}', '{name}', {long}, {lat}, '{address}', {slot_id}, {in_lot}, {fuel},
-                    ST_AsGeoJSON(ST_Transform('SRID=4326;POINT({lat} {long})'::geometry, 3857))::jsonb;
+        INSERT INTO carshares (company, city, vin, name, address, slot_id, lot_id, fuel, geom, geojson)
+            SELECT 'car2go', '{city}', '{vin}', '{name}', '{address}', {slot_id}, {lot_id}, {fuel},
+                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
     """
 
     update_car2go = """
-        UPDATE carshares SET since = NOW(), name = '{name}', long = {long}, lat = {lat}, address = '{address}',
-            slot_id = {slot_id}, in_lot = {in_lot}, parked = true, fuel = {fuel},
-            geojson = ST_AsGeoJSON(ST_Transform('SRID=4326;POINT({lat} {long})'::geometry, 3857))::jsonb
+        UPDATE carshares SET since = NOW(), name = '{name}', address = '{address}', slot_id = {slot_id},
+            lot_id = {lot_id}, parked = true, fuel = {fuel},
+            geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
         WHERE vin = '{vin}'
+    """
+
+    insert_lot = """
+        INSERT INTO carshare_lots (company, city, name, capacity, available, geom, geojson)
+            SELECT 'car2go', '{city}', '{name}', {capacity}, {available},
+                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
+    """
+
+    update_lot = """
+        UPDATE carshare_lots SET capacity = {capacity}, available = {available}
+        WHERE city = '{city}' AND name = '{name}'
     """
 
     for city in ["montreal", "newyork"]:
@@ -102,13 +116,26 @@ def update_car2go():
 
         raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
         lot_data = json.loads(raw.read())["placemarks"]
-        lots = [x["name"] for x in lot_data]
+        lots = [x["name"].replace("'", "''").encode("utf-8") for x in lot_data]
+
+        our_lots = db.query("SELECT name FROM carshare_lots WHERE city = '{city}'".format(city=city))
+        our_lots = [x[0] for x in our_lots] if our_lots else []
+        for x in lot_data:
+            x["name"] = x["name"].replace("'", "''").encode("utf-8")
+            if x["name"] in our_lots:
+                queries.append(update_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
+                    available=x["totalCapacity"] - x["usedCapacity"]))
+            else:
+                queries.append(insert_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
+                    available=x["totalCapacity"] - x["usedCapacity"], long=x["coordinates"][0], lat=x["coordinates"][1]))
+        db.queries(queries)
+        queries = []
 
         # unpark stale entries in our database
         our_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}'".format(city=city))
-        our_vins = [x[0] for x in our_vins]
+        our_vins = [x[0] for x in our_vins] if our_vins else []
         parked_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}' AND parked = true".format(city=city))
-        parked_vins = [x[0] for x in parked_vins]
+        parked_vins = [x[0] for x in parked_vins] if parked_vins else []
         their_vins = [x["vin"] for x in data]
         for x in parked_vins:
             if not x in their_vins:
@@ -117,11 +144,18 @@ def update_car2go():
         # create or update car2go tracking with new data
         for x in data:
             query = None
+            x["address"] = x["address"].replace("'", "''").encode("utf-8")
 
             # if the address matches a car2go reserved lot, don't bother with a slot
             if x["address"] in lots:
+                lot = db.query("""
+                    SELECT id
+                    FROM carshare_lots
+                    WHERE city = '{city}'
+                        AND name = '{name}'
+                """.format(city=city, name=x["address"]))
+                lot_id = lot[0][0] if lot else "NULL"
                 slot_id = "NULL"
-                in_lot = True
             # otherwise grab the most likely slot within 5m
             else:
                 slot = db.query("""
@@ -137,20 +171,18 @@ def update_car2go():
                     LIMIT 1
                 """.format(city=city, x=x["coordinates"][0], y=x["coordinates"][1]))
                 slot_id = slot[0][0] if slot else "NULL"
-                in_lot = False
+                lot_id = "NULL"
 
             # update or insert
             if x["vin"] in our_vins and not x["vin"] in parked_vins:
                 query = update_car2go.format(
                     vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
-                    address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                    in_lot=in_lot, fuel=x["fuel"]
+                    address=x["address"], slot_id=slot_id, lot_id=lot_id, fuel=x["fuel"]
                 )
             elif not x["vin"] in our_vins:
                 query = insert_car2go.format(
                     city=city, vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
-                    address=x["address"].replace("'", "''").encode('utf-8'), slot_id=slot_id,
-                    in_lot=in_lot, fuel=x["fuel"]
+                    address=x["address"], slot_id=slot_id, lot_id=lot_id, fuel=x["fuel"]
                 )
             if query:
                 queries.append(query)
