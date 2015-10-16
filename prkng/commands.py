@@ -36,10 +36,10 @@ def update(city):
     """
     Update data sources
     """
-    from prkng.downloader import DataSource, OsmLoader, PermitZonesLoader
+    from prkng.downloader import DataSource, OsmLoader, ZoneLoader
     osm = OsmLoader()
-    pzl = PermitZonesLoader()
-    pzl.update()
+    zl = ZoneLoader()
+    zl.update()
     for source in DataSource.__subclasses__():
         obj = source()
         if not city == 'all' and obj.city != city:

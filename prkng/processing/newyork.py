@@ -358,6 +358,7 @@ WITH tmp AS (
         , s.direction
         , spo.isleft
         , rb.name
+        , rb.boro
     FROM newyork_slots_likely sl
     JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
@@ -375,6 +376,7 @@ WITH tmp AS (
         , s.direction
         , spo.isleft
         , rb.name
+        , rb.boro
     FROM newyork_slots_likely sl
     JOIN newyork_sign s ON ARRAY[s.signpost] <@ sl.signposts AND direction = 0
     JOIN newyork_signpost_onroad spo ON s.signpost = spo.id
@@ -398,8 +400,11 @@ SELECT
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
-            'metered', r.metered,
+            'metered', COALESCE(r.metered, false),
             'restrict_typ', r.restrict_typ,
+            'paid_hourly_rate',
+                (CASE WHEN r.permit_no = 'commercial' AND r.metered = true AND min(t.boro) = 'M' THEN 4.0
+                 ELSE z.hourly_rat END),
             'permit_no', (CASE WHEN r.permit_no = '' THEN NULL ELSE r.permit_no END)
         )::jsonb
     ))::jsonb as rules
@@ -411,6 +416,7 @@ SELECT
       END as geom
 FROM tmp t
 JOIN rules r ON t.code = r.code
+LEFT JOIN metered_rate_zones z ON r.metered = true AND z.city = 'newyork' AND ST_Intersects(t.geom, z.geom)
 GROUP BY t.id
 ) INSERT INTO newyork_slots_temp (rid, position, signposts, rules, geom, way_name)
 SELECT

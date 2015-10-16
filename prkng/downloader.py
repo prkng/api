@@ -548,25 +548,26 @@ class OsmLoader(object):
         self.db.create_index('planet_osm_line', 'boundary')
 
 
-class PermitZonesLoader(object):
+class ZoneLoader(object):
     """
-    Import permit zone shapefiles
+    Import assorted zone shapefiles
     """
-    def __init__(self):
-        self.db = PostgresWrapper(
-            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
-            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
-
     def update(self):
         Logger.info("Importing permit zone shapefiles")
         check_call(
-            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I "
-            "{filename} permit_zones | "
+            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I {filename} permit_zones | "
             "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
             .format(filename=script('permit_zones.shp'), **CONFIG),
             shell=True
         )
-        self.db.create_index('permit_zones', 'geom', index_type='gist')
+
+        Logger.info("Importing metered rate zone shapefiles")
+        check_call(
+            "shp2pgsql -d -g geom -s 3857 -W LATIN1 -I {filename} metered_rate_zones | "
+            "psql -q -d {PG_DATABASE} -h {PG_HOST} -U {PG_USERNAME} -p {PG_PORT}"
+            .format(filename=script('metered_rate_zones.shp'), **CONFIG),
+            shell=True
+        )
 
 
 class ServiceAreasLoader(object):

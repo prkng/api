@@ -450,6 +450,7 @@ SELECT
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
+            'metered', false,
             'restrict_typ', r.restrict_typ,
             'permit_no', r.permit_no
         )::jsonb
@@ -513,6 +514,7 @@ WITH segments AS (
                 'agenda', z.agenda,
                 'time_max_parking', z.time_max_parking,
                 'special_days', z.special_days,
+                'metered', true,
                 'restrict_typ', z.restrict_typ,
                 'paid_hourly_rate', 2.25
             )::jsonb)
@@ -600,6 +602,7 @@ WITH exclusions AS (
                 'agenda', z.agenda,
                 'time_max_parking', z.time_max_parking,
                 'special_days', z.special_days,
+                'metered', true,
                 'restrict_typ', z.restrict_typ,
                 'paid_hourly_rate', 2.25
             )::jsonb]

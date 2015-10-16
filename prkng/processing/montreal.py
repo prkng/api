@@ -339,6 +339,7 @@ SELECT
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
+            'metered', false,
             'restrict_typ', r.restrict_typ,
             'permit_no', z.number
         )::jsonb
@@ -395,6 +396,7 @@ WITH tmp AS (
             'agenda', r.agenda,
             'time_max_parking', r.time_max_parking,
             'special_days', r.special_days,
+            'metered', true,
             'restrict_typ', r.restrict_typ,
             'paid_hourly_rate', t.rate
         )::jsonb)
