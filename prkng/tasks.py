@@ -206,7 +206,7 @@ def update_free_spaces():
         INSERT INTO free_spaces (slot_ids)
           SELECT array_agg(s.id) FROM slots s
             JOIN carshares c ON c.slot_id = s.id
-            WHERE c.in_lot = false
+            WHERE c.lot_id IS NULL
               AND c.parked = false
               AND c.since  > '{}'
               AND c.since  < '{}'

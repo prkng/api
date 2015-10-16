@@ -115,8 +115,8 @@ class Carshares(object):
             JOIN slots s ON c.city = s.city AND c.slot_id = s.id
             WHERE  c.company = '{company}'
                 AND c.city   = '{city}'
-                AND c.in_lot = false
                 AND c.parked = true
+                AND c.lot_id IS NULL
         """.format(company=company, city=city)).fetchall()
         return [
             {key: value for key, value in row.items()}
