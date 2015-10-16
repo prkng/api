@@ -452,7 +452,7 @@ carshares_collection_fields = api.model('CarsharesGeoJSONFeatureCollection', {
 
 
 @ns.route('/carshares', endpoint='carshares_v1')
-class Carshares(Resource):
+class CarsharesResource(Resource):
     @api.secure
     @api.marshal_list_with(carshares_collection_fields)
     @api.doc(

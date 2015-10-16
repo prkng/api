@@ -1,5 +1,5 @@
 from prkng.api import auth_required, create_token
-from prkng.models.carshares import Carshares
+from prkng.models import Carshares
 
 import datetime
 from flask import current_app, jsonify, Blueprint, request, send_from_directory
