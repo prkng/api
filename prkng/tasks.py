@@ -2,10 +2,12 @@ from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
 import datetime
+import demjson
 from flask import current_app
 import json
 import os
 from redis import Redis
+import requests
 from rq_scheduler import Scheduler
 from subprocess import check_call
 import urllib2
@@ -123,7 +125,7 @@ def update_car2go():
         for x in lot_data:
             x["name"] = x["name"].replace("'", "''").encode("utf-8")
             if x["name"] in our_lots:
-                queries.append(update_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
+                queries.append(update_lot.format(city=city, capacity=x["totalCapacity"],
                     available=x["totalCapacity"] - x["usedCapacity"]))
             else:
                 queries.append(insert_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
@@ -183,6 +185,110 @@ def update_car2go():
                 query = insert_car2go.format(
                     city=city, vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
                     address=x["address"], slot_id=slot_id, lot_id=lot_id, fuel=x["fuel"]
+                )
+            if query:
+                queries.append(query)
+
+    db.queries(queries)
+
+
+def update_communauto():
+    """
+    Task to check with the Communuauto API, find moved cars and update their positions/slots
+    """
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+    queries = []
+
+    insert_comm = """
+        INSERT INTO carshares (company, city, partners_id, name, address, lot_id, geom, geojson)
+            SELECT 'communauto', '{city}', '{pid}', '{name}', '{address}', {lot_id},
+                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
+    """
+
+    update_comm = """
+        UPDATE carshares SET since = NOW(), name = '{name}', address = '{address}', parked = true,
+            geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
+        WHERE company = 'communauto'
+            AND partners_id = '{pid}'
+    """
+
+    insert_lot = """
+        INSERT INTO carshare_lots (company, city, name, capacity, available, partners_id, geom, geojson)
+            SELECT 'communauto', '{city}', '{name}', 1, {available}, {pid},
+                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
+    """
+
+    update_lot = """
+        UPDATE carshare_lots SET capacity = 1, available = {available}
+        WHERE city = '{city}' AND partners_id = '{pid}'
+    """
+
+    for city in ["montreal", "quebec"]:
+        # grab data from car2go api
+        if city == "montreal":
+            cacity = 59
+        elif city == "quebec":
+            cacity = 90
+        start = datetime.datetime.now()
+        finish = (start + datetime.timedelta(minutes=30))
+        data = requests.post("https://www.reservauto.net/Scripts/Client/Ajax/PublicCall/Get_Car_DisponibilityJSON.asp",
+            data={"CityID": cacity, "StartDate": start.strftime("%d/%m/%Y %H:%M"),
+                "EndDate": finish.strftime("%d/%m/%Y %H:%M"), "FeeType": 80})
+        # must use demjson here because returning format is non-standard JSON
+        data = demjson.decode(data.text.lstrip("(").rstrip(")"))["data"]
+
+        our_lots = db.query("SELECT partners_id FROM carshare_lots WHERE company = 'communauto' AND city = '{city}'"\
+            .format(city=city))
+        our_lots = [x[0] for x in our_lots] if our_lots else []
+        for x in data:
+            if x["StationID"] in our_lots:
+                queries.append(update_lot.format(city=city, pid=x["StationID"], available=(1 if x["NbrRes"] else 0)))
+            else:
+                queries.append(insert_lot.format(city=city, pid=x["StationID"], name=x["strNomStation"].replace("'", "''").encode("utf-8"),
+                    available=(1 if x["NbrRes"] else 0), long=x["Longitude"], lat=x["Latitude"]))
+        db.queries(queries)
+        queries = []
+
+        # unpark stale entries in our database
+        our_pids = db.query("SELECT partners_id FROM carshares WHERE company = 'communauto' AND city = '{city}'".format(city=city))
+        our_pids = [x[0] for x in our_pids] if our_pids else []
+        parked_pids = db.query("SELECT partners_id FROM carshares WHERE company = 'communauto' AND city = '{city}' AND parked = true".format(city=city))
+        parked_pids = [x[0] for x in parked_pids] if parked_pids else []
+        for x in data:
+            if x["NbrRes"] > 0 and x["CarID"] in parked_pids:
+                queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE company = 'communauto'"
+                    " AND city = '{city}' AND partners_id = '{pid}'".format(city=city, pid=x["CarID"]))
+
+        # create or update communauto tracking with new data
+        for x in data:
+            query = None
+            x["strNomStation"] = x["strNomStation"].replace("'", "''").encode("utf-8")
+
+            lot = db.query("""
+                SELECT id
+                FROM carshare_lots
+                WHERE company = 'communauto'
+                    AND city = '{city}'
+                    AND partners_id = '{pid}'
+            """.format(city=city, pid=x["StationID"]))
+            lot_id = lot[0][0]
+
+            # update or insert
+            if x["CarID"] in our_pids and not x["CarID"] in parked_pids:
+                query = update_comm.format(
+                    pid=x["CarID"], name=x["Model"].encode('utf-8'), long=x["Longitude"], lat=x["Latitude"],
+                    address=x["strNomStation"], lot_id=lot_id
+                )
+            elif not x["CarID"] in our_pids:
+                query = insert_comm.format(
+                    city=city, pid=x["CarID"], name=x["Model"].encode('utf-8'), long=x["Longitude"],
+                    lat=x["Latitude"], address=x["strNomStation"], lot_id=lot_id
                 )
             if query:
                 queries.append(query)
