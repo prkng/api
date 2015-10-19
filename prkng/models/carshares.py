@@ -21,6 +21,7 @@ carshares_table = Table(
     Column('fuel', Integer),
     Column('since', DateTime, server_default=text('NOW()')),
     Column('parked', Boolean),
+    Column('electric', Boolean, default=False),
     Column('geojson', JSONB)
 )
 

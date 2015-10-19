@@ -205,8 +205,9 @@ def update_automobile():
     queries = []
 
     insert_autom = """
-        INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, geom, geojson)
+        INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
             SELECT 'auto-mobile', c.name, '{vin}', '{name}', s.way_name, {slot_id}, true, {fuel},
+                    CASE WHEN right('{name}', 2) = '-R' THEN true ELSE false END,
                     ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
                     ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
             FROM slots s
