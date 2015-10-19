@@ -206,8 +206,7 @@ def update_automobile():
 
     insert_autom = """
         INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
-            SELECT 'auto-mobile', c.name, '{vin}', '{name}', s.way_name, {slot_id}, true, {fuel},
-                    CASE WHEN right('{name}', 2) = '-R' THEN true ELSE false END,
+            SELECT 'auto-mobile', c.name, '{vin}', '{name}', s.way_name, {slot_id}, true, {fuel}, {electric},
                     ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
                     ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
             FROM slots s
@@ -261,7 +260,8 @@ def update_automobile():
         if x["Id"] in our_vins and not x["Id"] in parked_vins:
             query = update_autom.format(
                 vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
-                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
+                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"],
+                electric=("true" if x["Name"].endswith("-R") else "false")
             )
         elif not x["Id"] in our_vins:
             query = insert_autom.format(
