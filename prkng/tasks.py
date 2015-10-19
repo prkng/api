@@ -125,13 +125,13 @@ def update_car2go():
         our_lots = db.query("SELECT name FROM carshare_lots WHERE city = '{city}'".format(city=city))
         our_lots = [x[0] for x in our_lots] if our_lots else []
         for x in lot_data:
-            x["name"] = x["name"].replace("'", "''").encode("utf-8")
             if x["name"] in our_lots:
-                queries.append(update_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
-                    available=x["totalCapacity"] - x["usedCapacity"]))
+                queries.append(update_lot.format(city=city, name=x["name"].replace("'", "''").encode("utf-8"),
+                    capacity=x["totalCapacity"], available=x["totalCapacity"] - x["usedCapacity"]))
             else:
-                queries.append(insert_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
-                    available=x["totalCapacity"] - x["usedCapacity"], long=x["coordinates"][0], lat=x["coordinates"][1]))
+                queries.append(insert_lot.format(city=city, name=x["name"].replace("'", "''").encode("utf-8"),
+                    capacity=x["totalCapacity"], available=x["totalCapacity"] - x["usedCapacity"],
+                    long=x["coordinates"][0], lat=x["coordinates"][1]))
         db.queries(queries)
         queries = []
 
