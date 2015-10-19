@@ -121,9 +121,10 @@ def update_car2go():
         db.query("""
             UPDATE carshares c SET since = NOW(), parked = false
             WHERE c.company = 'car2go'
+                AND c.city = '{city}'
                 AND c.parked = true
                 AND (SELECT 1 FROM (VALUES {data}) AS d(pid) WHERE c.vin = d.pid LIMIT 1) IS NULL
-        """.format(data=",".join(["('{}')".format(x["vin"]) for x in data])))
+        """.format(city=city, data=",".join(["('{}')".format(x["vin"]) for x in data])))
 
         # create or update car2go tracking with new data
         values = ["('{}','{}','{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(city, x["vin"],
@@ -269,6 +270,7 @@ def update_communauto():
             UPDATE carshares c SET since = NOW(), parked = false
             FROM (VALUES {data}) AS d(pid, lot_id, numres)
             WHERE c.parked = true
+                AND c.city = '{city}'
                 AND d.numres = 1
                 AND c.company = 'communauto'
                 AND c.partners_id = d.pid;
@@ -276,9 +278,10 @@ def update_communauto():
             UPDATE carshares c SET since = NOW(), parked = false
             WHERE c.parked = true
                 AND c.company = 'communauto'
+                AND c.city = '{city}'
                 AND (SELECT 1 FROM (VALUES {data}) AS d(pid, lot_id, numres) WHERE d.pid != c.partners_id
                      AND d.lot_id = c.lot_id LIMIT 1) IS NOT NULL
-        """.format(data=",".join(["({},{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
+        """.format(city=city, data=",".join(["({},{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
 
         # create or update communauto tracking with newly parked vehicles
         values = ["({},{},'{}','{}','SRID=4326;POINT({} {})'::geometry)".format(x["CarID"], x["NbrRes"],
