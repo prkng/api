@@ -125,7 +125,7 @@ def update_car2go():
         our_lots = db.query("SELECT name FROM carshare_lots WHERE city = '{city}'".format(city=city))
         our_lots = [x[0] for x in our_lots] if our_lots else []
         for x in lot_data:
-            if x["name"] in our_lots:
+            if x["name"].encode("utf-8") in our_lots:
                 queries.append(update_lot.format(city=city, name=x["name"].replace("'", "''").encode("utf-8"),
                     capacity=x["totalCapacity"], available=x["totalCapacity"] - x["usedCapacity"]))
             else:
