@@ -11,7 +11,7 @@ class Corrections(object):
             time_max_parking, agenda, special_days, restrict_typ):
         # get signposts by slot ID
         res = db.engine.execute("""
-            SELECT address, signposts FROM slots WHERE city = '{city}' AND id = {id}
+            SELECT way_name, signposts FROM slots WHERE city = '{city}' AND id = {id}
         """.format(city=city, id=slot_id)).first()
         if not res:
             return False

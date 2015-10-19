@@ -81,34 +81,6 @@ def update_car2go():
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
-    queries = []
-
-    insert_car2go = """
-        INSERT INTO carshares (company, city, vin, name, address, slot_id, lot_id, parked, fuel, geom, geojson)
-            SELECT 'car2go', '{city}', '{vin}', '{name}', '{address}', {slot_id}, {lot_id}, true, {fuel},
-                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
-    """
-
-    update_car2go = """
-        UPDATE carshares SET since = NOW(), name = '{name}', address = '{address}', slot_id = {slot_id},
-            lot_id = {lot_id}, parked = true, fuel = {fuel},
-            geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
-        WHERE vin = '{vin}'
-    """
-
-    insert_lot = """
-        INSERT INTO carshare_lots (company, city, name, capacity, available, geom, geojson)
-            SELECT 'car2go', '{city}', '{name}', {capacity}, {available},
-                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
-    """
-
-    update_lot = """
-        UPDATE carshare_lots SET capacity = {capacity}, available = {available}
-        WHERE city = '{city}' AND name = '{name}'
-    """
 
     for city in ["montreal", "newyork"]:
         # grab data from car2go api
@@ -120,78 +92,72 @@ def update_car2go():
 
         raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
         lot_data = json.loads(raw.read())["placemarks"]
-        lots = [x["name"].replace("'", "''").encode("utf-8") for x in lot_data]
 
-        our_lots = db.query("SELECT name FROM carshare_lots WHERE city = '{city}'".format(city=city))
-        our_lots = [x[0] for x in our_lots] if our_lots else []
-        for x in lot_data:
-            if x["name"].encode("utf-8") in our_lots:
-                queries.append(update_lot.format(city=city, name=x["name"].replace("'", "''").encode("utf-8"),
-                    capacity=x["totalCapacity"], available=x["totalCapacity"] - x["usedCapacity"]))
-            else:
-                queries.append(insert_lot.format(city=city, name=x["name"].replace("'", "''").encode("utf-8"),
-                    capacity=x["totalCapacity"], available=x["totalCapacity"] - x["usedCapacity"],
-                    long=x["coordinates"][0], lat=x["coordinates"][1]))
-        db.queries(queries)
-        queries = []
+        # create or update car2go parking lots
+        values = ["('{}','{}',{},{})".format(city, x["name"].replace("'", "''").encode("utf-8"),
+            x["totalCapacity"], (x["totalCapacity"] - x["usedCapacity"])) for x in lot_data]
+        if values:
+            db.query("""
+                UPDATE carshare_lots l SET capacity = d.capacity, available = d.available
+                FROM (VALUES {}) AS d(city, name, capacity, available)
+                WHERE l.company = 'car2go' AND l.city = d.city AND l.name = d.name
+                    AND l.available != d.available
+            """.format(",".join(values)))
+
+        values = ["('{}','{}',{},{},'SRID=4326;POINT({} {})'::geometry)".format(city,
+            x["name"].replace("'", "''").encode("utf-8"), x["totalCapacity"],
+            (x["totalCapacity"] - x["usedCapacity"]), x["coordinates"][0],
+            x["coordinates"][1]) for x in lot_data]
+        if values:
+            db.query("""
+                INSERT INTO carshare_lots (company, city, name, capacity, available, geom, geojson)
+                    SELECT 'car2go', d.city, d.name, d.capacity, d.available,
+                            ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                    FROM (VALUES {}) AS d(city, name, capacity, available, geom)
+                    WHERE (SELECT 1 FROM carshare_lots l WHERE l.city = d.city AND l.name = d.name LIMIT 1) IS NULL
+            """.format(",".join(values)))
 
         # unpark stale entries in our database
-        our_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}'".format(city=city))
-        our_vins = [x[0] for x in our_vins] if our_vins else []
-        parked_vins = db.query("SELECT vin FROM carshares WHERE company = 'car2go' AND city = '{city}' AND parked = true".format(city=city))
-        parked_vins = [x[0] for x in parked_vins] if parked_vins else []
-        their_vins = [x["vin"] for x in data]
-        for x in parked_vins:
-            if not x in their_vins:
-                queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE city = '{city}' AND vin = '{vin}'".format(city=city, vin=x))
+        db.query("""
+            UPDATE carshares c SET since = NOW(), parked = false
+            WHERE c.company = 'car2go'
+                AND c.parked = true
+                AND (SELECT 1 FROM (VALUES {data}) AS d(pid) WHERE c.vin = d.pid LIMIT 1) IS NULL
+        """.format(data=",".join(["('{}')".format(x["vin"]) for x in data])))
 
         # create or update car2go tracking with new data
-        for x in data:
-            query = None
-            x["address"] = x["address"].replace("'", "''").encode("utf-8")
-
-            # if the address matches a car2go reserved lot, don't bother with a slot
-            if x["address"] in lots:
-                lot = db.query("""
-                    SELECT id
-                    FROM carshare_lots
-                    WHERE city = '{city}'
-                        AND name = '{name}'
-                """.format(city=city, name=x["address"]))
-                lot_id = lot[0][0] if lot else "NULL"
-                slot_id = "NULL"
-            # otherwise grab the most likely slot within 5m
-            else:
-                slot = db.query("""
-                    SELECT id
-                    FROM slots
-                    WHERE city = '{city}'
-                        AND ST_DWithin(
-                            ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                            geom,
-                            5
-                        )
-                    ORDER BY ST_Distance(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), geom)
-                    LIMIT 1
-                """.format(city=city, x=x["coordinates"][0], y=x["coordinates"][1]))
-                slot_id = slot[0][0] if slot else "NULL"
-                lot_id = "NULL"
-
-            # update or insert
-            if x["vin"] in our_vins and not x["vin"] in parked_vins:
-                query = update_car2go.format(
-                    vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
-                    address=x["address"], slot_id=slot_id, lot_id=lot_id, fuel=x["fuel"]
-                )
-            elif not x["vin"] in our_vins:
-                query = insert_car2go.format(
-                    city=city, vin=x["vin"], name=x["name"].encode('utf-8'), long=x["coordinates"][0], lat=x["coordinates"][1],
-                    address=x["address"], slot_id=slot_id, lot_id=lot_id, fuel=x["fuel"]
-                )
-            if query:
-                queries.append(query)
-
-    db.queries(queries)
+        values = ["('{}','{}','{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(city, x["vin"],
+            x["name"].encode('utf-8'), x["address"].replace("'", "''").encode("utf-8"),
+            x["fuel"], x["coordinates"][0], x["coordinates"][1]) for x in data]
+        db.query("""
+            WITH tmp AS (
+                SELECT DISTINCT ON (d.vin) d.vin, d.name, d.fuel, d.address, d.geom,
+                    s.id AS slot_id, l.id AS lot_id
+                FROM (VALUES {}) AS d(city, vin, name, address, fuel, geom)
+                LEFT JOIN carshare_lots l ON d.city = l.city AND l.name = d.address
+                LEFT JOIN slots s ON l.id IS NULL AND d.city = s.city
+                    AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+                ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+            )
+            UPDATE carshares c SET since = NOW(), name = t.name, address = t.address,
+                parked = true, slot_id = t.slot_id, lot_id = t.lot_id, fuel = t.fuel,
+                geom = ST_Transform(t.geom, 3857), geojson = ST_AsGeoJSON(t.geom)::jsonb
+            FROM tmp t
+            WHERE c.company = 'car2go'
+                AND c.vin = t.vin
+                AND c.parked = false
+        """.format(",".join(values)))
+        db.query("""
+            INSERT INTO carshares (company, city, vin, name, address, slot_id, lot_id, parked, fuel, geom, geojson)
+                SELECT DISTINCT ON (d.vin) 'car2go', d.city, d.vin, d.name, d.address, s.id, l.id,
+                    true, d.fuel, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(city, vin, name, address, fuel, geom)
+                LEFT JOIN carshare_lots l ON d.city = l.city AND l.name = d.address
+                LEFT JOIN slots s ON l.id IS NULL AND s.city = d.city
+                    AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+                WHERE (SELECT 1 FROM carshares c WHERE c.vin = d.vin LIMIT 1) IS NULL
+                ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+        """.format(",".join(values)))
 
 
 def update_automobile():
@@ -202,26 +168,6 @@ def update_automobile():
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
-    queries = []
-
-    insert_autom = """
-        INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
-            SELECT 'auto-mobile', c.name, '{vin}', '{name}', s.way_name, {slot_id}, true, {fuel}, {electric},
-                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
-            FROM slots s
-            JOIN cities c ON ST_Intersects(ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857), c.geom)
-            WHERE s.id = {slot_id};
-    """
-
-    update_autom = """
-        UPDATE carshares SET since = NOW(), name = '{name}', address = s.way_name, slot_id = {slot_id},
-            parked = true, fuel = {fuel}, geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
-        FROM slots s
-        WHERE vin = '{vin}'
-            AND s.id = {slot_id}
-    """
 
     # grab data from Auto-mobile api
     data = requests.get("https://www.reservauto.net/WCF/LSI/LSIBookingService.asmx/GetVehicleProposals",
@@ -229,49 +175,49 @@ def update_automobile():
     data = demjson.decode(data.text.lstrip("(").rstrip(");"))["Vehicules"]
 
     # unpark stale entries in our database
-    our_vins = db.query("SELECT vin FROM carshares WHERE company = 'auto-mobile'")
-    our_vins = [x[0] for x in our_vins] if our_vins else []
-    parked_vins = db.query("SELECT vin FROM carshares WHERE company = 'auto-mobile' AND parked = true")
-    parked_vins = [x[0] for x in parked_vins] if parked_vins else []
-    their_vins = [x["Id"] for x in data]
-    for x in parked_vins:
-        if not x in their_vins:
-            queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE vin = '{vin}'".format(vin=x))
+    db.query("""
+        UPDATE carshares c SET since = NOW(), parked = false
+        WHERE c.company = 'auto-mobile'
+            AND c.parked = true
+            AND (SELECT 1 FROM (VALUES {data}) AS d(pid) WHERE c.vin = d.pid LIMIT 1) IS NULL
+    """.format(data=",".join(["('{}')".format(x["Id"]) for x in data])))
 
-    # create or update Auto-mobile tracking with new data
-    for x in data:
-        query = None
-        slot = db.query("""
-            SELECT s.id
-            FROM slots s
-            JOIN cities c ON ST_Intersects(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), c.geom)
-            WHERE s.city = c.name
-                AND ST_DWithin(
-                    ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                    s.geom,
-                    5
-                )
-            ORDER BY ST_Distance(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), s.geom)
-            LIMIT 1
-        """.format(x=x["Position"]["Lon"], y=x["Position"]["Lat"]))
-        slot_id = slot[0][0] if slot else "NULL"
+    # create or update Auto-mobile tracking with newly parked vehicles
+    values = ["('{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
+        x["Immat"].encode('utf-8'), x["EnergyLevel"], x["Position"]["Lon"],
+        x["Position"]["Lat"]) for x in data]
+    db.query("""
+        WITH tmp AS (
+            SELECT DISTINCT ON (d.vin) d.vin, d.name, d.fuel, s.id AS slot_id, s.way_name, d.geom
+            FROM (VALUES {}) AS d(vin, name, fuel, geom)
+            JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
+            LEFT JOIN slots s ON s.city = c.name
+                AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+            ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+        )
+        UPDATE carshares c SET since = NOW(), name = t.name, address = t.way_name,
+            parked = true, slot_id = t.slot_id, fuel = t.fuel, geom = ST_Transform(t.geom, 3857),
+            geojson = ST_AsGeoJSON(t.geom)::jsonb
+        FROM tmp t
+        WHERE c.company = 'auto-mobile'
+            AND c.vin = t.vin
+            AND c.parked = false
+    """.format(",".join(values)))
 
-        # update or insert
-        if x["Id"] in our_vins and not x["Id"] in parked_vins:
-            query = update_autom.format(
-                vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
-                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
-            )
-        elif not x["Id"] in our_vins:
-            query = insert_autom.format(
-                vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
-                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"],
-                electric=("true" if x["Name"].endswith("-R") else "false")
-            )
-        if query:
-            queries.append(query)
-
-    db.queries(queries)
+    values = ["('{}','{}',{},{},'SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
+        x["Immat"].encode('utf-8'), x["EnergyLevel"], ("true" if x["Name"].endswith("-R") else "false"),
+        x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
+    db.query("""
+        INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
+            SELECT DISTINCT ON (d.vin) 'auto-mobile', c.name, d.vin, d.name, s.way_name, s.id,
+                true, d.fuel, d.electric, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+            FROM (VALUES {}) AS d(vin, name, fuel, electric, geom)
+            JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
+            LEFT JOIN slots s ON s.city = c.name
+                AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+            WHERE (SELECT 1 FROM carshares c WHERE c.vin = d.vin LIMIT 1) IS NULL
+            ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+    """.format(",".join(values)))
 
 
 def update_communauto():
@@ -282,34 +228,6 @@ def update_communauto():
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
-    queries = []
-
-    insert_comm = """
-        INSERT INTO carshares (company, city, partners_id, name, address, lot_id, geom, geojson)
-            SELECT 'communauto', '{city}', '{pid}', '{name}', '{address}', {lot_id},
-                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
-    """
-
-    update_comm = """
-        UPDATE carshares SET since = NOW(), name = '{name}', address = '{address}', parked = true,
-            geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
-        WHERE company = 'communauto'
-            AND partners_id = '{pid}'
-    """
-
-    insert_lot = """
-        INSERT INTO carshare_lots (company, city, name, capacity, available, partners_id, geom, geojson)
-            SELECT 'communauto', '{city}', '{name}', 1, {available}, {pid},
-                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
-                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
-    """
-
-    update_lot = """
-        UPDATE carshare_lots SET capacity = 1, available = {available}
-        WHERE city = '{city}' AND partners_id = '{pid}'
-    """
 
     for city in ["montreal", "quebec"]:
         # grab data from communauto api
@@ -325,57 +243,69 @@ def update_communauto():
         # must use demjson here because returning format is non-standard JSON
         data = demjson.decode(data.text.lstrip("(").rstrip(")"))["data"]
 
-        our_lots = db.query("SELECT partners_id FROM carshare_lots WHERE company = 'communauto' AND city = '{city}'"\
-            .format(city=city))
-        our_lots = [x[0] for x in our_lots] if our_lots else []
-        for x in data:
-            if x["StationID"] in our_lots:
-                queries.append(update_lot.format(city=city, pid=x["StationID"], available=(1 if x["NbrRes"] else 0)))
-            else:
-                queries.append(insert_lot.format(city=city, pid=x["StationID"], name=x["strNomStation"].replace("'", "''").encode("utf-8"),
-                    available=(1 if x["NbrRes"] else 0), long=x["Longitude"], lat=x["Latitude"]))
-        db.queries(queries)
-        queries = []
+        # create or update communauto parking spaces
+        values = ["({},{})".format(x["StationID"], (1 if x["NbrRes"] == 0 else 0)) for x in data]
+        db.query("""
+            UPDATE carshare_lots l SET capacity = 1, available = d.available
+            FROM (VALUES {}) AS d(pid, available)
+            WHERE l.company = 'communauto'
+                AND l.partners_id = d.pid
+                AND l.available != d.available
+        """.format(",".join(values)))
+
+        values = ["('{}','{}',{},{},'SRID=4326;POINT({} {})'::geometry)".format(city,
+            x["strNomStation"].replace("'", "''").encode("utf-8"), (1 if x["NbrRes"] == 0 else 0),
+            x["StationID"], x["Longitude"], x["Latitude"]) for x in data]
+        db.query("""
+            INSERT INTO carshare_lots (company, city, name, capacity, available, partners_id, geom, geojson)
+                SELECT 'communauto', d.city, d.name, 1, d.available, d.partners_id,
+                        ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(city, name, available, partners_id, geom)
+                WHERE (SELECT 1 FROM carshare_lots l WHERE l.partners_id = d.partners_id LIMIT 1) IS NULL
+        """.format(",".join(values)))
 
         # unpark stale entries in our database
-        our_pids = db.query("SELECT partners_id FROM carshares WHERE company = 'communauto' AND city = '{city}'".format(city=city))
-        our_pids = [x[0] for x in our_pids] if our_pids else []
-        parked_pids = db.query("SELECT partners_id FROM carshares WHERE company = 'communauto' AND city = '{city}' AND parked = true".format(city=city))
-        parked_pids = [x[0] for x in parked_pids] if parked_pids else []
-        for x in data:
-            if x["NbrRes"] > 0 and x["CarID"] in parked_pids:
-                queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE company = 'communauto'"
-                    " AND city = '{city}' AND partners_id = '{pid}'".format(city=city, pid=x["CarID"]))
+        db.query("""
+            UPDATE carshares c SET since = NOW(), parked = false
+            FROM (VALUES {data}) AS d(pid, lot_id, numres)
+            WHERE c.parked = true
+                AND d.numres = 1
+                AND c.company = 'communauto'
+                AND c.partners_id = d.pid;
 
-        # create or update communauto tracking with new data
-        for x in data:
-            query = None
-            x["strNomStation"] = x["strNomStation"].replace("'", "''").encode("utf-8")
+            UPDATE carshares c SET since = NOW(), parked = false
+            WHERE c.parked = true
+                AND c.company = 'communauto'
+                AND (SELECT 1 FROM (VALUES {data}) AS d(pid, lot_id, numres) WHERE d.pid != c.partners_id
+                     AND d.lot_id = c.lot_id LIMIT 1) IS NOT NULL
+        """.format(data=",".join(["({},{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
 
-            lot = db.query("""
-                SELECT id
-                FROM carshare_lots
-                WHERE company = 'communauto'
-                    AND city = '{city}'
-                    AND partners_id = '{pid}'
-            """.format(city=city, pid=x["StationID"]))
-            lot_id = lot[0][0]
+        # create or update communauto tracking with newly parked vehicles
+        values = ["({},{},'{}','{}','SRID=4326;POINT({} {})'::geometry)".format(x["CarID"], x["NbrRes"],
+            x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
+            x["Longitude"], x["Latitude"]) for x in data]
+        db.query("""
+            UPDATE carshares c SET since = NOW(), name = d.name, address = d.address, parked = true,
+                geom = ST_Transform(d.geom, 3857), geojson = ST_AsGeoJSON(d.geom)::jsonb
+            FROM (VALUES {}) AS d(pid, numres, name, address, geom)
+            WHERE c.company = 'communauto'
+                AND c.partners_id = d.pid
+                AND c.parked = false
+                AND d.numres = 0
+        """.format(",".join(values)))
 
-            # update or insert
-            if x["CarID"] in our_pids and not x["CarID"] in parked_pids:
-                query = update_comm.format(
-                    pid=x["CarID"], name=x["Model"].encode('utf-8'), long=x["Longitude"], lat=x["Latitude"],
-                    address=x["strNomStation"], lot_id=lot_id
-                )
-            elif not x["CarID"] in our_pids:
-                query = insert_comm.format(
-                    city=city, pid=x["CarID"], name=x["Model"].encode('utf-8'), long=x["Longitude"],
-                    lat=x["Latitude"], address=x["strNomStation"], lot_id=lot_id
-                )
-            if query:
-                queries.append(query)
-
-    db.queries(queries)
+        values = ["('{}',{},{},'{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(city, x["StationID"],
+            x["CarID"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
+            x["NbrRes"], x["Longitude"], x["Latitude"]) for x in data]
+        db.query("""
+            INSERT INTO carshares (company, city, partners_id, name, address, lot_id, parked, geom, geojson)
+                SELECT 'communauto', d.city, d.partners_id, d.name, d.address, l.id, d.numres = 0,
+                        ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(city, lot_pid, partners_id, name, address, numres, geom)
+                JOIN carshare_lots l ON l.company = 'communauto' AND l.city = d.city
+                    AND l.partners_id = d.lot_pid
+                WHERE (SELECT 1 FROM carshares c WHERE c.partners_id = d.partners_id LIMIT 1) IS NULL
+        """.format(",".join(values)))
 
 
 def update_free_spaces():
@@ -411,23 +341,18 @@ def update_analytics():
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
     r = Redis(db=1)
 
-    queries = []
     data = r.lrange('prkng:analytics:pos', 0, -1)
     r.delete('prkng:analytics:pos')
 
-    for x in data:
-        x = json.loads(x)
-        queries.append("""
-            INSERT INTO analytics_pos (user_id, lat, long, radius, created, search_type) VALUES ({}, {}, {}, {}, '{}', '{}')
-        """.format(x["user_id"], x["lat"], x["long"], x["radius"], x["created"], x["search_type"]))
+    pos_query = "INSERT INTO analytics_pos (user_id, lat, long, radius, created, search_type) VALUES "
+    pos_query += ",".join(["({}, {}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"], x["long"],
+        x["radius"], x["created"], x["search_type"]) for x in map(lambda y: json.loads(y), data)])
+    db.query(pos_query)
 
     data = r.lrange('prkng:analytics:event', 0, -1)
     r.delete('prkng:analytics:event')
 
-    for x in data:
-        x = json.loads(x)
-        queries.append("""
-            INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES ({}, {}, {}, '{}', '{}')
-        """.format(x["user_id"], x["lat"] or "NULL", x["long"] or "NULL", x["created"], x["event"]))
-
-    db.queries(queries)
+    event_query = "INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES "
+    event_query += ",".join(["({}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"] or "NULL",
+        x["long"] or "NULL", x["created"], x["event"]) for x in map(lambda y: json.loads(y), data)])
+    db.query(event_query)
