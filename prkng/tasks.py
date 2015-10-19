@@ -19,6 +19,8 @@ def init_tasks(debug=True):
     now = datetime.datetime.now()
     stop_tasks()
     scheduler.schedule(scheduled_time=now, func=update_car2go, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_automobile, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_communauto, interval=120, result_ttl=240, repeat=None)
     if not debug:
         scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
         scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
@@ -82,8 +84,8 @@ def update_car2go():
     queries = []
 
     insert_car2go = """
-        INSERT INTO carshares (company, city, vin, name, address, slot_id, lot_id, fuel, geom, geojson)
-            SELECT 'car2go', '{city}', '{vin}', '{name}', '{address}', {slot_id}, {lot_id}, {fuel},
+        INSERT INTO carshares (company, city, vin, name, address, slot_id, lot_id, parked, fuel, geom, geojson)
+            SELECT 'car2go', '{city}', '{vin}', '{name}', '{address}', {slot_id}, {lot_id}, true, {fuel},
                     ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
                     ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb;
     """
@@ -192,6 +194,85 @@ def update_car2go():
     db.queries(queries)
 
 
+def update_automobile():
+    """
+    Task to check with the Auto-mobile API, find moved cars and update their positions/slots
+    """
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+    queries = []
+
+    insert_autom = """
+        INSERT INTO carshares (company, city, vin, name, address, slot_id, parked, fuel, geom, geojson)
+            SELECT 'auto-mobile', c.name, '{vin}', '{name}', s.way_name, {slot_id}, true, {fuel},
+                    ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+                    ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
+            FROM slots s
+            JOIN cities c ON ST_Intersects(ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857), c.geom)
+            WHERE s.id = {slot_id};
+    """
+
+    update_autom = """
+        UPDATE carshares SET since = NOW(), name = '{name}', address = s.way_name, slot_id = {slot_id},
+            parked = true, fuel = {fuel}, geom = ST_Transform('SRID=4326;POINT({long} {lat})'::geometry, 3857),
+            geojson = ST_AsGeoJSON('SRID=4326;POINT({long} {lat})'::geometry)::jsonb
+        FROM slots s
+        WHERE vin = '{vin}'
+            AND s.id = {slot_id}
+    """
+
+    # grab data from Auto-mobile api
+    data = requests.get("https://www.reservauto.net/WCF/LSI/LSIBookingService.asmx/GetVehicleProposals",
+        params={"Longitude": "-73.56307727766432", "Latitude": "45.48420949674474", "CustomerID": '""'})
+    data = demjson.decode(data.text.lstrip("(").rstrip(");"))["Vehicules"]
+
+    # unpark stale entries in our database
+    our_vins = db.query("SELECT vin FROM carshares WHERE company = 'auto-mobile'")
+    our_vins = [x[0] for x in our_vins] if our_vins else []
+    parked_vins = db.query("SELECT vin FROM carshares WHERE company = 'auto-mobile' AND parked = true")
+    parked_vins = [x[0] for x in parked_vins] if parked_vins else []
+    their_vins = [x["Id"] for x in data]
+    for x in parked_vins:
+        if not x in their_vins:
+            queries.append("UPDATE carshares SET since = NOW(), parked = false WHERE vin = '{vin}'".format(vin=x))
+
+    # create or update Auto-mobile tracking with new data
+    for x in data:
+        query = None
+        slot = db.query("""
+            SELECT s.id
+            FROM slots s
+            JOIN cities c ON ST_Intersects(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), c.geom)
+            WHERE s.city = c.name
+                AND ST_DWithin(
+                    ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
+                    s.geom,
+                    5
+                )
+            ORDER BY ST_Distance(st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857), s.geom)
+            LIMIT 1
+        """.format(x=x["Position"]["Lon"], y=x["Position"]["Lat"]))
+        slot_id = slot[0][0] if slot else "NULL"
+
+        # update or insert
+        if x["Id"] in our_vins and not x["Id"] in parked_vins:
+            query = update_autom.format(
+                vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
+                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
+            )
+        elif not x["Id"] in our_vins:
+            query = insert_autom.format(
+                vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
+                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
+            )
+        if query:
+            queries.append(query)
+
+    db.queries(queries)
+
+
 def update_communauto():
     """
     Task to check with the Communuauto API, find moved cars and update their positions/slots
@@ -230,7 +311,7 @@ def update_communauto():
     """
 
     for city in ["montreal", "quebec"]:
-        # grab data from car2go api
+        # grab data from communauto api
         if city == "montreal":
             cacity = 59
         elif city == "quebec":
