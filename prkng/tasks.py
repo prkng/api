@@ -127,7 +127,7 @@ def update_car2go():
         for x in lot_data:
             x["name"] = x["name"].replace("'", "''").encode("utf-8")
             if x["name"] in our_lots:
-                queries.append(update_lot.format(city=city, capacity=x["totalCapacity"],
+                queries.append(update_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
                     available=x["totalCapacity"] - x["usedCapacity"]))
             else:
                 queries.append(insert_lot.format(city=city, name=x["name"], capacity=x["totalCapacity"],
