@@ -46,7 +46,8 @@ class Carshares(object):
         'geojson',
         'company',
         'name',
-        'fuel'
+        'fuel',
+        'electric'
     )
     lot_properties = (
         'id',
