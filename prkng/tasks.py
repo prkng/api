@@ -260,13 +260,13 @@ def update_automobile():
         if x["Id"] in our_vins and not x["Id"] in parked_vins:
             query = update_autom.format(
                 vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
-                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"],
-                electric=("true" if x["Name"].endswith("-R") else "false")
+                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
             )
         elif not x["Id"] in our_vins:
             query = insert_autom.format(
                 vin=x["Id"], name=x["Immat"].encode('utf-8'), long=x["Position"]["Lon"],
-                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"]
+                lat=x["Position"]["Lat"], slot_id=slot_id, fuel=x["EnergyLevel"],
+                electric=("true" if x["Name"].endswith("-R") else "false")
             )
         if query:
             queries.append(query)
