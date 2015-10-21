@@ -10,7 +10,6 @@ from flask import g
 from prkng import create_app
 from prkng.api.public import init_api, v1
 from prkng.models import db, init_model, User, metadata
-from prkng.processing.common import create_slots
 from prkng.login import init_login
 
 
@@ -40,7 +39,21 @@ def app(request):
         return "ok"
 
     # create slots table
-    db.engine.execute(create_slots)
+    db.engine.execute("""
+        CREATE TABLE IF NOT EXISTS slots
+        (
+          id serial PRIMARY KEY,
+          city varchar,
+          rid integer,
+          signposts integer[],
+          rules jsonb,
+          way_name varchar,
+          geom geometry(LineString,3857),
+          geojson jsonb,
+          button_location jsonb,
+          button_locations jsonb
+        )
+    """)
 
     with app.test_client() as client:
         # add a user in order to honor foreign key of checkins

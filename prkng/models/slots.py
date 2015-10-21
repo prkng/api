@@ -1,5 +1,5 @@
 from prkng.database import db
-from prkng.processing.filters import assign_type, on_restriction
+from prkng.filters import assign_type, on_restriction
 
 import datetime
 

@@ -1,7 +1,4 @@
 from prkng.database import db
-from prkng.processing.common import process_corrected_rules, process_corrections
-
-from sqlalchemy import text
 
 
 class Corrections(object):
@@ -36,10 +33,74 @@ class Corrections(object):
         return {key: value for key, value in res.items()}
 
     @staticmethod
+    def process_corrected_rules():
+        db.engine.execute("""
+            WITH s AS (
+              -- get the rule if it already exists
+              SELECT c.id, r.code, r.description FROM corrections c
+                LEFT JOIN rules r
+                   ON r.season_start     = c.season_start
+                  AND r.season_end       = c.season_end
+                  AND r.time_max_parking = c.time_max_parking
+                  AND r.agenda           = c.agenda
+                  AND r.special_days     = c.special_days
+                  AND r.restrict_typ     = c.restrict_typ
+            ), i AS (
+              -- if it doesn't exist, create it
+              INSERT INTO rules
+                (code, description, season_start, season_end, time_max_parking,
+                  agenda, special_days, restrict_typ)
+                SELECT c.code, c.description, c.season_start, c.season_end, c.time_max_parking,
+                  c.agenda, c.special_days, c.restrict_typ
+                  FROM corrections c, s
+                  WHERE c.id = s.id AND s.code IS NULL
+                  RETURNING code, description
+            )
+            -- finally update the original correction w/ proper code/desc if needed
+            UPDATE corrections c
+              SET code = s.code, description = s.description
+              FROM s
+              WHERE c.id = s.id
+                AND c.code <> s.code
+        """)
+
+    @staticmethod
+    def process_corrections():
+        db.engine.execute("""
+            WITH r AS (
+              SELECT
+                signposts,
+                array_to_json(
+                  array_agg(distinct
+                  json_build_object(
+                    'code', code,
+                    'description', description,
+                    'season_start', season_start,
+                    'season_end', season_end,
+                    'address', address,
+                    'agenda', agenda,
+                    'time_max_parking', time_max_parking,
+                    'special_days', special_days,
+                    'restrict_typ', restrict_typ,
+                    'permit_no', NULL
+                  )::jsonb
+                ))::jsonb AS rules
+              FROM corrections
+              GROUP BY signposts
+            )
+            UPDATE slots s
+              SET rules = r.rules
+              FROM r
+              WHERE s.city = '{city}'
+                AND s.signposts = r.signposts
+                AND s.rules <> r.rules
+        """)
+
+    @staticmethod
     def apply():
         # apply any pending corrections to existing slots
-        db.engine.execute(text(process_corrected_rules).execution_options(autocommit=True))
-        db.engine.execute(text(process_corrections).execution_options(autocommit=True))
+        Corrections.process_corrected_rules()
+        Corrections.process_corrections()
 
     @staticmethod
     def get(id):

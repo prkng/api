@@ -10,7 +10,6 @@ from redis import Redis
 import requests
 from rq_scheduler import Scheduler
 from subprocess import check_call
-import urllib2
 
 scheduler = Scheduler('scheduled_jobs', connection=Redis(db=1))
 
@@ -25,8 +24,6 @@ def init_tasks(debug=True):
         scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
         scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
-        scheduler.schedule(scheduled_time=datetime.datetime.combine(datetime.date.today() + datetime.timedelta(days=1), datetime.time(8)),
-            func=run_backup, args=["prkng", "prkng"], interval=86400, result_ttl=172800, repeat=None)
         scheduler.schedule(scheduled_time=now, func=clear_expired_apple_device_ids, interval=86400,
             result_ttl=172800, repeat=None)
 
@@ -87,11 +84,13 @@ def update_car2go():
         c2city = city
         if c2city == "newyork":
             c2city = "newyorkcity"
-        raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/vehicles?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
-        data = json.loads(raw.read())["placemarks"]
+        raw = requests.get("https://www.car2go.com/api/v2.1/vehicles",
+            params={"loc": city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
+        data = raw.json()["placemarks"]
 
-        raw = urllib2.urlopen("https://www.car2go.com/api/v2.1/parkingspots?loc={city}&format=json&oauth_consumer_key={key}".format(city=c2city, key=CONFIG["CAR2GO_CONSUMER"]))
-        lot_data = json.loads(raw.read())["placemarks"]
+        raw = requests.get("https://www.car2go.com/api/v2.1/parkingspots",
+            params={"loc": city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
+        lot_data = raw.json()["placemarks"]
 
         # create or update car2go parking lots
         values = ["('{}','{}',{},{})".format(city, x["name"].replace("'", "''").encode("utf-8"),
