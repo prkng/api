@@ -79,8 +79,8 @@ def app(request):
             VALUES('SRID=3857;LINESTRING(2.765 42.988, 2.865 43.988)'::geometry)
             """.format(num))
         db.engine.execute("""
-            INSERT INTO checkins (user_id, slot_id, way_name, long, lat)
-            VALUES(1, {}, 'way_name', 2.765, 42.988)""".format(num))
+            INSERT INTO checkins (user_id, slot_id, long, lat)
+            VALUES(1, {}, 2.765, 42.988)""".format(num))
 
     return app
 
