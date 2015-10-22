@@ -2,6 +2,7 @@ from prkng.database import db, metadata
 
 import datetime
 from sqlalchemy import Column, DateTime, Integer, String, Table, text
+from sqlalchemy.dialects.postgresql import ARRAY
 
 
 free_spaces_table = Table(
@@ -9,7 +10,8 @@ free_spaces_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('time', DateTime, server_default=text('NOW()')),
-    Column('address', String)
+    Column('address', String),
+    Column('slot_ids', ARRAY)
 )
 
 class FreeSpaces(object):
