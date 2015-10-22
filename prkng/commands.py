@@ -66,6 +66,7 @@ def initialize_tasks():
     """
     Tell rq-scheduler to process our tasks
     """
+    CONFIG = create_app().config
     init_tasks(CONFIG["DEBUG"])
     Logger.info('Tasks initialized')
 

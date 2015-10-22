@@ -85,11 +85,11 @@ def update_car2go():
         if c2city == "newyork":
             c2city = "newyorkcity"
         raw = requests.get("https://www.car2go.com/api/v2.1/vehicles",
-            params={"loc": city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
+            params={"loc": c2city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
         data = raw.json()["placemarks"]
 
         raw = requests.get("https://www.car2go.com/api/v2.1/parkingspots",
-            params={"loc": city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
+            params={"loc": c2city, "format": "json", "oauth_consumer_key": CONFIG["CAR2GO_CONSUMER"]})
         lot_data = raw.json()["placemarks"]
 
         # create or update car2go parking lots
