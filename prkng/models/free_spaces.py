@@ -11,7 +11,7 @@ free_spaces_table = Table(
     Column('id', Integer, primary_key=True),
     Column('time', DateTime, server_default=text('NOW()')),
     Column('address', String),
-    Column('slot_ids', ARRAY)
+    Column('slot_ids', ARRAY(Integer))
 )
 
 class FreeSpaces(object):

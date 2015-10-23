@@ -16,13 +16,15 @@ def auth_required():
     return wrapper
 
 
-def create_token(user):
+def create_token(user, ext=None):
     iat = time.time()
     payload = {
         "iss": user,
         "iat": iat,
         "exp": iat + 21600
     }
+    if ext:
+        payload["ext"] = ext
     tjwss = TimedJSONWebSignatureSerializer(secret_key=current_app.config["SECRET_KEY"],
         expires_in=21600, algorithm_name="HS256")
     return tjwss.dumps(payload).decode("utf-8")

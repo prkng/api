@@ -40,11 +40,11 @@ def generate_token():
     data = request.get_json()
     uname, passwd = data.get("username"), data.get("password")
     if uname in current_app.config["CAR2GO_ACCTS"] \
-    and passwd == current_app.config["CAR2GO_ACCTS"][uname]:
+    and passwd == current_app.config["CAR2GO_ACCTS"][uname]["password"]:
         with open(os.path.join(os.path.expanduser('~'), 'car2go_access.log'), 'a') as f:
             f.write('[LOGIN] User {} at {} with IP {}\n'.format(uname, datetime.datetime.now().isoformat(),
                 request.environ['REMOTE_ADDR']))
-        return jsonify(token=create_token(uname))
+        return jsonify(token=create_token(uname, ext=current_app.config["CAR2GO_ACCTS"][uname]["city"]))
     else:
         return jsonify(message="Username or password incorrect"), 401
 
