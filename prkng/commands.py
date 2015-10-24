@@ -43,6 +43,23 @@ def backup():
     Logger.info('Backup created and stored as {}'.format(os.path.join(backup_dir, file_name)))
 
 
+@click.command(name="import")
+@click.argument('path', type=click.Path(exists=True, dir_okay=False, readable=True, resolve_path=True))
+def file_import(path):
+    """
+    Import database from specified file location
+    """
+    CONFIG = create_app().config
+    Logger.info('Importing backup...')
+    if path.endswith(".gz"):
+        cmdstring = 'gunzip -c {} | psql {PG_USERNAME} {PG_DATABASE}'
+    else:
+        cmdstring = 'psql {PG_USERNAME} {PG_DATABASE} < {}'
+    subprocess.check_call(cmdstring.format(path, PG_USERNAME=CONFIG["PG_USERNAME"], PG_DATABASE=CONFIG["PG_DATABASE"]),
+        shell=True)
+    Logger.info('Data imported successfully')
+
+
 @click.command()
 def maintenance():
     """
@@ -73,5 +90,6 @@ def initialize_tasks():
 
 main.add_command(serve)
 main.add_command(backup)
+main.add_command(file_import)
 main.add_command(maintenance)
 main.add_command(initialize_tasks)

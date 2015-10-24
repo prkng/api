@@ -162,7 +162,7 @@ class Analytics(object):
     @staticmethod
     def get_map_usage(hours=24):
         res = db.engine.execute("""
-            SELECT lat, long, 1 AS value
+            SELECT ST_X(ST_Transform(centerpoint, 4326)) AS lat, ST_Y(ST_Transform(centerpoint, 4326)) AS long, count
             FROM analytics_pos
             WHERE created >= (NOW() - ({} * INTERVAL '1 HOUR'))
         """.format(hours))

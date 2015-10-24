@@ -346,9 +346,26 @@ def update_analytics():
     data = r.lrange('prkng:analytics:pos', 0, -1)
     r.delete('prkng:analytics:pos')
 
-    pos_query = "INSERT INTO analytics_pos (user_id, lat, long, radius, created, search_type) VALUES "
-    pos_query += ",".join(["({}, {}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"], x["long"],
-        x["radius"], x["created"], x["search_type"]) for x in map(lambda y: json.loads(y), data)])
+    values = ["({}, {}, {}, '{}'::timestamp, '{}')".format(x["user_id"], x["lat"], x["long"],
+        x["created"], x["search_type"]) for x in map(lambda y: json.loads(y), data)]
+    pos_query = """
+        WITH tmp AS (
+            SELECT
+                user_id,
+                search_type,
+                count(*),
+                date_trunc('hour', created) AS hour_stump,
+                (extract(minute FROM created)::int / 5) AS min_by5,
+                ST_Collect(ST_Transform(ST_SetSRID(ST_MakePoint(lat, long), 4326), 3857)) AS geom
+            FROM (VALUES {}) AS d(user_id, lat, long, created, search_type)
+            GROUP BY 1, 2, 4, 5
+            ORDER BY 1, 2, 4, 5
+        )
+        INSERT INTO analytics_pos (user_id, geom, centerpoint, count, created, search_type)
+            SELECT user_id, geom, ST_Centroid(geom), count, hour_stump + (INTERVAL '5 MINUTES' * min_by5),
+                search_type
+            FROM tmp
+    """.format(",".join(values))
     db.query(pos_query)
 
     data = r.lrange('prkng:analytics:event', 0, -1)

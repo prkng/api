@@ -3,6 +3,7 @@ from prkng.database import db, metadata
 import datetime
 import json
 from sqlalchemy import Column, DateTime, Float, Integer, String, Table, text
+from geoalchemy2 import Geometry
 
 
 search_table = Table(
@@ -20,10 +21,11 @@ pos_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('user_id', Integer),
-    Column('created', DateTime, server_default=text('NOW()')),
-    Column('lat', Float),
-    Column('long', Float),
-    Column('radius', Integer)
+    Column('geom', Geometry('MULTIPOINT', 3857)),
+    Column('centerpoint', Geometry('POINT', 3857)),
+    Column('count', Integer),
+    Column('created', DateTime),
+    Column('search_type', String)
 )
 
 event_table = Table(
