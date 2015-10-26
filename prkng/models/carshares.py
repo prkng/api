@@ -90,6 +90,42 @@ class Carshares(object):
             city=city, x=x, y=y, radius=radius)).fetchall()
 
     @staticmethod
+    def get_boundbox(nelat, nelng, swlat, swlng):
+        """
+        Retrieve all parked carshares inside a given boundbox.
+        """
+
+        res = db.engine.execute("""
+            SELECT name FROM cities
+            WHERE ST_Intersects(geom,
+                ST_Transform(ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326), 3857)
+            )
+        """.format(nelat=nelat, nelng=nelng, swlat=swlat, swlng=swlng)).first()
+        if not res:
+            return False
+
+        req = """
+            SELECT {properties} FROM carshares c
+            WHERE c.city = '{city}' AND
+                ST_intersects(
+                    ST_Transform(
+                        ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
+                        3857
+                    ),
+                    c.geom
+                )
+        """.format(
+            properties=','.join(Carshares.properties),
+            city=res[0],
+            nelat=nelat,
+            nelng=nelng,
+            swlat=swlat,
+            swlng=swlng
+        )
+
+        return db.engine.execute(req).fetchall()
+
+    @staticmethod
     def get_lots_within(city, x, y, radius, company=False):
         """
         Get all carshare lots in a city within a particular radius.
@@ -104,9 +140,9 @@ class Carshares(object):
                 )
         """
         if company and "," in company:
-            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+x+"'" for x in company.split(",")]))
+            qry += "AND company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",")]))
         elif company:
-            qry += "AND c.company = '{}'".format(company)
+            qry += "AND company = '{}'".format(company)
         return db.engine.execute(qry.format(properties=', '.join(Carshares.lot_properties),
             city=city, x=x, y=y, radius=radius)).fetchall()
 

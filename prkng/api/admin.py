@@ -1,6 +1,6 @@
 from prkng.api import auth_required, create_token
 from prkng.analytics import Analytics
-from prkng.models import Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, User
+from prkng.models import Carshares, Checkins, City, Corrections, FreeSpaces, ParkingLots, Reports, Slots, User
 from prkng.notifications import schedule_notifications
 
 from flask import jsonify, Blueprint, abort, current_app, request, send_from_directory
@@ -214,6 +214,29 @@ def get_slot(id):
 
     slot = {field: res[0][num] for num, field in enumerate(slot_props)}
     return jsonify(slot=slot), 200
+
+
+@admin.route('/api/carshares')
+@auth_required()
+def get_carshares():
+    """
+    Returns carshares inside a boundbox
+    """
+    res = Carshares.get_boundbox(
+        request.args['neLat'],
+        request.args['neLng'],
+        request.args['swLat'],
+        request.args['swLng']
+    )
+    if res == False:
+        return jsonify(status="no feature found"), 404
+
+    carshares = [
+        {field: row[field] for field in Carshares.properties}
+        for row in res
+    ]
+
+    return jsonify(carshares=carshares), 200
 
 
 @admin.route('/api/lots')
