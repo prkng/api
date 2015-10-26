@@ -457,7 +457,7 @@ carshare_parser.add_argument(
     type=str,
     location='args',
     required=False,
-    help='Return carshares for a particular company only'
+    help='Return carshares for a particular company (or companies, comma-separated) only'
 )
 
 carshares_fields = api.model('CarsharesGeoJSONFeature', {
@@ -491,7 +491,8 @@ class CarsharesResource(Resource):
         if not city:
             api.abort(404, "no feature found")
 
-        res = Carshares.get_within(city, args['longitude'], args['latitude'], args['radius'], args['company'] or False)
+        res = Carshares.get_within(city, args['longitude'], args['latitude'], args['radius'],
+            args['company'] or False)
 
         return FeatureCollection([
             Feature(

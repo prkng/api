@@ -73,7 +73,7 @@ class Carshares(object):
         """
         Get all parked carshares in a city within a particular radius.
         """
-        return db.engine.execute("""
+        qry = """
             SELECT {properties} FROM carshares c
             WHERE c.city = '{city}' AND c.parked = true AND
                 ST_Dwithin(
@@ -81,15 +81,20 @@ class Carshares(object):
                     c.geom,
                     {radius}
                 )
-        """.format(properties=', '.join(Carshares.properties), city=city, x=x, y=y, radius=radius)\
-        + ("AND c.company = '{co}'".format(co=company) if company else "")).fetchall()
+        """
+        if company and "," in company:
+            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+x+"'" for x in company.split(",")]))
+        elif company:
+            qry += "AND c.company = '{}'".format(company)
+        return db.engine.execute(qry.format(properties=', '.join(Carshares.properties),
+            city=city, x=x, y=y, radius=radius)).fetchall()
 
     @staticmethod
     def get_lots_within(city, x, y, radius, company=False):
         """
         Get all carshare lots in a city within a particular radius.
         """
-        return db.engine.execute("""
+        qry = """
             SELECT {properties} FROM carshare_lots
             WHERE city = '{city}' AND
                 ST_Dwithin(
@@ -97,8 +102,13 @@ class Carshares(object):
                     geom,
                     {radius}
                 )
-        """.format(properties=', '.join(Carshares.lot_properties), city=city, x=x, y=y, radius=radius)\
-        + ("AND c.company = '{co}'".format(co=company) if company else "")).fetchall()
+        """
+        if company and "," in company:
+            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+x+"'" for x in company.split(",")]))
+        elif company:
+            qry += "AND c.company = '{}'".format(company)
+        return db.engine.execute(qry.format(properties=', '.join(Carshares.lot_properties),
+            city=city, x=x, y=y, radius=radius)).fetchall()
 
     @staticmethod
     def get_all(company, city):
