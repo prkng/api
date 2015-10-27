@@ -83,7 +83,7 @@ class Carshares(object):
                 )
         """
         if company and "," in company:
-            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+x+"'" for x in company.split(",")]))
+            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",")]))
         elif company:
             qry += "AND c.company = '{}'".format(company)
         return db.engine.execute(qry.format(properties=', '.join(Carshares.properties),
