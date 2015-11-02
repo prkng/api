@@ -372,7 +372,8 @@ def update_analytics():
     data = r.lrange('prkng:analytics:event', 0, -1)
     r.delete('prkng:analytics:event')
 
-    event_query = "INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES "
-    event_query += ",".join(["({}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"] or "NULL",
-        x["long"] or "NULL", x["created"], x["event"]) for x in map(lambda y: json.loads(y), data)])
-    db.query(event_query)
+    if data:
+        event_query = "INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES "
+        event_query += ",".join(["({}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"] or "NULL",
+            x["long"] or "NULL", x["created"], x["event"]) for x in map(lambda y: json.loads(y), data)])
+        db.query(event_query)
