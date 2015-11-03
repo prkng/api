@@ -33,7 +33,8 @@ nrm_props = lambda x: {
 
 cpt_props = lambda x: {
     "button_locations": x["button_locations"],
-    "restrict_typ": x["restrict_typ"],
+    "restrict_typ": x["restrict_types"][0] if len(x["restrict_types"]) else None,
+    "restrict_types": x["restrict_types"],
     "way_name": x["way_name"],
     "compact": True
 }

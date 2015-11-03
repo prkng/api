@@ -24,10 +24,10 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
 
     # analyze each rule and stop iteration on conflict
     for rule in rules:
-        if rule.get('restrict_typ') == 'paid' and not paid:
+        if "paid" in rule['restrict_types'] and not paid:
             # don't show me paid slots
             return True
-        elif rule.get('restrict_typ') in ['paid', 'angled']:
+        elif any(x in ['paid', 'angled'] for x in rule['restrict_types']):
             # not concerned, going to the next rule
             continue
 
@@ -47,7 +47,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
             # not concerned, going to the next rule
             continue
 
-        if rule.get('restrict_typ') == 'permit' and (permit == 'all' or str(permit) == str(rule.get('permit_no'))):
+        if "permit" in rule['restrict_types'] and (permit == 'all' or str(permit) == str(rule.get('permit_no'))):
             # this is a permit rule and we like permits
             continue
 
@@ -108,9 +108,9 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
 
 
 def assign_type(slot, checkin):
-    slot['restrict_typ'] = None
+    slot['restrict_types'] = []
 
-    if not [(x.get("metered") or x["restrict_typ"] == "paid") for x in slot['rules']]:
+    if not [("paid" in x["restrict_types"]) for x in slot['rules']]:
         # simple, the slot has no paid rules
         # give it back as-is
         return feature
@@ -121,7 +121,7 @@ def assign_type(slot, checkin):
     year = checkin.year  # 2015
     day = checkin.strftime('%d')  # 07
 
-    for rule in [x for x in slot['rules'] if (x.get("metered") or x["restrict_typ"] == "paid")]:
+    for rule in [x for x in slot['rules'] if "paid" in x["restrict_types"]]:
         # first test season day/month
         start_month, start_day = ('-' or rule['season_start']).split('-')
         end_month, end_day = ('-' or rule['season_end']).split('-')
@@ -158,7 +158,7 @@ def assign_type(slot, checkin):
 
                 if start_time < checkin and stop_time > checkin:
                     # we are in the period, say we're paid and get out
-                    slot['restrict_typ'] = "paid"
+                    slot['restrict_types'] = ["paid"]
                     return slot
     return slot
 
