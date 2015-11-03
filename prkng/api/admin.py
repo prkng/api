@@ -147,7 +147,7 @@ def add_correction():
         data["city"], data["description"], data["initials"],
         data.get("season_start", ""), data.get("season_end", ""),
         data.get("time_max_parking", 0.0), json.dumps(data["agenda"]),
-        data.get("special_days", ""), data.get("restrict_typ", ""))
+        data.get("special_days", ""), data.get("restrict_types", ""))
     return jsonify(correction=corr), 201
 
 
@@ -193,7 +193,7 @@ def get_slots():
     if res == False:
         return jsonify(status="no feature found"), 404
 
-    props = ["id", "geojson", "button_locations", "restrict_typ"]
+    props = ["id", "geojson", "button_locations", "restrict_types"]
     slots = [
         {field: row[field] for field in props}
         for row in res
