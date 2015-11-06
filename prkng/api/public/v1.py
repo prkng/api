@@ -99,7 +99,8 @@ class ButtonLocations(fields.Raw):
         description='city parking permit number applicable for this slot',
         required=True),
     'special_days': fields.String(required=True),
-    'restrict_typ': fields.String(
+    'restrict_types': fields.List(
+        fields.Raw,
         description='special restriction details',
         required=True),
     'paid_hourly_rate': fields.Float(
@@ -161,9 +162,7 @@ class CarshareLotsField(fields.Raw):
         required=True),
     'attrs': LotAttributes(
         description='list of amenities present at this lot/garage',
-        required=True),
-    'daily_price': fields.Float(
-        description='price per day for a space in this lot/garage')
+        required=True)
 })
 class LotsField(fields.Raw):
     pass
@@ -333,7 +332,8 @@ class SlotsResource(Resource):
         Returns slots around the point defined by (x, y)
         """
         args = slot_parser.parse_args()
-        args['carsharing'] = args['carsharing'] not in ['false', False]
+        args['compact'] = args['compact'] not in ['false', 'False', False]
+        args['carsharing'] = args['carsharing'] not in ['false', 'False', False]
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("slots", g.user.id, args["latitude"],
@@ -359,7 +359,7 @@ class SlotsResource(Resource):
             Feature(
                 id=feat['id'],
                 geometry=feat['geojson'],
-                properties=cpt_props(feat) if args.get('compact') else nrm_props(feat)
+                properties=cpt_props(feat) if args['compact'] else nrm_props(feat)
             )
             for feat in res
         ]), 200
