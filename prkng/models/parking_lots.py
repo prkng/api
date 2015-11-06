@@ -1,4 +1,30 @@
-from prkng.database import db
+from prkng.database import db, metadata
+
+from sqlalchemy import Boolean, Column, Integer, String, Table
+from sqlalchemy.dialects.postgresql import JSONB
+from geoalchemy2 import Geometry
+
+
+lots_table = Table(
+    'parking_lots',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('active', Boolean, default=True),
+    Column('partner_id', Integer, nullable=True),
+    Column('partner_name', String, nullable=True),
+    Column('city', String),
+    Column('name', String),
+    Column('operator', String, nullable=True),
+    Column('capacity', Integer, nullable=True),
+    Column('available', Integer, nullable=True),
+    Column('address', String),
+    Column('description', String),
+    Column('geom', Geometry('POINT', 3857)),
+    Column('geojson', JSONB),
+    Column('agenda', JSONB),
+    Column('attrs', JSONB),
+    Column('street_view', JSONB)
+)
 
 
 class ParkingLots(object):
@@ -7,8 +33,10 @@ class ParkingLots(object):
         'geojson',
         'city',
         'name',
+        'partner_name',
         'operator',
         'capacity',
+        'available',
         'address',
         'agenda',
         'attrs',

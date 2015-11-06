@@ -21,6 +21,7 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_automobile, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_communauto, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_parkingpanda, interval=120, result_ttl=240, repeat=None)
     if not debug:
         scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
@@ -308,6 +309,74 @@ def update_communauto():
                     AND l.partners_id = d.lot_pid
                 WHERE (SELECT 1 FROM carshares c WHERE c.partners_id = d.partners_id LIMIT 1) IS NULL
         """.format(",".join(values)))
+
+
+def update_parkingpanda():
+    """
+    Task to check with the Parking Panda API, update data on associated parking lots
+    """
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+
+    for city, addr in [("newyork", "4 Pennsylvania Plaza, New York, NY")]:
+        # grab data from parkingpanda api
+        start = datetime.datetime.now()
+        finish = (start + datetime.timedelta(hours=23, minutes=59))
+        data = requests.get("https://www.parkingpanda.com/api/v2/locations",
+            params={"search": addr, "miles": 20.0, "startTime": start.strftime("%H:%M"),
+                "endDate": finish.strftime("%m/%d/%Y"), "endTime": finish.strftime("%H:%M"),
+                "onlyavailable": False, "showSoldOut": True})
+        data = data.json()["data"]["locations"]
+
+        hourToFloat = lambda x: float(x.split(":")[0]) + (float(x.split(":")[1][0:2]) / 60) + (12 if "PM" in x and x.split(":")[0] != "12" else 0)
+        values = []
+        for x in data:
+            x["displayName"] = x["displayName"].replace("'","''").encode("utf-8")
+            x["displayAddress"] = x["displayAddress"].replace("'","''").encode("utf-8")
+            x["description"] = x["description"].replace("'","''").encode("utf-8")
+            basic = "({},'{}','{}',{},{},'{}','{}','SRID=4326;POINT({} {})'::geometry,'{}'::jsonb,'{}'::jsonb)"
+            if x["isOpen247"]:
+                agenda = {str(y): [{"max": None, "hourly": None, "daily": x["price"],
+                    "hours": [0.0,24.0]}] for y in range(1,8)}
+            else:
+                agenda = {str(y): [] for y in range(1,8)}
+                for y in x["hoursOfOperation"]:
+                    if not y["isOpen"]:
+                        continue
+                    hours = [hourToFloat(y["timeOfDayOpen"]), hourToFloat(y["timeOfDayClose"])]
+                    if y["timeOfDayClose"] == "11:59 PM":
+                        hours[1] = 24.0
+                    agenda[str(y["dayOfWeek"]+1)] = [{"max": None, "hourly": None,
+                        "daily": x["price"], "hours": hours}]
+            attrs = {"card": True, "indoor": "covered" in [y["name"] for y in x["amenities"]],
+                "handicap": "accessible" in [y["name"] for y in x["amenities"]],
+                "valet": "valet" in [y["name"] for y in x["amenities"]]}
+            values.append(basic.format(x["id"], city, x["displayName"], json.dumps(x["isLive"]),
+                x["availableSpaces"], x["displayAddress"], x["description"],
+                x["longitude"], x["latitude"], json.dumps(agenda), json.dumps(attrs)))
+
+        if values:
+            db.query("""
+                UPDATE parking_lots l SET available = d.available, agenda = d.agenda, attrs = d.attrs,
+                    active = d.active
+                FROM (VALUES {}) AS d(pid, city, name, active, available, address, description,
+                    geom, agenda, attrs)
+                WHERE l.partner_name = 'Parking Panda'
+                    AND l.partner_id = d.pid
+            """.format(",".join(values)))
+            db.query("""
+                INSERT INTO parking_lots (partner_id, partner_name, city, name, active,
+                    available, address, description, geom, geojson, agenda, attrs, street_view)
+                SELECT d.pid, 'Parking Panda', d.city, d.name, d.active, d.available, d.address,
+                    d.description, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb,
+                    d.agenda, d.attrs, p.street_view
+                FROM (VALUES {}) AS d(pid, city, name, active, available, address, description,
+                    geom, agenda, attrs)
+                LEFT JOIN parking_lots_streetview p ON p.partner_name = 'Parking Panda' AND p.partner_id = d.pid
+                WHERE (SELECT 1 FROM parking_lots l WHERE l.partner_id = d.pid LIMIT 1) IS NULL
+            """.format(",".join(values)))
 
 
 def update_free_spaces():
