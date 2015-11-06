@@ -327,7 +327,7 @@ def update_parkingpanda():
         data = requests.get("https://www.parkingpanda.com/api/v2/locations",
             params={"search": addr, "miles": 20.0, "startTime": start.strftime("%H:%M"),
                 "endDate": finish.strftime("%m/%d/%Y"), "endTime": finish.strftime("%H:%M"),
-                "onlyavailable": False, "showSoldOut": True})
+                "onlyavailable": False, "showSoldOut": True, "peer": False})
         data = data.json()["data"]["locations"]
 
         hourToFloat = lambda x: float(x.split(":")[0]) + (float(x.split(":")[1][0:2]) / 60) + (12 if "PM" in x and x.split(":")[0] != "12" else 0)
