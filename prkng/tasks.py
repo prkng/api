@@ -350,6 +350,27 @@ def update_parkingpanda():
                         hours[1] = 24.0
                     agenda[str(y["dayOfWeek"]+1)] = [{"max": None, "hourly": None,
                         "daily": x["price"], "hours": hours}]
+                    if hours != [0.0, 24.0] and hours[0] > hours[1]:
+                        agenda[str(y["dayOfWeek"]+1)][0]["hours"] = [hours[0], 24.0]
+                        agenda[str(y["dayOfWeek"]+1)].append({"max": None, "hourly": None,
+                            "daily": x["price"], "hours": [0.0, hours[1]]})
+            # Create "closed" rules for periods not covered by an open rule
+            for j in agenda:
+                hours = sorted([y["hours"] for y in agenda[j]], key=lambda z: z[0])
+                for i, y in enumerate(hours):
+                    starts = [z[0] for z in hours]
+                    if y[0] == 0.0:
+                        continue
+                    last_end = hours[i-1][1] if not i == 0 else 0.0
+                    next_start = hours[i+1][0] if not i == (len(hours) - 1) else 24.0
+                    if not last_end in starts:
+                        agenda[j].append({"hours": [last_end, y[0]], "hourly": None, "max": None,
+                            "daily": None})
+                    if not next_start in starts and y[1] != 24.0:
+                        agenda[j].append({"hours": [y[1], next_start], "hourly": None, "max": None,
+                            "daily": None})
+                if agenda[j] == []:
+                    agenda[j].append({"hours": [0.0,24.0], "hourly": None, "max": None, "daily": None})
             attrs = {"card": True, "indoor": "covered" in [y["name"] for y in x["amenities"]],
                 "handicap": "accessible" in [y["name"] for y in x["amenities"]],
                 "valet": "valet" in [y["name"] for y in x["amenities"]]}
