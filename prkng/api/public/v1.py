@@ -417,13 +417,14 @@ class Lots(Resource):
 
         # push map search data to analytics
         Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
-            args["longitude"], 300)
+            args["longitude"], args["radius"])
 
         city = City.get(args['longitude'], args['latitude'])
         if not city:
             api.abort(404, "no feature found")
 
-        res = ParkingLots.get_within(args["latitude"], args["longitude"], args["radius"])
+        res = ParkingLots.get_within(args["longitude"], args["latitude"],
+            args["radius"])
 
         return FeatureCollection([
             Feature(
