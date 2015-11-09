@@ -380,6 +380,13 @@ parking_lot_parser.add_argument(
     required=True,
     help='Longitude in degrees (WGS84)'
 )
+parking_lot_parser.add_argument(
+    'radius',
+    type=int,
+    location='args',
+    default=300,
+    help='Radius search in meters; default is 300'
+)
 
 lots_fields = api.model('LotsGeoJSONFeature', {
     'id': fields.String(required=True),
@@ -416,7 +423,7 @@ class Lots(Resource):
         if not city:
             api.abort(404, "no feature found")
 
-        res = ParkingLots.get_all()
+        res = ParkingLots.get_within(args["latitude"], args["longitude"], args["radius"])
 
         return FeatureCollection([
             Feature(
