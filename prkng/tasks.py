@@ -349,12 +349,12 @@ def update_parkingpanda():
                     if y["timeOfDayClose"] == "11:59 PM":
                         hours[1] = 24.0
                     if hours != [0.0, 24.0] and hours[0] > hours[1]:
-                        nextday = str(y["dayOfWeek"]+2) if y["dayOfWeek"] < 6 else "1"
+                        nextday = str(y["dayOfWeek"]+2) if (y["dayOfWeek"] < 6) else "1"
                         agenda[nextday].append({"max": None, "hourly": None,
                             "daily": x["price"], "hours": [0.0, hours[1]]})
                         hours = [hours[0], 24.0]
-                    agenda[str(y["dayOfWeek"]+1)].append([{"max": None, "hourly": None,
-                        "daily": x["price"], "hours": hours}])
+                    agenda[str(y["dayOfWeek"]+1)].append({"max": None, "hourly": None,
+                        "daily": x["price"], "hours": hours})
             # Create "closed" rules for periods not covered by an open rule
             for j in agenda:
                 hours = sorted([y["hours"] for y in agenda[j]], key=lambda z: z[0])
