@@ -47,7 +47,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
             # not concerned, going to the next rule
             continue
 
-        if "permit" in rule['restrict_types'] and (permit == 'all' or str(permit) == str(rule.get('permit_no'))):
+        if "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
             # this is a permit rule and we like permits
             continue
 

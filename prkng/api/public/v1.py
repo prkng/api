@@ -317,6 +317,13 @@ slot_parser.add_argument(
     default=False,
     help='Return only IDs, types and geometries for slots'
 )
+slot_parser.add_argument(
+    'permit',
+    type=str,
+    location='args',
+    default=False,
+    help='Show permit restrictions for the specified number(s) as available'
+)
 
 
 @ns.route('/slots', endpoint='slots_v1')
@@ -352,7 +359,7 @@ class SlotsResource(Resource):
             slot_props,
             args['checkin'],
             not args['carsharing'],
-            'all' if args['carsharing'] else False
+            'all' if args['carsharing'] else args['permit']
         )
 
         return FeatureCollection([
