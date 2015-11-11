@@ -12,6 +12,8 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
     :param rules: list of rules (dict)
     :param checkin: checkin time
     :param duration: duration in hour. Float accepted
+    :param paid: set to False to not return any paid slots.
+    :param permit: return permit slots matching this number (str), 'all', or False for none
     """
     checkin = parse_datetime(checkin)
     duration = timedelta(hours=duration)
@@ -27,7 +29,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
         if "paid" in rule['restrict_types'] and not paid:
             # don't show me paid slots
             return True
-        elif any(x in ['paid', 'angled'] for x in rule['restrict_types']):
+        elif any(x in ['angled'] for x in rule['restrict_types']):
             # not concerned, going to the next rule
             continue
 
@@ -50,6 +52,9 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
         if "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
             # this is a permit rule and we like permits
             continue
+        elif "permit" in rule['restrict_types']
+            # permit number conflict or no permit number sent. rejecting
+            return True
 
         max_time_ok = True
         time_range_ok = True
@@ -100,7 +105,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
                         # parking time is totally inside range BUT duration too long
                         max_time_ok &= False
 
-            if not max_time_ok or not time_range_ok:
+            if not max_time_ok or ("paid" not in rule["restrict_types"] and not time_range_ok):
                 # max_time exceed or time range overlapping or both
                 return True
 
