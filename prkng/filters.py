@@ -52,7 +52,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
         if "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
             # this is a permit rule and we like permits
             continue
-        elif "permit" in rule['restrict_types']
+        elif "permit" in rule['restrict_types']:
             # permit number conflict or no permit number sent. rejecting
             return True
 

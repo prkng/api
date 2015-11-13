@@ -284,27 +284,26 @@ def update_communauto():
         """.format(city=city, data=",".join(["({},{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
 
         # create or update communauto tracking with newly parked vehicles
-        values = ["({},{},'{}','{}','SRID=4326;POINT({} {})'::geometry)".format(x["CarID"], x["NbrRes"],
-            x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
-            x["Longitude"], x["Latitude"]) for x in data]
+        values = ["({},{},'{}','{}','{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(x["CarID"],
+            x["NbrRes"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
+            x["AvailableUntilDate"] or "NOW", x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
-            UPDATE carshares c SET since = NOW(), name = d.name, address = d.address, parked = true,
-                geom = ST_Transform(d.geom, 3857), geojson = ST_AsGeoJSON(d.geom)::jsonb
-            FROM (VALUES {}) AS d(pid, numres, name, address, geom)
+            UPDATE carshares c SET since = NOW(), until = d.until, name = d.name, address = d.address,
+                parked = true, geom = ST_Transform(d.geom, 3857), geojson = ST_AsGeoJSON(d.geom)::jsonb
+            FROM (VALUES {}) AS d(pid, numres, name, address, until, geom)
             WHERE c.company = 'communauto'
                 AND c.partners_id = d.pid
-                AND c.parked = false
                 AND d.numres = 0
         """.format(",".join(values)))
 
-        values = ["('{}',{},{},'{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(city, x["StationID"],
-            x["CarID"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
-            x["NbrRes"], x["Longitude"], x["Latitude"]) for x in data]
+        values = ["('{}',{},{},'{}','{}',{},'{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(city,
+            x["StationID"], x["CarID"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
+            x["NbrRes"], x["AvailableUntilDate"] or "NOW", x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
-            INSERT INTO carshares (company, city, partners_id, name, address, lot_id, parked, geom, geojson)
+            INSERT INTO carshares (company, city, partners_id, name, address, lot_id, parked, until, geom, geojson)
                 SELECT 'communauto', d.city, d.partners_id, d.name, d.address, l.id, d.numres = 0,
-                        ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
-                FROM (VALUES {}) AS d(city, lot_pid, partners_id, name, address, numres, geom)
+                        d.until, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(city, lot_pid, partners_id, name, address, numres, until, geom)
                 JOIN carshare_lots l ON l.company = 'communauto' AND l.city = d.city
                     AND l.partners_id = d.lot_pid
                 WHERE (SELECT 1 FROM carshares c WHERE c.partners_id = d.partners_id LIMIT 1) IS NULL

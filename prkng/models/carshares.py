@@ -1,3 +1,5 @@
+import datetime
+
 from prkng.database import db, metadata
 
 from sqlalchemy import Boolean, Column, DateTime, Float, Integer, String, Table, text
@@ -20,6 +22,7 @@ carshares_table = Table(
     Column('address', String),
     Column('fuel', Integer),
     Column('since', DateTime, server_default=text('NOW()')),
+    Column('until', DateTime, nullable=True),
     Column('parked', Boolean),
     Column('electric', Boolean, default=False),
     Column('geojson', JSONB)
@@ -47,7 +50,8 @@ class Carshares(object):
         'company',
         'name',
         'fuel',
-        'electric'
+        'electric',
+        'until'
     )
     lot_properties = (
         'id',
@@ -86,8 +90,16 @@ class Carshares(object):
             qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",")]))
         elif company:
             qry += "AND c.company = '{}'".format(company)
-        return db.engine.execute(qry.format(properties=', '.join(Carshares.properties),
+        res = db.engine.execute(qry.format(properties=', '.join(Carshares.properties),
             city=city, x=x, y=y, radius=radius)).fetchall()
+        data = []
+        for x in res:
+            x = list(x)
+            for y in enumerate(x):
+                if type(y[1]) == datetime.datetime:
+                    x[y[0]] = y[1].isoformat()
+            data.append(x)
+        return data
 
     @staticmethod
     def get_boundbox(nelat, nelng, swlat, swlng):
