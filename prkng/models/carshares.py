@@ -16,7 +16,7 @@ carshares_table = Table(
     Column('lot_id', Integer),
     Column('company', String),
     Column('vin', String, unique=True, nullable=True),
-    Column('partners_id', Integer),
+    Column('partner_id', Integer),
     Column('name', String),
     Column('geom', Geometry('POINT', 3857)),
     Column('address', String),
@@ -32,7 +32,7 @@ carshare_lots_table = Table(
     'carshare_lots',
     metadata,
     Column('id', Integer, primary_key=True),
-    Column('partners_id', Integer),
+    Column('partner_id', Integer),
     Column('city', String),
     Column('company', String),
     Column('name', String),
@@ -51,6 +51,7 @@ class Carshares(object):
         'name',
         'fuel',
         'electric',
+        'partner_id',
         'until'
     )
     lot_properties = (
