@@ -184,7 +184,7 @@ def update_automobile():
     """.format(data=",".join(["('{}')".format(x["Id"]) for x in data])))
 
     # create or update Auto-mobile tracking with newly parked vehicles
-    values = ["('{}','{}',{},{},'SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
+    values = ["('{}','{}',{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
         x["Immat"].encode('utf-8'), x["EnergyLevel"], int(x["Name"]), x["Position"]["Lon"],
         x["Position"]["Lat"]) for x in data]
     db.query("""
@@ -205,7 +205,7 @@ def update_automobile():
             AND c.parked = false
     """.format(",".join(values)))
 
-    values = ["('{}','{}',{},{},{},'SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
+    values = ["('{}','{}',{},{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
         x["Immat"].encode('utf-8'), x["EnergyLevel"], ("true" if x["Name"].endswith("-R") else "false"),
         int(x["Name"]), x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
     db.query("""
@@ -245,7 +245,7 @@ def update_communauto():
         data = demjson.decode(data.text.lstrip("(").rstrip(")"))["data"]
 
         # create or update communauto parking spaces
-        values = ["({},{})".format(x["StationID"], (1 if x["NbrRes"] == 0 else 0)) for x in data]
+        values = ["('{}',{})".format(x["StationID"], (1 if x["NbrRes"] == 0 else 0)) for x in data]
         db.query("""
             UPDATE carshare_lots l SET capacity = 1, available = d.available
             FROM (VALUES {}) AS d(pid, available)
@@ -254,7 +254,7 @@ def update_communauto():
                 AND l.available != d.available
         """.format(",".join(values)))
 
-        values = ["('{}','{}',{},{},'SRID=4326;POINT({} {})'::geometry)".format(city,
+        values = ["('{}','{}',{},'{}','SRID=4326;POINT({} {})'::geometry)".format(city,
             x["strNomStation"].replace("'", "''").encode("utf-8"), (1 if x["NbrRes"] == 0 else 0),
             x["StationID"], x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
@@ -281,10 +281,10 @@ def update_communauto():
                 AND c.city = '{city}'
                 AND (SELECT 1 FROM (VALUES {data}) AS d(pid, lot_id, numres) WHERE d.pid != c.partner_id
                      AND d.lot_id = c.lot_id LIMIT 1) IS NOT NULL
-        """.format(city=city, data=",".join(["({},{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
+        """.format(city=city, data=",".join(["('{}',{},{})".format(x["CarID"],x["StationID"],x["NbrRes"]) for x in data])))
 
         # create or update communauto tracking with newly parked vehicles
-        values = ["({},{},'{}','{}','{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(x["CarID"],
+        values = ["('{}',{},'{}','{}','{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(x["CarID"],
             x["NbrRes"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
             x["AvailableUntilDate"] or "NOW", x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
@@ -296,7 +296,7 @@ def update_communauto():
                 AND d.numres = 0
         """.format(",".join(values)))
 
-        values = ["('{}',{},{},'{}','{}',{},'{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(city,
+        values = ["('{}',{},'{}','{}','{}',{},'{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(city,
             x["StationID"], x["CarID"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
             x["NbrRes"], x["AvailableUntilDate"] or "NOW", x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
