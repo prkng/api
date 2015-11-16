@@ -185,7 +185,7 @@ def update_automobile():
 
     # create or update Auto-mobile tracking with newly parked vehicles
     values = ["('{}','{}',{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
-        x["Immat"].encode('utf-8'), x["EnergyLevel"], int(x["Name"]), x["Position"]["Lon"],
+        x["Immat"].encode('utf-8'), x["EnergyLevel"], x["Name"].encode('utf-8'), x["Position"]["Lon"],
         x["Position"]["Lat"]) for x in data]
     db.query("""
         WITH tmp AS (
@@ -207,7 +207,7 @@ def update_automobile():
 
     values = ["('{}','{}',{},{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
         x["Immat"].encode('utf-8'), x["EnergyLevel"], ("true" if x["Name"].endswith("-R") else "false"),
-        int(x["Name"]), x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
+        x["Name"].encode('utf-8'), x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
     db.query("""
         INSERT INTO carshares (company, city, partner_id, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
             SELECT DISTINCT ON (d.vin) 'auto-mobile', c.name, d.id, d.vin, d.name, s.way_name, s.id,
@@ -296,7 +296,7 @@ def update_communauto():
                 AND d.numres = 0
         """.format(",".join(values)))
 
-        values = ["('{}',{},'{}','{}','{}',{},'{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(city,
+        values = ["('{}','{}','{}','{}','{}',{},'{}'::timestamp,'SRID=4326;POINT({} {})'::geometry)".format(city,
             x["StationID"], x["CarID"], x["Model"].encode("utf-8"), x["strNomStation"].replace("'", "''").encode("utf-8"),
             x["NbrRes"], x["AvailableUntilDate"] or "NOW", x["Longitude"], x["Latitude"]) for x in data]
         db.query("""
