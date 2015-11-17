@@ -682,8 +682,6 @@ class LoginChangePass(Resource):
 post_checkin_parser = copy.deepcopy(api_key_parser)
 post_checkin_parser.add_argument(
     'slot_id', type=int, required=True, help='Slot identifier', location='form')
-post_checkin_parser.add_argument(
-    'city', type=str, help='City name', location='form')
 
 get_checkin_parser = copy.deepcopy(api_key_parser)
 get_checkin_parser.add_argument(
@@ -725,7 +723,7 @@ class CheckinList(Resource):
         Add a new checkin
         """
         args = post_checkin_parser.parse_args()
-        res = Checkins.add(g.user.id, args['city'], args['slot_id'])
+        res = Checkins.add(g.user.id, args['slot_id'])
         if not res:
             api.abort(404, "No slot existing with this id")
         return res, 201

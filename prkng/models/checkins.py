@@ -54,13 +54,7 @@ class Checkins(object):
         return [dict(row) for row in res]
 
     @staticmethod
-    def add(user_id, city, slot_id):
-        exists = db.engine.execute("""
-            SELECT 1 FROM slots WHERE city = '{city}' AND id = {slot_id}
-        """.format(city=city, slot_id=slot_id)).first()
-        if not exists:
-            return False
-
+    def add(user_id, slot_id):
         # if the user is already checked in elsewhere, deactivate their old checkin
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
             (checkin_table.c.checkout_time == None)).values(active=False))
@@ -68,13 +62,13 @@ class Checkins(object):
         res = db.engine.execute("""
             INSERT INTO checkins (user_id, city, slot_id, long, lat, active)
             SELECT
-                {user_id}, '{city}', {slot_id},
+                {user_id}, city, {slot_id},
                 (button_location->>'long')::float,
                 (button_location->>'lat')::float,
                 true
-            FROM slots WHERE city = '{city}' AND id = {slot_id}
+            FROM slots WHERE id = {slot_id}
             RETURNING *
-        """.format(city=city, user_id=user_id, slot_id=slot_id)).first()
+        """.format(user_id=user_id, slot_id=slot_id)).first()
         res = dict(res)
         res["checkin_time"] = res["checkin_time"].isoformat()
         res["checkout_time"] = res["checkout_time"].isoformat() if res["checkout_time"] else None
