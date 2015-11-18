@@ -516,7 +516,7 @@ class CarsharesResource(Resource):
                 geometry=feat[1],
                 properties={
                     field: feat[num]
-                    for num, field in enumerate(Carshares.properties[2:], start=2)
+                    for num, field in enumerate(Carshares.select_properties[2:], start=2)
                 }
             )
             for feat in res

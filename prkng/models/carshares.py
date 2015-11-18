@@ -54,6 +54,17 @@ class Carshares(object):
         'partner_id',
         'until'
     )
+    select_properties = (
+        'id',
+        'geojson',
+        'company',
+        'name',
+        'fuel',
+        'electric',
+        'partner_id',
+        'until',
+        'quantity'
+    )
     lot_properties = (
         'id',
         'geojson',
@@ -79,7 +90,7 @@ class Carshares(object):
         Get all parked carshares in a city within a particular radius.
         """
         qry = """
-            SELECT {properties} FROM carshares c
+            SELECT {properties}, 1 AS quantity FROM carshares c
             WHERE c.city = '{city}' AND c.parked = true AND
                 ST_Dwithin(
                     st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -88,10 +99,23 @@ class Carshares(object):
                 )
         """
         if company and "," in company:
-            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",")]))
-        elif company:
+            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",") if z != "zipcar"]))
+        elif company and company != "zipcar":
             qry += "AND c.company = '{}'".format(company)
-        res = db.engine.execute(qry.format(properties=', '.join(Carshares.properties),
+        if "zipcar" in company:
+            qry += """
+                UNION ALL
+                SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
+                JOIN carshare_lots l ON c.lot_id = l.id
+                WHERE c.city = '{city}' AND c.parked = true AND
+                    ST_Dwithin(
+                        st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
+                        c.geom,
+                        {radius}
+                    )
+                AND c.company = 'zipcar'
+            """
+        res = db.engine.execute(qry.format(properties=', '.join(["c."+z for z in Carshares.properties]),
             city=city, x=x, y=y, radius=radius)).fetchall()
         data = []
         for x in res:
@@ -118,7 +142,7 @@ class Carshares(object):
             return False
 
         req = """
-            SELECT {properties} FROM carshares c
+            SELECT {properties}, 1 AS quantity FROM carshares c
             WHERE c.city = '{city}' AND
                 ST_intersects(
                     ST_Transform(
@@ -127,8 +151,21 @@ class Carshares(object):
                     ),
                     c.geom
                 )
+            AND c.company != 'zipcar'
+            UNION ALL
+            SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
+            JOIN carshare_lots l ON c.lot_id = l.id
+            WHERE c.city = '{city}' AND
+                ST_intersects(
+                    ST_Transform(
+                        ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
+                        3857
+                    ),
+                    c.geom
+                )
+            AND c.company = 'zipcar'
         """.format(
-            properties=','.join(Carshares.properties),
+            properties=','.join(["c."+z for z in Carshares.properties]),
             city=res[0],
             nelat=nelat,
             nelng=nelng,

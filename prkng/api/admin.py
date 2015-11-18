@@ -232,7 +232,7 @@ def get_carshares():
         return jsonify(status="no feature found"), 404
 
     carshares = [
-        {field: row[field] for field in Carshares.properties}
+        {field: row[field] for field in Carshares.select_properties}
         for row in res
     ]
 

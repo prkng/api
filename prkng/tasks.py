@@ -20,6 +20,7 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_car2go, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_automobile, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_communauto, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_zipcar, interval=86400, result_ttl=172800, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_parkingpanda, interval=120, result_ttl=240, repeat=None)
     if not debug:
@@ -308,6 +309,73 @@ def update_communauto():
                     AND l.partner_id = d.lot_pid
                 WHERE (SELECT 1 FROM carshares c WHERE c.partner_id = d.partner_id LIMIT 1) IS NULL
         """.format(",".join(values)))
+
+
+def update_zipcar():
+    """
+    Task to check with the Zipcar API and update parking lot data
+    """
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+
+    lots, cars, vids = [], [], []
+    raw = requests.get("https://api.zipcar.com/partner-api/directory",
+        params={"country": "us", "embed": "vehicles", "apikey": CONFIG["ZIPCAR_KEY"]})
+    data = raw.json()["locations"]
+    for x in data:
+        if not x["address"]["city"] or not x["address"]["city"] \
+                in ["Seattle", "New York", "Brooklyn", "Queens", "Staten Island"]:
+            continue
+        city = x["address"]["city"].encode("utf-8").lower()
+        if x["address"]["city"] in ["New York", "Brooklyn", "Queens", "Staten Island"]:
+            city = "newyork"
+        lots.append("('{}','{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(
+            x["location_id"], city, x["display_name"].replace("'", "''").encode("utf-8"),
+            len(x["vehicles"]), x["coordinates"]["lng"], x["coordinates"]["lat"]
+        ))
+        for y in x["vehicles"]:
+            cars.append("('{}','{}','{}','{}','{}','SRID=4326;POINT({} {})'::geometry)".format(
+                y["vehicle_id"], y["vehicle_name"].replace("'", "''").encode("utf-8"),
+                city, x["address"]["street"].replace("'", "''").encode("utf-8"),
+                x["location_id"], x["coordinates"]["lng"], x["coordinates"]["lat"]
+            ))
+            vids.append(y["vehicle_id"])
+
+    if lots:
+        db.query("""
+            UPDATE carshare_lots l SET name = d.name, capacity = d.capacity, available = d.capacity
+            FROM (VALUES {}) AS d(pid, city, name, capacity, geom)
+            WHERE l.company = 'zipcar'
+                AND l.partner_id = d.pid
+                AND (l.available != d.capacity OR l.capacity != d.capacity OR l.name != d.name)
+        """.format(",".join(lots)))
+        db.query("""
+            INSERT INTO carshare_lots (company, partner_id, city, name, capacity, available, geom, geojson)
+            SELECT 'zipcar', d.pid, d.city, d.name, d.capacity, d.capacity,
+                    ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+            FROM (VALUES {}) AS d(pid, city, name, capacity, geom)
+            WHERE (SELECT 1 FROM carshare_lots l WHERE l.city = d.city AND l.partner_id = d.pid LIMIT 1) IS NULL
+        """.format(",".join(lots)))
+    if cars:
+        db.query("""
+            INSERT INTO carshares (company, city, partner_id, name, address, lot_id, parked, geom, geojson)
+                SELECT 'zipcar', d.city, d.pid, d.name, d.address, l.id, true,
+                        ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(pid, name, city, address, lot_pid, geom)
+                JOIN carshare_lots l ON l.company = 'zipcar' AND l.city = d.city
+                    AND l.partner_id = d.lot_pid
+                WHERE (SELECT 1 FROM carshares c WHERE c.partner_id = d.pid LIMIT 1) IS NULL
+        """.format(",".join(cars)))
+    db.query("""
+        DELETE FROM carshare_lots l
+        WHERE (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.partner_id = d.pid) IS NULL
+    """.format(",".join(["('{}')".format(z["location_id"]) for z in data])))
+    db.query("""
+        DELETE FROM carshares l
+        WHERE (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.partner_id = d.pid) IS NULL
+    """.format(",".join(["('{}')".format(z) for z in vids])))
 
 
 def update_parkingpanda():
