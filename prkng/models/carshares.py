@@ -47,6 +47,7 @@ class Carshares(object):
     properties = (
         'id',
         'geojson',
+        'vin',
         'company',
         'name',
         'fuel',
@@ -57,6 +58,7 @@ class Carshares(object):
     select_properties = (
         'id',
         'geojson',
+        'vin',
         'company',
         'name',
         'fuel',
