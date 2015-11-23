@@ -104,7 +104,7 @@ class Carshares(object):
             qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",") if z != "zipcar"]))
         elif company and company != "zipcar":
             qry += "AND c.company = '{}'".format(company)
-        if "zipcar" in company:
+        if company and "zipcar" in company:
             qry += """
                 UNION ALL
                 SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c

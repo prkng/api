@@ -1,6 +1,7 @@
 from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
+import boto.sns
 import datetime
 import demjson
 from flask import current_app
@@ -23,11 +24,10 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_zipcar, interval=86400, result_ttl=172800, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_parkingpanda, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
     if not debug:
-        scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
+        scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
-        scheduler.schedule(scheduled_time=now, func=clear_expired_apple_device_ids, interval=86400,
-            result_ttl=172800, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():
@@ -44,33 +44,79 @@ def run_backup(username, database):
     return os.path.join(backup_dir, file_name)
 
 def send_notifications():
+    """
+    Send a push notification to specified user IDs via Amazon SNS
+    """
+    CONFIG = create_app().config
     r = Redis(db=1)
-    data = r.lrange('prkng:pushnotif', 0, -1)
+    amz = boto.sns.connect_to_region("us-west-2",
+        aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
+        aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
+    data = r.hgetall('prkng:pushnotif')
     r.delete('prkng:pushnotif')
 
-    for x in data:
-        x = json.loads(x)
-        if x["device_type"] == "ios":
-            notifications.send_apple_notification(x["device_id"], x["text"])
+    if data["to"].startswith("arn:aws:sns:"):
+        # Publish a message to a specified Amazon SNS topic (via its ARN)
+        amz.publish(message=data["message"], target_arn=data["to"])
+    elif data["to"].lower() == "all":
+        # Automatically publish messages destined for "all" via our All Users notification topic
+        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["all_users"])
+    elif data["to"].lower() == "ios":
+        # Automatically publish messages destined for all iOS users
+        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["ios_users"])
+    elif data["to"].lower() == "android":
+        # Automatically publish messages destined for all Android users
+        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["android_users"])
+    else:
+        # Create a temporary topic for a manually specified list of users
+        mg_title = "message-group-{}".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
+        mg_arn = amz.create_topic(mg_title)
+        arns = db.query("""
+            SELECT u.sns_id FROM (VALUES {}) AS d(uid) JOIN users u ON u.id = d.uid
+        """.format(",".join(["({})".format(x) for x in data["to"].split(",")])))
+        for x in arns:
+            try:
+                amz.subscribe(mg_arn, "application", x[0])
+            except:
+                pass
+        amz.publish(message=data["message"], target_arn=mg_arn)
 
-def clear_expired_apple_device_ids():
+def hello_amazon():
     """
-    Task to check for failed notification delivery attempts due to unregistered iOS device IDs.
-    Purge these device IDs from our users.
+    Fetch newly-registered users' device IDs and register with Amazon SNS for push notifications.
     """
-    queries = []
-    for (device_id, fail_time) in notifications.get_apple_notification_failures():
-        queries.append("""
-            UPDATE users SET device_id = NULL
-            WHERE device_id = '{device_id}'
-                AND last_hello < '{dtime}'
-        """.format(device_id=device_id, dtime=fail_time.isoformat()))
-    if queries:
-        CONFIG = create_app().config
-        db = PostgresWrapper(
-            "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
-            "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
-        db.queries(queries)
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+    r = Redis(db=1)
+    amz = boto.sns.connect_to_region("us-west-2",
+        aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
+        aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
+    values = []
+
+    # register the user's device ID with Amazon, and add to the "All Users" notification topic
+    for d in ["ios", "android"]:
+        for x in r.hkeys('prkng:hello-amazon:'+d):
+            try:
+                device_id = r.hget('prkng:hello-amazon:'+d, x)
+                arn = amz.create_platform_endpoint(CONFIG["AWS_SNS_APPS"][d], device_id, x.encode('utf-8'))
+                arn = arn['CreatePlatformEndpointResponse']['CreatePlatformEndpointResult']['EndpointArn']
+                values.append("({},'{}')".format(x, arn))
+                r.hdel('prkng:hello-amazon:'+d, x)
+                amz.subscribe(CONFIG["AWS_SNS_TOPICS"]["all_users"], "application", arn)
+                amz.subscribe(CONFIG["AWS_SNS_TOPICS"][d+"_users"], "application", arn)
+            except:
+                pass
+
+    # Update the local user records with their new Amazon SNS ARNs
+    if values:
+        db.query("""
+            UPDATE users u SET sns_id = d.arn
+            FROM (VALUES {}) AS d(uid, arn)
+            WHERE u.id = d.uid
+        """.format(",".join(values)))
+
 
 def update_car2go():
     """

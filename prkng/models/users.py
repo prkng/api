@@ -29,6 +29,7 @@ user_table = Table(
     Column('created', DateTime, server_default=text('NOW()'), index=True),
     Column('device_type', String, nullable=True),
     Column('device_id', String, nullable=True),
+    Column('sns_id', String, nullable=True),
     Column('lang', String, nullable=True),
     Column('last_hello', DateTime, server_default=text('NOW()'), nullable=True),
     Column('apikey', String),
@@ -101,6 +102,9 @@ class User(UserMixin):
                     lang=lang or None, last_hello=now
             )
         )
+        if (not hasattr(self, 'sns_id') or not self.sns_id) and device_id and device_type\
+                and not current_app.config['DEBUG']:
+            db.redis.hset('prkng:hello-amazon:'+device_type, str(self.id), device_id)
         self.device_type = device_type or None
         self.device_id = device_id or None
         self.lang = lang or None
