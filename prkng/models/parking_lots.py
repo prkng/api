@@ -10,7 +10,7 @@ lots_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('active', Boolean, default=True),
-    Column('partner_id', Integer, nullable=True),
+    Column('partner_id', String, nullable=True),
     Column('partner_name', String, nullable=True),
     Column('city', String),
     Column('name', String),

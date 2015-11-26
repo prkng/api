@@ -452,7 +452,7 @@ def update_parkingpanda():
             x["displayName"] = x["displayName"].replace("'","''").encode("utf-8")
             x["displayAddress"] = x["displayAddress"].replace("'","''").encode("utf-8")
             x["description"] = x["description"].replace("'","''").encode("utf-8")
-            basic = "({},'{}','{}',{},{},'{}','{}','SRID=4326;POINT({} {})'::geometry,'{}'::jsonb,'{}'::jsonb)"
+            basic = "('{}','{}','{}',{},{},'{}','{}','SRID=4326;POINT({} {})'::geometry,'{}'::jsonb,'{}'::jsonb)"
             if x["isOpen247"]:
                 agenda = {str(y): [{"max": None, "hourly": None, "daily": x["price"],
                     "hours": [0.0,24.0]}] for y in range(1,8)}
