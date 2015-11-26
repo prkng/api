@@ -7,3 +7,4 @@ boto==2.38.0
 redis==2.10.3
 pyrq==0.4.1
 rq-scheduler==0.5.1
+pytz==2015.6

@@ -7,6 +7,7 @@ import demjson
 from flask import current_app
 import json
 import os
+import pytz
 from redis import Redis
 import requests
 from rq_scheduler import Scheduler
@@ -24,6 +25,7 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_zipcar, interval=86400, result_ttl=172800, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_analytics, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_parkingpanda, interval=120, result_ttl=240, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=update_seattle_lots, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
     if not debug:
         scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
@@ -223,49 +225,46 @@ def update_automobile():
     data = demjson.decode(data.text.lstrip("(").rstrip(");"))["Vehicules"]
 
     # unpark stale entries in our database
-    db.query("""
-        UPDATE carshares c SET since = NOW(), parked = false
-        WHERE c.company = 'auto-mobile'
-            AND c.parked = true
-            AND (SELECT 1 FROM (VALUES {data}) AS d(pid) WHERE c.vin = d.pid LIMIT 1) IS NULL
-    """.format(data=",".join(["('{}')".format(x["Id"]) for x in data])))
+    if data:
+        db.query("""
+            UPDATE carshares c SET since = NOW(), parked = false
+            WHERE c.company = 'auto-mobile'
+                AND c.parked = true
+                AND (SELECT 1 FROM (VALUES {data}) AS d(pid) WHERE c.vin = d.pid LIMIT 1) IS NULL
+        """.format(data=",".join(["('{}')".format(x["Id"]) for x in data])))
 
-    # create or update Auto-mobile tracking with newly parked vehicles
-    values = ["('{}','{}',{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
-        x["Immat"].encode('utf-8'), x["EnergyLevel"], x["Name"].encode('utf-8'), x["Position"]["Lon"],
-        x["Position"]["Lat"]) for x in data]
-    db.query("""
-        WITH tmp AS (
-            SELECT DISTINCT ON (d.vin) d.vin, d.name, d.fuel, d.id, s.id AS slot_id, s.way_name, d.geom
-            FROM (VALUES {}) AS d(vin, name, fuel, id, geom)
-            JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
-            LEFT JOIN slots s ON s.city = c.name
-                AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
-            ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
-        )
-        UPDATE carshares c SET partner_id = t.id, since = NOW(), name = t.name, address = t.way_name,
-            parked = true, slot_id = t.slot_id, fuel = t.fuel, geom = ST_Transform(t.geom, 3857),
-            geojson = ST_AsGeoJSON(t.geom)::jsonb
-        FROM tmp t
-        WHERE c.company = 'auto-mobile'
-            AND c.vin = t.vin
-            AND c.parked = false
-    """.format(",".join(values)))
-
-    values = ["('{}','{}',{},{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
-        x["Immat"].encode('utf-8'), x["EnergyLevel"], ("true" if x["Name"].endswith("-R") else "false"),
-        x["Name"].encode('utf-8'), x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
-    db.query("""
-        INSERT INTO carshares (company, city, partner_id, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
-            SELECT DISTINCT ON (d.vin) 'auto-mobile', c.name, d.id, d.vin, d.name, s.way_name, s.id,
-                true, d.fuel, d.electric, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
-            FROM (VALUES {}) AS d(vin, name, fuel, electric, id, geom)
-            JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
-            LEFT JOIN slots s ON s.city = c.name
-                AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
-            WHERE (SELECT 1 FROM carshares c WHERE c.vin = d.vin LIMIT 1) IS NULL
-            ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
-    """.format(",".join(values)))
+        # create or update Auto-mobile tracking with newly parked vehicles
+        values = ["('{}','{}',{},{},'{}','SRID=4326;POINT({} {})'::geometry)".format(x["Id"],
+            x["Immat"].encode('utf-8'), x["EnergyLevel"], ("true" if x["Name"].endswith("-R") else "false"),
+            x["Name"].encode('utf-8'), x["Position"]["Lon"], x["Position"]["Lat"]) for x in data]
+        db.query("""
+            WITH tmp AS (
+                SELECT DISTINCT ON (d.vin) d.vin, d.name, d.fuel, d.id, s.id AS slot_id, s.way_name, d.geom
+                FROM (VALUES {}) AS d(vin, name, fuel, electric, id, geom)
+                JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
+                LEFT JOIN slots s ON s.city = c.name
+                    AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+                ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+            )
+            UPDATE carshares c SET partner_id = t.id, since = NOW(), name = t.name, address = t.way_name,
+                parked = true, slot_id = t.slot_id, fuel = t.fuel, geom = ST_Transform(t.geom, 3857),
+                geojson = ST_AsGeoJSON(t.geom)::jsonb
+            FROM tmp t
+            WHERE c.company = 'auto-mobile'
+                AND c.vin = t.vin
+                AND c.parked = false
+        """.format(",".join(values)))
+        db.query("""
+            INSERT INTO carshares (company, city, partner_id, vin, name, address, slot_id, parked, fuel, electric, geom, geojson)
+                SELECT DISTINCT ON (d.vin) 'auto-mobile', c.name, d.id, d.vin, d.name, s.way_name, s.id,
+                    true, d.fuel, d.electric, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb
+                FROM (VALUES {}) AS d(vin, name, fuel, electric, id, geom)
+                JOIN cities c ON ST_Intersects(ST_Transform(d.geom, 3857), c.geom)
+                LEFT JOIN slots s ON s.city = c.name
+                    AND ST_DWithin(ST_Transform(d.geom, 3857), s.geom, 5)
+                WHERE (SELECT 1 FROM carshares c WHERE c.vin = d.vin LIMIT 1) IS NULL
+                ORDER BY d.vin, ST_Distance(ST_Transform(d.geom, 3857), s.geom)
+        """.format(",".join(values)))
 
 
 def update_communauto():
@@ -283,13 +282,16 @@ def update_communauto():
             cacity = 59
         elif city == "quebec":
             cacity = 90
-        start = datetime.datetime.now()
+        start = datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         finish = (start + datetime.timedelta(minutes=30))
         data = requests.post("https://www.reservauto.net/Scripts/Client/Ajax/PublicCall/Get_Car_DisponibilityJSON.asp",
             data={"CityID": cacity, "StartDate": start.strftime("%d/%m/%Y %H:%M"),
                 "EndDate": finish.strftime("%d/%m/%Y %H:%M"), "FeeType": 80})
         # must use demjson here because returning format is non-standard JSON
-        data = demjson.decode(data.text.lstrip("(").rstrip(")"))["data"]
+        try:
+            data = demjson.decode(data.text.lstrip("(").rstrip(")"))["data"]
+        except:
+            return
 
         # create or update communauto parking spaces
         values = ["('{}',{})".format(x["StationID"], (1 if x["NbrRes"] == 0 else 0)) for x in data]
@@ -435,12 +437,13 @@ def update_parkingpanda():
 
     for city, addr in [("newyork", "4 Pennsylvania Plaza, New York, NY")]:
         # grab data from parkingpanda api
-        start = datetime.datetime.now()
+        start = datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         finish = (start + datetime.timedelta(hours=23, minutes=59))
         data = requests.get("https://www.parkingpanda.com/api/v2/locations",
-            params={"search": addr, "miles": 20.0, "startTime": start.strftime("%H:%M"),
-                "endDate": finish.strftime("%m/%d/%Y"), "endTime": finish.strftime("%H:%M"),
-                "onlyavailable": False, "showSoldOut": True, "peer": False})
+            params={"search": addr, "miles": 20.0, "startDate": start.strftime("%m/%d/%Y"),
+                "startTime": start.strftime("%H:%M"), "endDate": finish.strftime("%m/%d/%Y"),
+                "endTime": finish.strftime("%H:%M"), "onlyavailable": False,
+                "showSoldOut": True, "peer": False})
         data = data.json()["data"]["locations"]
 
         hourToFloat = lambda x: float(x.split(":")[0]) + (float(x.split(":")[1][0:2]) / 60) + (12 if "PM" in x and x.split(":")[0] != "12" else 0)
@@ -514,6 +517,29 @@ def update_parkingpanda():
             """.format(",".join(values)))
 
 
+def update_seattle_lots():
+    """
+    Fetch Seattle parking lot data and real-time availability from City of Seattle GIS
+    """
+    CONFIG = create_app().config
+    db = PostgresWrapper(
+        "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
+        "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+
+    # grab data from city of seattle dot
+    data = requests.get("http://web6.seattle.gov/sdot/wsvcEparkGarageOccupancy/Occupancy.asmx/GetGarageList",
+        params={"prmGarageID": "G", "prmMyCallbackFunctionName": ""})
+    data = json.loads(data.text.lstrip("(").rstrip(");"))
+
+    if data:
+        db.query("""
+            UPDATE parking_lots l SET available = d.available
+            FROM (VALUES {}) AS d(pid, available)
+            WHERE l.partner_name = 'Seattle ePark'
+                AND l.partner_id = d.pid
+        """.format(",".join(["('{}',{})".format(x["Id"], x["VacantSpaces"]) for x in data])))
+
+
 def update_free_spaces():
     """
     Task to check recently departed carshare spaces and record
@@ -561,7 +587,7 @@ def update_analytics():
                     count(*),
                     date_trunc('hour', created) AS hour_stump,
                     (extract(minute FROM created)::int / 5) AS min_by5,
-                    ST_Collect(ST_Transform(ST_SetSRID(ST_MakePoint(lat, long), 4326), 3857)) AS geom
+                    ST_Collect(ST_Transform(ST_SetSRID(ST_MakePoint(long, lat), 4326), 3857)) AS geom
                 FROM (VALUES {}) AS d(user_id, lat, long, created, search_type)
                 GROUP BY 1, 2, 4, 5
                 ORDER BY 1, 2, 4, 5
