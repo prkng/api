@@ -247,7 +247,7 @@ permits_parser.add_argument(
     type=str,
     location='args',
     required=False,
-    default='false'
+    default='false',
     help='Only return residential permits'
 )
 
@@ -256,12 +256,12 @@ permits_parser.add_argument(
 class Permits(Resource):
     @api.secure
     @api.marshal_list_with(permits_fields)
-    @api.parser(permits_parser)
+    @api.doc(parser=permits_parser)
     def get(self):
         """
         Returns supported parking permits for a given city
         """
-        args = slot_parser.parse_args()
+        args = permits_parser.parse_args()
         return City.get_permits(args['city'], args['residential'] in ['true', 'True', True]), 200
 
 
