@@ -88,7 +88,7 @@ class ButtonLocations(fields.Raw):
     'season_end': fields.String(
         description='when the permission no longer applies',
         required=True),
-    'time_max_parking': fields.String(
+    'time_max_parking': fields.Integer(
         description='restriction on parking time (minutes)',
         required=True),
     'agenda': AgendaView(
