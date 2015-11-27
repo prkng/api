@@ -41,7 +41,7 @@ def generate_token():
     uname, passwd = data.get("username"), data.get("password")
     if uname in current_app.config["COMMUNAUTO_ACCTS"] \
     and passwd == current_app.config["COMMUNAUTO_ACCTS"][uname]["password"]:
-        with open(os.path.join(os.path.expanduser('~'), 'communauto_access.log'), 'a') as f:
+        with open(os.path.join(os.path.expanduser('~'), 'log', 'communauto_access.log'), 'a') as f:
             f.write('[LOGIN] User {} at {} with IP {}\n'.format(uname, datetime.datetime.now().isoformat(),
                 request.environ['REMOTE_ADDR']))
         return jsonify(token=create_token(uname, ext=current_app.config["COMMUNAUTO_ACCTS"][uname]["city"]))

@@ -45,6 +45,18 @@ class City(object):
         ]
 
     @staticmethod
+    def get_permits(city, residential=False):
+        res = "SELECT * FROM permits WHERE city = '{city}'"
+        if residential:
+            res += " AND residential = true"
+
+        res = db.engine.execute(res.format(city=city)).fetchall()
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
+
+    @staticmethod
     def get_checkins(city, start, end):
         res = db.engine.execute("""
             SELECT

@@ -227,6 +227,44 @@ class Cities(Resource):
         return City.get_all(), 200
 
 
+permits_fields = api.model('PermitsFields', {
+    'id': fields.String(required=True),
+    'city': fields.String(required=True),
+    'permit': fields.String(required=True),
+    'residential': fields.Boolean(required=True)
+})
+
+permits_parser = copy.deepcopy(api_key_parser)
+permits_parser.add_argument(
+    'city',
+    type=str,
+    location='args',
+    required=True,
+    help='City to get permits for'
+)
+permits_parser.add_argument(
+    'residential',
+    type=str,
+    location='args',
+    required=False,
+    default='false'
+    help='Only return residential permits'
+)
+
+
+@ns.route('/permits', endpoint='permits_v1')
+class Permits(Resource):
+    @api.secure
+    @api.marshal_list_with(permits_fields)
+    @api.parser(permits_parser)
+    def get(self):
+        """
+        Returns supported parking permits for a given city
+        """
+        args = slot_parser.parse_args()
+        return City.get_permits(args['city'], args['residential'] in ['true', 'True', True]), 200
+
+
 slots_fields = api.model('v1SlotsGeoJSONFeature', {
     'id': fields.String(required=True),
     'type': fields.String(required=True, enum=['Feature']),
