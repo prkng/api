@@ -129,7 +129,7 @@ def update_car2go():
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
-    for city in ["montreal", "newyork"]:
+    for city in ["montreal", "newyork", "seattle"]:
         # grab data from car2go api
         c2city = city
         if c2city == "newyork":
