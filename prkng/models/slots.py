@@ -6,7 +6,7 @@ import datetime
 
 class Slots(object):
     @staticmethod
-    def get_within(city, x, y, radius, duration, properties, checkin=None, paid=True, permit=False):
+    def get_within(city, x, y, radius, duration, properties, checkin=None, permit=False, carsharing=False):
         """
         Retrieve the nearest slots (geometry and ID) within ``radius`` meters of a
         given location (x, y).
@@ -15,16 +15,27 @@ class Slots(object):
         """
         checkin = checkin or datetime.datetime.now()
         duration = duration or 0.5
+        paid = True
 
-        req = """
-        SELECT {properties} FROM slots
-        WHERE city = '{city}' AND
-            ST_Dwithin(
-                st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
-                geom,
-                {radius}
-            )
-        """.format(
+        req = "SELECT {properties} FROM slots s "
+
+        if carsharing:
+            req += "LEFT JOIN service_areas_carsharing c ON s.city = c.city"
+            permit = 'all'
+            duration = 24.0
+            paid = city != "seattle"
+        req += """
+            WHERE s.city = '{city}' AND
+                ST_Dwithin(
+                    st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
+                    s.geom,
+                    {radius}
+                )
+        """
+        if carsharing:
+            req += "AND (c.id IS NULL OR (c.id IS NOT NULL AND ST_Intersects(c.geom, s.geom)))"
+
+        req = req.format(
             properties=','.join(properties),
             city=city,
             x=x,

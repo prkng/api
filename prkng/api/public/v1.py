@@ -393,11 +393,11 @@ class SlotsResource(Resource):
             args['longitude'],
             args['latitude'],
             args['radius'],
-            24.0 if args['carsharing'] else args['duration'],
+            args['duration'],
             slot_props,
             args['checkin'],
-            not args['carsharing'],
-            'all' if args['carsharing'] else args['permit']
+            args['permit'],
+            args['carsharing']
         )
 
         return FeatureCollection([
