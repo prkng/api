@@ -484,6 +484,34 @@ class Lots(Resource):
         ]), 200
 
 
+@ns.route('/lots/<string:id>', endpoint='parkinglot_v1')
+class LotResource(Resource):
+    @api.secure
+    @api.marshal_list_with(lots_fields)
+    @api.doc(
+        params={'id': 'lot id'},
+        responses={404: "feature not found"}
+    )
+    def get(self, id):
+        """
+        Returns the parking lot corresponding to the id
+        """
+        res = ParkingLots.get_byid(id)
+        if not res:
+            api.abort(404, "feature not found")
+
+        res = res[0]
+        return Feature(
+            id=res[0],
+            geometry=res[1],
+            properties={
+                field: res[num]
+                for num, field in enumerate(ParkingLots.properties[2:], start=2)
+            }
+        ), 200
+
+
+
 carshare_parser = copy.deepcopy(api_key_parser)
 carshare_parser.add_argument(
     'radius',
