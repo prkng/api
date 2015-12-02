@@ -509,7 +509,7 @@ def update_parkingpanda():
                     available, address, description, geom, geojson, agenda, attrs, street_view)
                 SELECT d.pid, 'Parking Panda', d.city, d.name, d.active, d.available, d.address,
                     d.description, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb,
-                    d.agenda, d.attrs, p.street_view
+                    d.agenda, d.attrs, json_build_object('head', p.street_view_head, 'id', p.street_view_id)
                 FROM (VALUES {}) AS d(pid, city, name, active, available, address, description,
                     geom, agenda, attrs)
                 LEFT JOIN parking_lots_streetview p ON p.partner_name = 'Parking Panda' AND p.partner_id = d.pid

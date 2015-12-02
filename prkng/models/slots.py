@@ -36,7 +36,7 @@ class Slots(object):
             req += "AND (c.id IS NULL OR (c.id IS NOT NULL AND ST_Intersects(c.geom, s.geom)))"
 
         req = req.format(
-            properties=','.join(properties),
+            properties=','.join(["s."+z for z in properties]),
             city=city,
             x=x,
             y=y,
