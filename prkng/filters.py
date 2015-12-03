@@ -112,7 +112,7 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
                             and not "permit" in rule["restrict_types"]:
                         return False
 
-            if max_time_ok and time_range_ok and "paid" in rule["restrict_types"]:
+            if (max_time_ok or time_range_ok) and "paid" in rule["restrict_types"]:
                 slot["restrict_types"] = ["paid"]
 
             if not max_time_ok or ("paid" not in rule["restrict_types"] and not time_range_ok):
@@ -123,11 +123,11 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
 
 
 def remove_not_applicable(slot, checkin, permit=False):
-    for rule in slot.rules:
-        checkin = parse_datetime(checkin)
-        month = checkin.date().month  # month as number
-        day = checkin.strftime('%d')  # 07
+    checkin = parse_datetime(checkin)
+    month = checkin.date().month  # month as number
+    day = checkin.strftime('%d')  # 07
 
+    for rule in slot.rules:
         # first test season day/month
         start_month, start_day = "", ""
         if rule['season_start']:

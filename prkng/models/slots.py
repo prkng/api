@@ -103,6 +103,7 @@ class Slots(object):
         """
         Retrieve slot information by its ID
         """
+        checkin = checkin or datetime.datetime.now()
         res = db.engine.execute("""
             SELECT {properties}
             FROM slots
