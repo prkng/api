@@ -277,10 +277,32 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
     'features': api.as_list(fields.Nested(slots_fields))
 })
 
+slot_parser = copy.deepcopy(api_key_parser)
+slot_parser.add_argument(
+    'filter',
+    type=str,
+    location='args',
+    default='true',
+    help='Remove restrictions that do not apply from rules'
+)
+slot_parser.add_argument(
+    'checkin',
+    type=timestamp,
+    location='args',
+    default=time.strftime("%Y-%m-%dT%H:%M:%S"),
+    help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00'); default is now"
+)
+slot_parser.add_argument(
+    'permit',
+    type=str,
+    location='args',
+    default=False,
+    help='Show permit restrictions for the specified number(s) as available'
+)
+
 
 @ns.route('/slots/<string:id>', endpoint='slot_v1')
 class SlotResource(Resource):
-    @api.secure
     @api.marshal_list_with(slots_fields)
     @api.doc(
         params={'id': 'slot id'},
@@ -290,7 +312,10 @@ class SlotResource(Resource):
         """
         Returns the parking slot corresponding to the id
         """
-        res = Slots.get_byid(id, slot_props)
+        args = slot_parser.parse_args()
+        args['filter'] = args['filter'] not in ['false', 'False', False]
+
+        res = Slots.get_byid(id, slot_props, args['filter'], args['checkin'], args['permit'])
         if not res:
             api.abort(404, "feature not found")
 
@@ -305,57 +330,57 @@ class SlotResource(Resource):
         ), 200
 
 
-slot_parser = copy.deepcopy(api_key_parser)
-slot_parser.add_argument(
+slots_parser = copy.deepcopy(api_key_parser)
+slots_parser.add_argument(
     'radius',
     type=int,
     location='args',
     default=300,
     help='Radius search in meters; default is 300'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'latitude',
     type=float,
     location='args',
     required=True,
     help='Latitude in degrees (WGS84)'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'longitude',
     type=float,
     location='args',
     required=True,
     help='Longitude in degrees (WGS84)'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'checkin',
     type=timestamp,
     location='args',
     default=time.strftime("%Y-%m-%dT%H:%M:%S"),
     help="Check-in timestamp in ISO 8601 ('2013-01-01T12:00'); default is now"
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'duration',
     type=float,
     location='args',
     default=0.5,
     help='Desired Parking time in hours; default is 0.5'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'carsharing',
     type=str,
     location='args',
     default=False,
     help='Filter automatically by carsharing rules'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'compact',
     type=str,
     location='args',
     default=False,
     help='Return only IDs, types and geometries for slots'
 )
-slot_parser.add_argument(
+slots_parser.add_argument(
     'permit',
     type=str,
     location='args',
@@ -371,12 +396,12 @@ class SlotsResource(Resource):
     @api.doc(
         responses={404: "no feature found"}
     )
-    @api.doc(parser=slot_parser)
+    @api.doc(parser=slots_parser)
     def get(self):
         """
         Returns slots around the point defined by (x, y)
         """
-        args = slot_parser.parse_args()
+        args = slots_parser.parse_args()
         args['compact'] = args['compact'] not in ['false', 'False', False]
         args['carsharing'] = args['carsharing'] not in ['false', 'False', False]
 

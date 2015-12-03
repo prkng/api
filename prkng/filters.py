@@ -4,7 +4,7 @@ from datetime import timedelta, datetime
 from aniso8601 import parse_datetime
 
 
-def on_restriction(rules, checkin, duration, paid=True, permit=False):
+def on_restriction(slot, checkin, duration, paid=True, permit=False):
     """
     Returns True if restrictions are consistent with the checkin
     and duration given in argument. False otherwise
@@ -13,7 +13,7 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
     :param checkin: checkin time
     :param duration: duration in hour. Float accepted
     :param paid: set to False to not return any paid slots.
-    :param permit: return permit slots matching this number (str), 'all', or False for none
+    :param permit: return permit slots matching this name/number (str), 'all', or False for none
     """
     checkin = parse_datetime(checkin)
     duration = timedelta(hours=duration)
@@ -24,11 +24,13 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
     year = checkin.year  # 2015
     day = checkin.strftime('%d')  # 07
 
+    slot['restrict_types'] = []
+
     # analyze each rule and stop iteration on conflict
-    for rule in rules:
+    for rule in slot["rules"]:
         if "paid" in rule['restrict_types'] and not paid:
             # don't show me paid slots
-            return True
+            return False
         elif any(x in ['angled'] for x in rule['restrict_types']):
             # not concerned, going to the next rule
             continue
@@ -56,9 +58,6 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
         if "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
             # this is a permit rule and we like permits
             continue
-        elif "permit" in rule['restrict_types']:
-            # permit number conflict or no permit number sent. rejecting
-            return True
 
         max_time_ok = True
         time_range_ok = True
@@ -109,31 +108,33 @@ def on_restriction(rules, checkin, duration, paid=True, permit=False):
                         # parking time is totally inside range BUT duration too long
                         max_time_ok &= False
 
+                    if rule["restrict_types"] and not "paid" in rule["restrict_types"]\
+                            and not "permit" in rule["restrict_types"]:
+                        return False
+
+            if max_time_ok and time_range_ok and "paid" in rule["restrict_types"]:
+                slot["restrict_types"] = ["paid"]
+
             if not max_time_ok or ("paid" not in rule["restrict_types"] and not time_range_ok):
                 # max_time exceed or time range overlapping or both
-                return True
+                return False
 
-    return False
+    return slot
 
 
-def assign_type(slot, checkin):
-    slot['restrict_types'] = []
+def remove_not_applicable(slot, checkin, permit=False):
+    for rule in slot.rules:
+        checkin = parse_datetime(checkin)
+        month = checkin.date().month  # month as number
+        day = checkin.strftime('%d')  # 07
 
-    if not [("paid" in x["restrict_types"]) for x in slot['rules']]:
-        # simple, the slot has no paid rules
-        # give it back as-is
-        return feature
-
-    checkin = parse_datetime(checkin) if checkin else datetime.now()
-    month = checkin.date().month  # month as number
-    isodow = checkin.isoweekday()  # 1->7
-    year = checkin.year  # 2015
-    day = checkin.strftime('%d')  # 07
-
-    for rule in [x for x in slot['rules'] if "paid" in x["restrict_types"]]:
         # first test season day/month
-        start_month, start_day = ('-' or rule['season_start']).split('-')
-        end_month, end_day = ('-' or rule['season_end']).split('-')
+        start_month, start_day = "", ""
+        if rule['season_start']:
+            start_month, start_day = [int(x) for x in rule['season_start'].split('-')]
+        end_month, end_day = "", ""
+        if rule['season_end']:
+            end_month, end_day = [int(x) for x in rule['season_end'].split('-')]
         season_match = season_matching(
             start_day,
             start_month,
@@ -144,31 +145,9 @@ def assign_type(slot, checkin):
         )
 
         if not season_match:
-            # not concerned, going to the next rule
-            continue
-
-        # extract time range for each day and test overlapping with checkin + duration
-        # start at current day and slice over days
-        iterto = chain(range(1, 8)[isodow-1:], range(1, 8)[:isodow-1])
-
-        for absoluteday, numday in enumerate(iterto):
-            tsranges = rule['agenda'][str(numday)]
-            for start, stop in filter(bool, tsranges):
-                try:
-                    start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
-                        + timedelta(days=absoluteday)
-                    #  hack to avoid ValueError: hour must be in 0..23
-                    stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
-                        + timedelta(days=absoluteday, hours=1)
-                except TypeError:
-                    raise Exception("Data integrity error on {}, please review rules".format(rule['code']))
-                except Exception, e:
-                    raise Exception("Exception occurred on {} :  {}".format(rule['code'], str(e)))
-
-                if start_time < checkin and stop_time > checkin:
-                    # we are in the period, say we're paid and get out
-                    slot['restrict_types'] = ["paid"]
-                    return slot
+            slot.rules.remove(rule)
+        elif "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
+            slot.rules.remove(rule)
     return slot
 
 

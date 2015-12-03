@@ -1,5 +1,5 @@
 from prkng.database import db
-from prkng.filters import assign_type, on_restriction
+from prkng.filters import on_restriction, remove_not_applicable
 
 import datetime
 
@@ -44,10 +44,8 @@ class Slots(object):
         )
 
         features = db.engine.execute(req).fetchall()
-        features = filter(lambda x: not on_restriction(x.rules, checkin, duration, paid, permit),
-            features
-        )
-        return map(lambda x: assign_type(dict(x), checkin), features)
+        features = map(lambda x: on_restriction(dict(x), checkin, duration, paid, permit), features)
+        return filter(lambda x: x != False, features)
 
     @staticmethod
     def get_boundbox(
@@ -67,7 +65,7 @@ class Slots(object):
             return False
 
         req = """
-            SELECT {properties} FROM slots
+            SELECT {properties}, ARRAY[]::varchar[] AS restrict_types FROM slots
             WHERE city = '{city}' AND
                 ST_intersects(
                     ST_Transform(
@@ -86,10 +84,11 @@ class Slots(object):
         )
 
         slots = db.engine.execute(req).fetchall()
+        slots = map(lambda x: dict(x), slots)
         if checkin and invert:
-            slots = filter(lambda x: on_restriction(x.rules, checkin, float(duration), True, permit), slots)
+            slots = map(lambda x: on_restriction(x, checkin, float(duration), True, permit), slots)
         elif checkin:
-            slots = filter(lambda x: not on_restriction(x.rules, checkin, float(duration), True, permit), slots)
+            slots = map(lambda x: on_restriction(x, checkin, float(duration), True, permit), slots)
         if type == 1:
             slots = filter(lambda x: "paid" in [z for y in x.rules for z in y["restrict_types"]], slots)
         elif type == 2:
@@ -97,15 +96,18 @@ class Slots(object):
         elif type == 3:
             slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
 
-        return map(lambda x: assign_type(dict(x), checkin), slots)
+        return filter(lambda x: x != False, slots)
 
     @staticmethod
-    def get_byid(sid, properties):
+    def get_byid(sid, properties, remove_na=False, checkin=False, permit=False):
         """
         Retrieve slot information by its ID
         """
-        return db.engine.execute("""
+        res = db.engine.execute("""
             SELECT {properties}
             FROM slots
             WHERE id = {sid}
             """.format(sid=sid, properties=','.join(properties))).fetchall()
+        if remove_na:
+            return filter(lambda x: remove_not_applicable(x, checkin, permit), res)
+        return res
