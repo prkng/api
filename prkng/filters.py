@@ -6,8 +6,8 @@ from aniso8601 import parse_datetime
 
 def on_restriction(slot, checkin, duration, paid=True, permit=False):
     """
-    Returns True if restrictions are consistent with the checkin
-    and duration given in argument. False otherwise
+    Process rules for display to client. Returns rule(s) if restrictions are compatible with the checkin
+    and duration given in argument. False otherwise.
 
     :param rules: list of rules (dict)
     :param checkin: checkin time
@@ -25,6 +25,10 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
     day = checkin.strftime('%d')  # 07
 
     slot['restrict_types'] = []
+
+    # add any applicable temporary restrictions into the main rules list
+    if rule['temporary_rule']:
+        slot["rules"].append(rule["temporary_rule"])
 
     # analyze each rule and stop iteration on conflict
     for rule in slot["rules"]:
@@ -119,6 +123,12 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
                 # max_time exceed or time range overlapping or both
                 return False
 
+    return slot
+
+
+def add_temporary_restrictions(slot):
+    if slot['temporary_rule']:
+        slot["rules"].append(slot["temporary_rule"])
     return slot
 
 

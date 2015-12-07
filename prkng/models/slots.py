@@ -1,5 +1,5 @@
 from prkng.database import db
-from prkng.filters import on_restriction, remove_not_applicable
+from prkng.filters import on_restriction, remove_not_applicable, add_temporary_restrictions
 
 import datetime
 
@@ -17,7 +17,7 @@ class Slots(object):
         duration = duration or 0.5
         paid = True
 
-        req = "SELECT {properties} FROM slots s "
+        req = "SELECT {properties}, t.rule AS temporary_rule FROM slots s "
 
         if carsharing:
             req += "LEFT JOIN service_areas_carsharing c ON s.city = c.city"
@@ -25,6 +25,7 @@ class Slots(object):
             duration = 24.0
             paid = city != "seattle"
         req += """
+            LEFT JOIN temporary_restrictions t ON t.city = s.city AND t.active = true AND s.id = ANY(t.slot_ids)
             WHERE s.city = '{city}' AND
                 ST_Dwithin(
                     st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -105,10 +106,12 @@ class Slots(object):
         """
         checkin = checkin or datetime.datetime.now()
         res = db.engine.execute("""
-            SELECT {properties}
-            FROM slots
-            WHERE id = {sid}
-            """.format(sid=sid, properties=','.join(properties))).fetchall()
+            SELECT {properties}, t.rule AS temporary_rule
+            FROM slots s
+            LEFT JOIN temporary_restrictions t ON t.active = true AND {sid} = ANY(t.slot_ids)
+            WHERE s.id = {sid}
+            """.format(sid=sid, properties=','.join(["s."+x for x in properties]))).fetchall()
+        res = map(lambda x: add_temporary_restrictions(x), res)
         if remove_na:
-            return filter(lambda x: remove_not_applicable(x, checkin, permit), res)
+            return map(lambda x: remove_not_applicable(x, checkin, permit), res)
         return res

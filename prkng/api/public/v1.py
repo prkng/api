@@ -277,7 +277,7 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
     'features': api.as_list(fields.Nested(slots_fields))
 })
 
-slot_parser = copy.deepcopy(api_key_parser)
+slot_parser = api.parser()
 slot_parser.add_argument(
     'filter',
     type=str,

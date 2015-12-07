@@ -245,7 +245,7 @@ def google_signin(access_token, name, email, picture):
 
         id, email, name, picture = me['id'], me['email'], me['name'], me.get('picture', '')
 
-        auth_id = 'google${}'.format(id)
+    auth_id = 'google${}'.format(id)
 
     # known google account ?
     user_auth = UserAuth.exists(auth_id)
