@@ -196,50 +196,69 @@ def facebook_signin(access_token):
     return resp, 200
 
 
-def google_signin(access_token):
+def google_signin(access_token, name, email, picture):
     """
     Authorize user given its access_token.
     Add it to the db if not already present
 
     """
     # verify access token has been requested with the correct app id
-    resp = requests.get(
-        "https://www.googleapis.com/oauth2/v1/tokeninfo",
-        params={'access_token': access_token}
-    )
-    data = resp.json()
-    if resp.status_code != 200:
-        return data, resp.status_code
+    if access_token.startswith("eyJh"):
+        # Google Sign-In (1.3.1+)
+        resp = requests.get(
+            "https://www.googleapis.com/oauth2/v3/tokeninfo",
+            params={'id_token': access_token}
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            return data, resp.status_code
 
-    if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
-        return "Authentication failed.", 401
+        if data['aud'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
+            return "Authentication failed.", 401
 
-    # get user profile
-    resp = requests.get(
-        "https://www.googleapis.com/oauth2/v1/userinfo",
-        params={'access_token': access_token}
-    )
-    me = resp.json()
-    if resp.status_code != 200:
-        return me, resp.status_code
+        id = data['sub']
+    else:
+        # Google OAuth 2.0 (1.3 and below)
+        resp = requests.get(
+            "https://www.googleapis.com/oauth2/v1/tokeninfo",
+            params={'access_token': access_token}
+        )
+        data = resp.json()
+        if resp.status_code != 200:
+            return data, resp.status_code
 
-    if 'email' not in me:
-        return 'Email information not provided, cannot register user', 401
+        if data['audience'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
+            return "Authentication failed.", 401
 
-    auth_id = 'google${}'.format(me['id'])
+        # get user profile
+        resp = requests.get(
+            "https://www.googleapis.com/oauth2/v1/userinfo",
+            params={'access_token': access_token}
+        )
+
+        me = resp.json()
+        if resp.status_code != 200:
+            return me, resp.status_code
+
+        if 'email' not in me:
+            return 'Email information not provided, cannot register user', 401
+
+        id, email, name, picture = me['id'], me['email'], me['name'], me.get('picture', '')
+
+        auth_id = 'google${}'.format(id)
 
     # known google account ?
     user_auth = UserAuth.exists(auth_id)
 
     # check if user exists with its email as unique identifier
-    user = User.get_byemail(me['email'])
+    user = User.get_byemail(email)
     if not user:
         # primary user doesn't exists, creating it
         user = User.add_user(
-            name=me['name'],
-            email=me['email'],
-            gender=me.get('gender', None),
-            image_url=me.get('picture', ''))
+            name=name,
+            email=email,
+            gender=None,
+            image_url=picture)
 
     if not user_auth:
         # add user auth informations
@@ -252,9 +271,9 @@ def google_signin(access_token):
             fullprofile=me
         )
     else:
-        # if already exists just update with a new apikey and profile pic
+        # if already exists just update with a new apikey and profile details
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile(image_url=me.get('picture', ''))
+        user.update_profile(name=name, email=email, image_url=picture)
 
     # login user (powered by flask-login)
     login_user(user, True)

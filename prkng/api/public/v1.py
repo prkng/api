@@ -672,6 +672,8 @@ login_parser.add_argument(
     help='OAuth2 user access token (for facebook/google logins only)',
     required=False
 )
+login_parser.add_argument('name', type=str, location='form', help='Profile: Full Name (for Google logins only)', required=False)
+login_parser.add_argument('picture', type=str, location='form', help='Profile: Profile Picture (for Google logins only)', required=False)
 
 user_model = api.model('User', {
     'name': fields.String(),
@@ -699,7 +701,7 @@ class Login(Resource):
         if args.get("type") == "facebook":
             return facebook_signin(args['access_token'])
         elif args.get("type") == "google":
-            return google_signin(args['access_token'])
+            return google_signin(args['access_token'], args['name'], args['email'], args['picture'])
         else:
             return email_signin(args['email'], args['password'])
 
