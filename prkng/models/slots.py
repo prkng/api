@@ -23,7 +23,7 @@ class Slots(object):
             req += "LEFT JOIN service_areas_carsharing c ON s.city = c.city"
             permit = 'all'
             duration = 24.0
-            paid = city != "seattle"
+            paid = city == "seattle"
         req += """
             LEFT JOIN temporary_restrictions t ON t.city = s.city AND t.active = true AND s.id = ANY(t.slot_ids)
             WHERE s.city = '{city}' AND

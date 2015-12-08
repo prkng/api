@@ -424,11 +424,13 @@ def update_zipcar():
         """.format(",".join(cars)))
     db.query("""
         DELETE FROM carshare_lots l
-        WHERE (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.partner_id = d.pid) IS NULL
+        WHERE l.company = 'zipcar'
+            AND (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.company = 'zipcar' AND l.partner_id = d.pid) IS NULL
     """.format(",".join(["('{}')".format(z["location_id"]) for z in data])))
     db.query("""
         DELETE FROM carshares l
-        WHERE (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.partner_id = d.pid) IS NULL
+        WHERE l.company = 'zipcar'
+            AND (SELECT 1 FROM (VALUES {}) AS d(pid) WHERE l.company = 'zipcar' AND l.partner_id = d.pid) IS NULL
     """.format(",".join(["('{}')".format(z) for z in vids])))
 
 

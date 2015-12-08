@@ -116,8 +116,8 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
                             and not "permit" in rule["restrict_types"]:
                         return False
 
-            if (max_time_ok or time_range_ok) and "paid" in rule["restrict_types"]:
-                slot["restrict_types"] = ["paid"]
+                if "paid" in rule["restrict_types"] and checkin >= start_time and checkin <= stop_time:
+                    slot["restrict_types"] = ["paid"]
 
             if not max_time_ok or ("paid" not in rule["restrict_types"] and not time_range_ok):
                 # max_time exceed or time range overlapping or both
