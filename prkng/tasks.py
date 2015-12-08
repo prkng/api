@@ -32,6 +32,7 @@ def init_tasks(debug=True):
     if not debug:
         scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
+        scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():
@@ -58,6 +59,9 @@ def send_notifications():
         aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
     data = r.hgetall('prkng:pushnotif')
     r.delete('prkng:pushnotif')
+
+    if not data:
+        return
 
     if data["to"].startswith("arn:aws:sns:"):
         # Publish a message to a specified Amazon SNS topic (via its ARN)
@@ -511,7 +515,7 @@ def update_parkingpanda():
                     available, address, description, geom, geojson, agenda, attrs, street_view)
                 SELECT d.pid, 'Parking Panda', d.city, d.name, d.active, d.available, d.address,
                     d.description, ST_Transform(d.geom, 3857), ST_AsGeoJSON(d.geom)::jsonb,
-                    d.agenda, d.attrs, json_build_object('head', p.street_view_head, 'id', p.street_view_id)
+                    d.agenda, d.attrs, json_build_object('head', p.street_view_head, 'id', p.street_view_id)::jsonb
                 FROM (VALUES {}) AS d(pid, city, name, active, available, address, description,
                     geom, agenda, attrs)
                 LEFT JOIN parking_lots_streetview p ON p.partner_name = 'Parking Panda' AND p.partner_id = d.pid
@@ -576,7 +580,7 @@ def update_deneigement():
 
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/sim/InfoneigeWebService?wsdl")
     planification_request = client.factory.create('getPlanificationsForDate')
-    planification_request.fromDate = datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')
+    planification_request.fromDate = (datetime.datetime.now() - datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_SIM_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
     if response['responseStatus'] == 8:
@@ -644,7 +648,8 @@ def update_deneigement():
 
         db.query("""
             WITH tmp AS (
-                SELECT d.cote_rue_i AS id, array_agg(s.id) AS slot_ids
+                SELECT DISTINCT ON (d.cote_rue_i) d.cote_rue_i AS id,
+                    array_agg(s.id) AS slot_ids
                 FROM montreal_geobase_double d
                 JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
                 JOIN slots s ON city = 'montreal' AND s.rid = g.id
