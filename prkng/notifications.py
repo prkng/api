@@ -1,4 +1,5 @@
 from prkng.database import db
+from prkng.utils import random_string
 
 import apns
 import json
@@ -34,10 +35,10 @@ def send_google_notification(token, text):
     pass
 
 
-def schedule_notifications(device_type, device_ids, text):
+def schedule_notifications(device_ids, message):
     """
     Schedule push notifications for devices via Redis/Task
     """
-    for x in device_ids:
-        db.redis.rpush('prkng:pushnotif', json.dumps({"device_id": x,
-            "device_type": device_type, "text": text}))
+    pid = random_string(16)
+    db.redis.hset('prkng:push', pid, message)
+    db.redis.rpush('prkng:push:'+pid, *device_ids)

@@ -57,37 +57,59 @@ def send_notifications():
     amz = boto.sns.connect_to_region("us-west-2",
         aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
         aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
-    data = r.hgetall('prkng:pushnotif')
-    r.delete('prkng:pushnotif')
 
-    if not data:
+    keys = r.keys('prkng:push')
+    if not keys:
         return
 
-    if data["to"].startswith("arn:aws:sns:"):
-        # Publish a message to a specified Amazon SNS topic (via its ARN)
-        amz.publish(message=data["message"], target_arn=data["to"])
-    elif data["to"].lower() == "all":
-        # Automatically publish messages destined for "all" via our All Users notification topic
-        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["all_users"])
-    elif data["to"].lower() == "ios":
-        # Automatically publish messages destined for all iOS users
-        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["ios_users"])
-    elif data["to"].lower() == "android":
-        # Automatically publish messages destined for all Android users
-        amz.publish(message=data["message"], target_arn=CONFIG["AWS_SNS_TOPICS"]["android_users"])
-    else:
-        # Create a temporary topic for a manually specified list of users
+    for pid in keys:
+        message = r.hget('prkng:push', pid)
+        r.hdel('prkng:push', pid)
+        device_ids = r.lrange('prkng:push:'+pid, 0, -1)
+        r.delete('prkng:push:'+pid)
+
+        message_structure = None
+        if message.startswith("{") and message.endswith("}"):
+            message_structure = "json"
         mg_title = "message-group-{}".format(datetime.datetime.now().strftime("%Y%m%d-%H%M%S"))
-        mg_arn = amz.create_topic(mg_title)
-        arns = db.query("""
-            SELECT u.sns_id FROM (VALUES {}) AS d(uid) JOIN users u ON u.id = d.uid
-        """.format(",".join(["({})".format(x) for x in data["to"].split(",")])))
-        for x in arns:
-            try:
-                amz.subscribe(mg_arn, "application", x[0])
-            except:
-                pass
-        amz.publish(message=data["message"], target_arn=mg_arn)
+        mg_arn = None
+
+        if device_ids == ["all"]:
+            # Automatically publish messages destined for "all" via our All Users notification topic
+            amz.publish(message=message, message_structure=message_structure,
+                target_arn=CONFIG["AWS_SNS_TOPICS"]["all_users"])
+        elif device_ids == ["ios"]:
+            # Automatically publish messages destined for all iOS users
+            amz.publish(message=message, message_structure=message_structure,
+                target_arn=CONFIG["AWS_SNS_TOPICS"]["ios_users"])
+        elif device_ids == ["android"]:
+            # Automatically publish messages destined for all Android users
+            amz.publish(message=message, message_structure=message_structure,
+                target_arn=CONFIG["AWS_SNS_TOPICS"]["android_users"])
+        
+        if len(device_ids) >= 10:
+            # If more than 10 real device IDs at once:
+            for id in device_ids:
+                if id.startswith("arn:aws:sns") and "endpoint" in id:
+                    # this is a user device ID
+                    # Create a temporary topic for a manually specified list of users
+                    if not mg_arn:
+                        mg_arn = amz.create_topic(mg_title)
+                    try:
+                        amz.subscribe(mg_arn, "application", id)
+                    except:
+                        pass
+                elif id.startswith("arn:aws:sns"):
+                    # this must be a topic ARN, send to it immediately
+                    amz.publish(message=message, message_structure=message_structure, target_arn=id)
+            if mg_arn:
+                # send to all user device IDs that we queued up in the prior loop
+                amz.publish(message=message, message_structure=message_structure, target_arn=mg_arn)
+        else:
+            # Less than 10 device IDs or topic ARNs. Send to them immediately
+            for id in [x for x in device_ids if x.startswith("arn:aws:sns")]:
+                amz.publish(message=message, message_structure=message_structure, target_arn=id)
+
 
 def hello_amazon():
     """
@@ -635,6 +657,7 @@ def update_deneigement():
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}'))
 
     if values:
+        # update temporary restrictions item when we are already tracking the blockface
         db.query("""
             WITH tmp AS (
                 SELECT x.*, g.name
@@ -648,6 +671,7 @@ def update_deneigement():
             WHERE d.city = 'montreal' AND d.type = 'snow' AND x.geobase_id::text = d.partner_id
         """.format(",".join(values)))
 
+        # insert temporary restrictions for newly-mentioned blockfaces, and link with current slot IDs
         db.query("""
             WITH tmp AS (
                 SELECT DISTINCT ON (d.cote_rue_i) d.cote_rue_i AS id,

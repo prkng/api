@@ -297,19 +297,23 @@ def get_heatmap():
 
 @admin.route('/api/notification', methods=['POST'])
 @auth_required()
-def send_apns():
+def send_push():
     """
     Send push notifications by user ID
     """
-    device_ids = {"ios": [], "android": []}
+    device_ids = []
     data = request.get_json()
     if data["user_ids"]:
         for x in data["user_ids"]:
-            u = User.get(x)
-            if u and u.device_id:
-                device_ids[u.device_type].append(u.device_id)
-        schedule_notifications("ios", device_ids["ios"], data.get('text'))
-        schedule_notifications("android", device_ids["android"], data.get('text'))
+            if x in ["all", "ios", "android", "en", "fr"]:
+                device_ids.append("all")
+            elif x.startswith("arn:aws:sns:"):
+                device_ids.append(x)
+            else:
+                u = User.get(x)
+                if u and u.sns_id:
+                    device_ids.append(u.sns_id)
+        schedule_notifications(device_ids, data.get('text'))
         return jsonify(device_ids=device_ids), 200
     else:
         return "No user IDs supplied", 400
