@@ -113,7 +113,12 @@ class SlotsResource(Resource):
         """
         args = slot_parser.parse_args()
 
+        city = City.get(args['longitude'], args['latitude'])
+        if not city:
+            api.abort(404, "no feature found")
+
         res = Slots.get_within(
+            city,
             args['longitude'],
             args['latitude'],
             args['radius'],
@@ -123,8 +128,6 @@ class SlotsResource(Resource):
             args['permit'] in ['false', False],
             args['permit'] == 'all'
         )
-        if res == False:
-            api.abort(404, "no feature found")
 
         return FeatureCollection([
             Feature(

@@ -904,7 +904,7 @@ report_parser.add_argument(
     required=True,
     help='Longitude in degrees (WGS84)'
 )
-report_parser.add_argument('city', type=str, required=True,
+report_parser.add_argument('city', type=str, required=False, default='montreal',
     location='form', help='city name')
 report_parser.add_argument('image_url', type=str, required=True,
     location='form', help='report image URL')
@@ -920,7 +920,10 @@ class Report(Resource):
     def post(self):
         """Submit a report about incorrect data"""
         args = report_parser.parse_args()
-        Reports.add(g.user.id, args["city"], args.get("slot_id", None),
+        city = args["city"]
+        if not args["city"]:
+            city = City.get(args['longitude'], args['latitude'])
+        Reports.add(g.user.id, city, args.get("slot_id", None),
             args["longitude"], args["latitude"], args.get("image_url", ""),
             args.get("notes", ""))
         return "Resource created", 201

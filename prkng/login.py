@@ -217,6 +217,7 @@ def google_signin(access_token, name, email, picture):
             return "Authentication failed.", 401
 
         id = data['sub']
+        me = {"name": name, "email": email}
     else:
         # Google OAuth 2.0 (1.3 and below)
         resp = requests.get(
