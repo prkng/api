@@ -9,6 +9,7 @@ import demjson
 import json
 import os
 import pytz
+import re
 from redis import Redis
 import requests
 from rq_scheduler import Scheduler
@@ -32,7 +33,7 @@ def init_tasks(debug=True):
     if not debug:
         scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
         scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
-        scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
+        #scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():
@@ -58,7 +59,7 @@ def send_notifications():
         aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
         aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
 
-    keys = r.keys('prkng:push')
+    keys = r.hkeys('prkng:push')
     if not keys:
         return
 
@@ -86,7 +87,15 @@ def send_notifications():
             # Automatically publish messages destined for all Android users
             amz.publish(message=message, message_structure=message_structure,
                 target_arn=CONFIG["AWS_SNS_TOPICS"]["android_users"])
-        
+        elif device_ids == ["en"]:
+            # Automatically publish messages destined for all English-language users
+            amz.publish(message=message, message_structure=message_structure,
+                target_arn=CONFIG["AWS_SNS_TOPICS"]["en_users"])
+        elif device_ids == ["fr"]:
+            # Automatically publish messages destined for all French-language users
+            amz.publish(message=message, message_structure=message_structure,
+                target_arn=CONFIG["AWS_SNS_TOPICS"]["fr_users"])
+
         if len(device_ids) >= 10:
             # If more than 10 real device IDs at once:
             for id in device_ids:
@@ -136,8 +145,13 @@ def hello_amazon():
                 r.hdel('prkng:hello-amazon:'+d, x)
                 amz.subscribe(CONFIG["AWS_SNS_TOPICS"]["all_users"], "application", arn)
                 amz.subscribe(CONFIG["AWS_SNS_TOPICS"][d+"_users"], "application", arn)
-            except:
-                pass
+            except Exception, e:
+                if "already exists with the same Token" in e.message:
+                    arn = re.search("Endpoint (arn:aws:sns\S*)\s.?", e.message)
+                    if not arn:
+                        continue
+                    values.append("({},'{}')".format(x, arn.group(1)))
+                    r.hdel('prkng:hello-amazon:'+d, x)
 
     # Update the local user records with their new Amazon SNS ARNs
     if values:
@@ -206,7 +220,7 @@ def update_car2go():
         # create or update car2go tracking with new data
         values = ["('{}','{}','{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(city, x["vin"],
             x["name"].encode('utf-8'), x["address"].replace("'", "''").encode("utf-8"),
-            x["fuel"], x["coordinates"][0], x["coordinates"][1]) for x in data]
+            x.get("fuel", 0), x["coordinates"][0], x["coordinates"][1]) for x in data]
         db.query("""
             WITH tmp AS (
                 SELECT DISTINCT ON (d.vin) d.vin, d.name, d.fuel, d.address, d.geom,
@@ -626,7 +640,7 @@ def update_deneigement():
             active boolean
         )
     """)
-    values, record = [], "({},'{}'::timestamp,'{}'::timestamp,{},'{}'::jsonb)"
+    values, record = [], "({},'{}'::timestamp,'{}'::timestamp,{},'{}'::jsonb,{})"
     for x in response['planifications']['planification']:
         if x['etatDeneig'] in [2, 3] and hasattr(x, 'dateDebutPlanif'):
             agenda = {str(z): [] for z in range(1,8)}
@@ -651,17 +665,17 @@ def update_deneigement():
                 "season_start": None, "season_end": None, "agenda": agenda, "time_max_parking": None,
                 "special_days": None, "restrict_types": ["snow"], "permit_no": None}
             values.append(record.format(x['coteRueId'], x['dateDebutPlanif'].strftime('%Y-%m-%d %H:%M:%S'),
-                x['dateFinPlanif'].strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule)))
+                x['dateFinPlanif'].strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
         elif x['etatDeneig'] in [0, 1, 4]:
             values.append(record.format(x['coteRueId'], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
-                datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}'))
+                datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}', x['etatDeneig']))
 
     if values:
         # update temporary restrictions item when we are already tracking the blockface
         db.query("""
             WITH tmp AS (
                 SELECT x.*, g.name
-                FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule)
+                FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
                 JOIN montreal_geobase_double d ON x.geobase_id = d.cote_rue_i
                 JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
             )
@@ -687,11 +701,46 @@ def update_deneigement():
                     rule, type, active)
                 SELECT 'montreal', x.geobase_id::text, t.slot_ids, min(x.start), min(x.finish),
                     x.rule, 'snow', x.active
-                FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule)
+                FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
                 JOIN tmp t ON t.id = x.geobase_id
                 WHERE (SELECT 1 FROM temporary_restrictions l WHERE l.type = 'snow'
                             AND l.partner_id = x.geobase_id::text LIMIT 1) IS NULL
         """.format(",".join(values)))
+
+        # grab the appropriate checkins to send pushes to by slot ID
+        res = db.query("""
+            SELECT x.start, x.state, u.sns_id
+            FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
+            JOIN montreal_geobase_double d ON x.geobase_id = d.cote_rue_i
+            JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
+            JOIN slots s ON city = 'montreal' AND s.rid = g.id
+                AND ST_isLeft(g.geom, ST_StartPoint(ST_LineMerge(d.geom)))
+                  = ST_isLeft(g.geom, ST_StartPoint(s.geom))
+            JOIN checkins c ON s.id = c.slot_id
+            JOIN users u ON c.user_id = u.id
+            WHERE c.active = true AND c.checkout_time IS NOT NULL
+                AND c.push_notify = true AND u.sns_id IS NOT NULL
+                AND (x.state = 2 OR x.state = 3)
+        """).format(",".join(values))
+
+        # group device IDs by schedule/reschedule and start time, then send messages
+        scheduled, rescheduled = {}, {}
+        for x in res:
+            x = (x[0].isoformat(), x[1], x[2])
+            if x[1] == 2:
+                if not scheduled.has_key(x[0]):
+                    scheduled[x[0]] = []
+                scheduled[x[0]].append(x[2])
+            elif x[1] == 3:
+                if not rescheduled.has_key(x[0]):
+                    rescheduled[x[0]] = []
+                rescheduled[x[0]].append(x[2])
+        for x in scheduled.keys():
+            notifications.schedule_notifications(scheduled[x],
+                json.dumps({"message_type": "snow_removal_scheduled", "data": {"start": x}}))
+        for x in rescheduled.keys():
+            notifications.schedule_notifications(rescheduled[x],
+                json.dumps({"message_type": "snow_removal_rescheduled", "data": {"start": x}}))
 
 
 def update_analytics():
