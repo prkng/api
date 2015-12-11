@@ -82,6 +82,16 @@ def get_reports():
     return jsonify(reports=reports), 200
 
 
+@admin.route('/api/users', methods=['GET'])
+@auth_required()
+def get_users():
+    """
+    Get a list of users
+    """
+    users = User.get_all()
+    return jsonify(users=users), 200
+
+
 @admin.route('/api/reports/<int:id>', methods=['GET'])
 @auth_required()
 def get_report(id):
@@ -305,6 +315,7 @@ def send_push():
     data = request.get_json()
     if data["user_ids"]:
         for x in data["user_ids"]:
+            x = x.strip()
             if x in ["all", "ios", "android", "en", "fr"]:
                 device_ids.append("all")
             elif x.startswith("arn:aws:sns:"):

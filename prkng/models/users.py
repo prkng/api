@@ -145,6 +145,24 @@ class User(UserMixin):
         return User(res)
 
     @staticmethod
+    def get_all():
+        """
+        Static method to obtain a list of all users as well as a few relevant properties.
+        To be used for admin functions only.
+        """
+        res = db.engine.execute("""
+            SELECT DISTINCT u.id, u.name, u.email, u.lang, u.last_hello, count(c.id) AS count
+            FROM users u
+            LEFT JOIN checkins c ON c.user_id = u.id
+            GROUP BY u.id
+            ORDER BY u.id
+        """).fetchall()
+        return [
+            {key: value for key, value in row.items()}
+            for row in res
+        ]
+
+    @staticmethod
     def get_byemail(email):
         """
         Static method to search the database and see if user with ``id`` exists.  If it
