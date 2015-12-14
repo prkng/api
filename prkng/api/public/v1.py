@@ -995,6 +995,9 @@ hello_parser.add_argument(
     'device_id', type=str, required=True, help='Device ID', location='form')
 hello_parser.add_argument(
     'lang', type=str, required=True, help='User\'s preferred language (`en`, `fr`)', location='form')
+hello_parser.add_argument(
+    'push_on_temp_restriction', type=str, default='false',
+    help='Receive push notifications for dynamically-added restrictions (snow removal, etc)?')
 
 @ns.route('/hello', endpoint='hello_v1')
 class Hello(Resource):
@@ -1004,6 +1007,8 @@ class Hello(Resource):
     def post(self):
         """Send analytics event data"""
         args = hello_parser.parse_args()
+        args['push_on_temp_restriction'] = args['push_on_temp_restriction'] not in ['false', 'False', False]
         u = User.get(g.user.id)
-        u.hello(args.get('device_type'), args.get('device_id'), args.get('lang'))
+        u.hello(args.get('device_type'), args.get('device_id'), args.get('lang'),
+            args.get('push_on_temp_restriction'))
         return "Hello there!", 200

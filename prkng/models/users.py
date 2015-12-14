@@ -7,7 +7,7 @@ from flask import current_app
 from flask.ext.login import UserMixin
 from itsdangerous import JSONWebSignatureSerializer
 from passlib.hash import pbkdf2_sha256
-from sqlalchemy import Column, DateTime, ForeignKey, func, Index, Integer, String, Table, text
+from sqlalchemy import Boolean, Column, DateTime, ForeignKey, func, Index, Integer, String, Table, text
 from sqlalchemy.dialects.postgresql import JSONB, ENUM
 import time
 
@@ -32,6 +32,7 @@ user_table = Table(
     Column('sns_id', String, nullable=True),
     Column('lang', String, nullable=True),
     Column('last_hello', DateTime, server_default=text('NOW()'), nullable=True),
+    Column('push_on_temp', Boolean, default=False)
     Column('apikey', String),
     Column('image_url', String)
 )
@@ -92,23 +93,26 @@ class User(UserMixin):
         self.gender = gender or self.gender
         self.image_url = image_url or self.image_url
 
-    def hello(self, device_type, device_id, lang):
+    def hello(self, device_type, device_id, lang, push_on_temp=False):
         """
         Update profile information with app hello data
         """
         now = datetime.datetime.now()
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
             .values(device_type=device_type or None, device_id=device_id or None,
-                    lang=lang or None, last_hello=now
+                    lang=lang or None, last_hello=now, push_on_temp=push_on_temp
             )
         )
-        if (not hasattr(self, 'sns_id') or not self.sns_id) and device_id and device_type\
-                and not current_app.config['DEBUG']:
-            db.redis.hset('prkng:hello-amazon:'+device_type, str(self.id), device_id)
+        if device_id and device_type and device_id != self.device_id
+            if current_app.config['DEBUG'] and device_type == 'ios':
+                db.redis.hset('prkng:hello-amazon:ios-sbx', str(self.id), device_id)
+            else:
+                db.redis.hset('prkng:hello-amazon:'+device_type, str(self.id), device_id)
         self.device_type = device_type or None
         self.device_id = device_id or None
         self.lang = lang or None
         self.last_hello = now
+        self.push_on_temp = push_on_temp
 
     @property
     def json(self):
