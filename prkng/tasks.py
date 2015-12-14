@@ -30,9 +30,9 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_parkingpanda, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_seattle_lots, interval=120, result_ttl=240, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_free_spaces, interval=300, result_ttl=600, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
+    scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
     if not debug:
-        scheduler.schedule(scheduled_time=now, func=hello_amazon, interval=300, result_ttl=600, repeat=None)
-        scheduler.schedule(scheduled_time=now, func=send_notifications, interval=300, result_ttl=600, repeat=None)
         #scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
 
 def stop_tasks():
@@ -104,6 +104,7 @@ def send_notifications():
                     # Create a temporary topic for a manually specified list of users
                     if not mg_arn:
                         mg_arn = amz.create_topic(mg_title)
+                        mg_arn = mg_arn["CreateTopicResponse"]["CreateTopicResult"]["TopicArn"]
                     try:
                         amz.subscribe(mg_arn, "application", id)
                     except:
@@ -134,8 +135,8 @@ def hello_amazon():
         aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
     values = []
 
-    # register the user's device ID with Amazon, and add to the "All Users" notification topic
-    for d in ["ios", "android"]:
+    # register the user's device ID with Amazon, and add to the associated notification topics
+    for d in ["ios", "ios-sbx", "android"]:
         for x in r.hkeys('prkng:hello-amazon:'+d):
             try:
                 device_id = r.hget('prkng:hello-amazon:'+d, x)
@@ -143,8 +144,9 @@ def hello_amazon():
                 arn = arn['CreatePlatformEndpointResponse']['CreatePlatformEndpointResult']['EndpointArn']
                 values.append("({},'{}')".format(x, arn))
                 r.hdel('prkng:hello-amazon:'+d, x)
-                amz.subscribe(CONFIG["AWS_SNS_TOPICS"]["all_users"], "application", arn)
-                amz.subscribe(CONFIG["AWS_SNS_TOPICS"][d+"_users"], "application", arn)
+                if not CONFIG["DEBUG"]:
+                    amz.subscribe(CONFIG["AWS_SNS_TOPICS"]["all_users"], "application", arn)
+                    amz.subscribe(CONFIG["AWS_SNS_TOPICS"][d+"_users"], "application", arn)
             except Exception, e:
                 if "already exists with the same Token" in e.message:
                     arn = re.search("Endpoint (arn:aws:sns\S*)\s.?", e.message)
@@ -737,7 +739,8 @@ def update_deneigement():
                 rescheduled[x[0]].append(x[2])
         for x in scheduled.keys():
             notifications.schedule_notifications(scheduled[x],
-                json.dumps({"message_type": "snow_removal_scheduled", "data": {"start": x}}))
+                json.dumps({"message_type": "snow_removal_scheduled", "start": x}))
+                json.dumps({"message_type": "snow_removal_8hr", "start": None}))
         for x in rescheduled.keys():
             notifications.schedule_notifications(rescheduled[x],
                 json.dumps({"message_type": "snow_removal_rescheduled", "data": {"start": x}}))

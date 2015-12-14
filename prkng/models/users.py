@@ -32,7 +32,7 @@ user_table = Table(
     Column('sns_id', String, nullable=True),
     Column('lang', String, nullable=True),
     Column('last_hello', DateTime, server_default=text('NOW()'), nullable=True),
-    Column('push_on_temp', Boolean, default=False)
+    Column('push_on_temp', Boolean, default=False),
     Column('apikey', String),
     Column('image_url', String)
 )
@@ -103,7 +103,7 @@ class User(UserMixin):
                     lang=lang or None, last_hello=now, push_on_temp=push_on_temp
             )
         )
-        if device_id and device_type and device_id != self.device_id
+        if device_id and device_type and device_id != self.device_id:
             if current_app.config['DEBUG'] and device_type == 'ios':
                 db.redis.hset('prkng:hello-amazon:ios-sbx', str(self.id), device_id)
             else:
