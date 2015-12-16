@@ -145,7 +145,7 @@ class Carshares(object):
 
         req = """
             SELECT {properties}, 1 AS quantity FROM carshares c
-            WHERE c.city = '{city}' AND
+            WHERE c.city = '{city}' AND c.parked = true
                 ST_intersects(
                     ST_Transform(
                         ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
@@ -157,8 +157,8 @@ class Carshares(object):
             UNION ALL
             SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
             JOIN carshare_lots l ON c.lot_id = l.id
-            WHERE c.city = '{city}' AND
-                ST_intersects(
+            WHERE c.city = '{city}' AND c.parked = true
+                AND ST_intersects(
                     ST_Transform(
                         ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
                         3857
