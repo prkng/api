@@ -8,7 +8,14 @@ from babel.dates import format_datetime
 import datetime
 import pytz
 from redis import Redis
+from rq import Queue
 from suds.client import Client
+
+
+def deneigement_notifications():
+    q = Queue('medium', connection=Redis(db=1))
+    q.enqueue(push_deneigement_scheduled)
+    q.enqueue(push_deneigement_8hr)
 
 
 def update_deneigement():

@@ -11,7 +11,19 @@ import pytz
 import re
 from redis import Redis
 import requests
+from rq import Queue
 import subprocess
+
+
+def process_notifications():
+    q = Queue('medium', connection=Redis(db=1))
+    q.enqueue(hello_amazon)
+    q.enqueue(send_notifications)
+
+def update_lots():
+    q = Queue('medium', connection=Redis(db=1))
+    q.enqueue(update_parkingpanda)
+    q.enqueue(update_seattle_lots)
 
 
 def hello_amazon():
