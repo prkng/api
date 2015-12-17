@@ -4,6 +4,7 @@ from prkng.utils import random_string
 import apns
 import json
 import os
+import redis
 import time
 
 
@@ -40,5 +41,7 @@ def schedule_notifications(device_ids, message):
     Schedule push notifications for devices via Redis/Task
     """
     pid = random_string(16)
+    if not db.redis:
+        db.redis = redis.Redis(db=1)
     db.redis.hset('prkng:push', pid, message)
     db.redis.rpush('prkng:push:'+pid, *device_ids)

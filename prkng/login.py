@@ -213,7 +213,8 @@ def google_signin(access_token, name, email, picture):
         if resp.status_code != 200:
             return data, resp.status_code
 
-        if data['aud'] != current_app.config['OAUTH_CREDENTIALS']['google']['id']:
+        if data['aud'] not in [current_app.config['OAUTH_CREDENTIALS']['google']['ios_id'],
+                current_app.config['OAUTH_CREDENTIALS']['google']['android_id']]:
             return "Authentication failed.", 401
 
         id = data['sub']

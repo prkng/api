@@ -132,10 +132,10 @@ def push_deneigement_scheduled():
             AND x.modified > '{}' AND x.modified < '{}'
             AND c.active = true AND c.checkout_time IS NULL
             AND u.push_on_temp = true AND u.sns_id IS NOT NULL
-    """).format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
+    """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
 
     # group device IDs by start time, then send messages
-    lang_en, lang_fr = map(res, lambda x: x[1] == 'en'), map(res, lambda x: x[1] == 'fr')
+    lang_en, lang_fr = filter(lambda x: x[1] == 'en', res), filter(lambda x: x[1] == 'fr', res)
     data = {"en": {x: [] for x in set([z[0].isoformat() for z in lang_en])},
         "fr": {x: [] for x in set([z[0].isoformat() for z in lang_fr])}}
     for x in lang_en:
@@ -169,10 +169,10 @@ def push_deneigement_8hr():
             AND x.start > '{}' AND x.start < '{}'
             AND c.active = true AND c.checkout_time IS NULL
             AND u.push_on_temp = true AND u.sns_id IS NOT NULL
-    """).format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S'))
+    """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
 
     # group device IDs by start time, then send messages
-    lang_en, lang_fr = map(res, lambda x: x[1] == 'en'), map(res, lambda x: x[1] == 'fr')
+    lang_en, lang_fr = filter(lambda x: x[1] == 'en', res), filter(lambda x: x[1] == 'fr', res)
     data = {"en": {x: [] for x in set([z[0].isoformat() for z in lang_en])},
         "fr": {x: [] for x in set([z[0].isoformat() for z in lang_fr])}}
     for x in lang_en:
