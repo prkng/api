@@ -8,6 +8,14 @@ import demjson
 import pytz
 from redis import Redis
 import requests
+from rq import Queue
+
+
+def update_carshares():
+    q = Queue('high', connection=Redis(db=1))
+    q.enqueue(update_car2go)
+    q.enqueue(update_automobile)
+    q.enqueue(update_communauto)
 
 
 def update_car2go():

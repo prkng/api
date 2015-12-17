@@ -701,7 +701,7 @@ class Login(Resource):
         if args.get("type") == "facebook":
             return facebook_signin(args['access_token'])
         elif args.get("type") == "google":
-            return google_signin(args['access_token'], args['name'], args['email'], args['picture'])
+            return google_signin(args['access_token'])
         else:
             return email_signin(args['email'], args['password'])
 

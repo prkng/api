@@ -128,10 +128,11 @@ def push_deneigement_scheduled():
         FROM temporary_restrictions x
         JOIN checkins c ON c.slot_id = ANY(x.slot_ids)
         JOIN users u ON c.user_id = u.id
-        WHERE (x.meta = '2' OR x.meta = '3') AND x.active = true
+        WHERE (x.meta = '2' OR x.meta = '3') AND x.active = true AND x.type = 'snow'
             AND x.modified > '{}' AND x.modified < '{}'
             AND c.active = true AND c.checkout_time IS NULL
             AND u.push_on_temp = true AND u.sns_id IS NOT NULL
+            AND c.created > (NOW() - INTERVAL '14 DAYS')
     """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
 
     # group device IDs by start time, then send messages
@@ -165,10 +166,11 @@ def push_deneigement_8hr():
         FROM temporary_restrictions x
         JOIN checkins c ON c.slot_id = ANY(x.slot_ids)
         JOIN users u ON c.user_id = u.id
-        WHERE (x.meta = '2' OR x.meta = '3') AND x.active = true
+        WHERE (x.meta = '2' OR x.meta = '3') AND x.active = true AND x.type = 'snow'
             AND x.start > '{}' AND x.start < '{}'
             AND c.active = true AND c.checkout_time IS NULL
             AND u.push_on_temp = true AND u.sns_id IS NOT NULL
+            AND c.created > (NOW() - INTERVAL '14 DAYS')
     """.format(finish.strftime('%Y-%m-%d %H:%M:%S'), start.strftime('%Y-%m-%d %H:%M:%S')))
 
     # group device IDs by start time, then send messages

@@ -1,11 +1,33 @@
-from prkng.database import db
+from prkng.database import db, metadata
+from sqlalchemy import Column, DateTime, Float, ForeignKey, Integer, String, Table, text
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
+
+
+corrections_table = Table(
+    'corrections',
+    metadata,
+    Column('id', Integer, primary_key=True),
+    Column('city', String),
+    Column('signposts', ARRAY(Integer)),
+    Column('code', String),
+    Column('description', String),
+    Column('season_start', String),
+    Column('season_end', String),
+    Column('time_max_parking', Integer),
+    Column('agenda', JSONB),
+    Column('special_days', String),
+    Column('restrict_types', ARRAY(String)),
+    Column('initials', String),
+    Column('address', String),
+    Column('created', DateTime, server_default=text('NOW()'), index=True)
+)
 
 
 class Corrections(object):
     @staticmethod
     def add(
             slot_id, code, city, description, initials, season_start, season_end,
-            time_max_parking, agenda, special_days, restrict_typ):
+            time_max_parking, agenda, special_days, restrict_types):
         # get signposts by slot ID
         res = db.engine.execute("""
             SELECT way_name, signposts FROM slots WHERE city = '{city}' AND id = {id}
@@ -18,17 +40,17 @@ class Corrections(object):
             """
             INSERT INTO corrections
                 (initials, address, signposts, code, city, description, season_start, season_end,
-                    time_max_parking, agenda, special_days, restrict_typ)
+                    time_max_parking, agenda, special_days, restrict_types)
             SELECT '{initials}', '{address}', ARRAY{signposts}, '{code}', '{city}', '{description}',
                 {season_start}, {season_end}, {time_max_parking}, '{agenda}'::jsonb,
-                {special_days}, {restrict_typ}
+                {special_days}, '{{{restrict_types}}}'::varchar[]
             RETURNING *
             """.format(initials=initials, address=res[0], signposts=res[1], code=code, city=city,
                 description=description, season_start="'"+season_start+"'" if season_start else "NULL",
                 season_end="'"+season_end+"'" if season_end else "NULL",
                 time_max_parking=time_max_parking or "NULL", agenda=agenda,
                 special_days="'"+special_days+"'" if special_days else "NULL",
-                restrict_typ="'"+restrict_typ+"'" if restrict_typ else "NULL")
+                restrict_types=restrict_types if restrict_types else "")
         ).first()
         return {key: value for key, value in res.items()}
 
@@ -44,14 +66,14 @@ class Corrections(object):
                   AND r.time_max_parking = c.time_max_parking
                   AND r.agenda           = c.agenda
                   AND r.special_days     = c.special_days
-                  AND r.restrict_typ     = c.restrict_typ
+                  AND r.restrict_types   = c.restrict_types
             ), i AS (
               -- if it doesn't exist, create it
               INSERT INTO rules
                 (code, description, season_start, season_end, time_max_parking,
-                  agenda, special_days, restrict_typ)
+                  agenda, special_days, restrict_types)
                 SELECT c.code, c.description, c.season_start, c.season_end, c.time_max_parking,
-                  c.agenda, c.special_days, c.restrict_typ
+                  c.agenda, c.special_days, c.restrict_types
                   FROM corrections c, s
                   WHERE c.id = s.id AND s.code IS NULL
                   RETURNING code, description
@@ -69,6 +91,7 @@ class Corrections(object):
         db.engine.execute("""
             WITH r AS (
               SELECT
+                city,
                 signposts,
                 array_to_json(
                   array_agg(distinct
@@ -81,17 +104,17 @@ class Corrections(object):
                     'agenda', agenda,
                     'time_max_parking', time_max_parking,
                     'special_days', special_days,
-                    'restrict_typ', restrict_typ,
+                    'restrict_types', restrict_types,
                     'permit_no', NULL
                   )::jsonb
                 ))::jsonb AS rules
               FROM corrections
-              GROUP BY signposts
+              GROUP BY city, signposts
             )
             UPDATE slots s
               SET rules = r.rules
               FROM r
-              WHERE s.city = '{city}'
+              WHERE s.city = r.city
                 AND s.signposts = r.signposts
                 AND s.rules <> r.rules
         """)

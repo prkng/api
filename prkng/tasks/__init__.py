@@ -38,8 +38,7 @@ def init_tasks(debug=True):
     # Déneigement
     scheduler.schedule(scheduled_time=now, func=push_deneigement_scheduled, interval=300, result_ttl=600, repeat=None)
     scheduler.schedule(scheduled_time=now, func=push_deneigement_8hr, interval=300, result_ttl=600, repeat=None)
-    if not debug:
-        """scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)"""
+    scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
 
 def stop_tasks():
     for x in scheduler.get_jobs():

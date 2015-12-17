@@ -196,7 +196,7 @@ def facebook_signin(access_token):
     return resp, 200
 
 
-def google_signin(access_token, name, email, picture):
+def google_signin(access_token):
     """
     Authorize user given its access_token.
     Add it to the db if not already present
@@ -217,8 +217,8 @@ def google_signin(access_token, name, email, picture):
                 current_app.config['OAUTH_CREDENTIALS']['google']['android_id']]:
             return "Authentication failed.", 401
 
-        id = data['sub']
-        me = {"name": name, "email": email}
+        me = {}
+        id, email, name, picture = data['sub'], data['email'], data['name'], data.get('picture', '')
     else:
         # Google OAuth 2.0 (1.3 and below)
         resp = requests.get(
