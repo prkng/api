@@ -30,7 +30,7 @@ def update_deneigement():
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
     planification_request.fromDate = (datetime.datetime.now() - datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S')
-    planification_request.tokenString = CONFIG["PLANIFNEIGE_SIM_KEY"]
+    planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
     if response['responseStatus'] == 8:
         # No new data
