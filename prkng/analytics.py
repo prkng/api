@@ -44,9 +44,8 @@ class Analytics(object):
     @staticmethod
     def get_active_user_chk_data():
         today = db.engine.execute("""
-            SELECT count(DISTINCT u.id)
-            FROM users u
-            JOIN checkins c ON u.id = c.user_id
+            SELECT count(DISTINCT c.user_id)
+            FROM checkins c
             WHERE (c.checkin_time AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' >= (NOW() AT TIME ZONE 'US/Eastern')::date
               AND (c.checkin_time AT TIME ZONE 'UTC') AT TIME ZONE 'US/Eastern' <= (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '1 DAY')::date
         """).first()[0]

@@ -27,7 +27,7 @@ def update_deneigement():
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
-    client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/sim/InfoneigeWebService?wsdl")
+    client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
     planification_request.fromDate = (datetime.datetime.now() - datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_SIM_KEY"]
@@ -151,13 +151,13 @@ def push_deneigement_scheduled():
     for x in lang_fr:
         data["fr"][x[0].isoformat()].append(x[2])
     for x in data["en"].keys():
-        dt = format_datetime(aniso8601.parse_datetime(x), u"EEEE d MMM 'at' h:mm a")
+        dt = format_datetime(aniso8601.parse_datetime(x), u"h:mm a 'on' EEEE d MMM")
         notifications.schedule_notifications(data["en"][x],
-            "❄️ Snow removal period scheduled for your car's street: {}".format(dt))
+            "❄️ Snow removal scheduled! Move your car before {}".format(dt))
     for x in data["fr"].keys():
-        dt = format_datetime(aniso8601.parse_datetime(x), u"EEEE d MMM à H'h'mm", locale='fr_FR')
+        dt = format_datetime(aniso8601.parse_datetime(x), u"H'h'mm', 'EEEE 'le 'd MMM", locale='fr_FR')
         notifications.schedule_notifications(data["fr"][x],
-            "❄️ Période de déneigement prévu dans la rue de votre véhicule : le {}".format(dt))
+            "❄️ Déneigement annoncé ! Déplacez votre véhicule avant {}".format(dt))
 
 
 def push_deneigement_8hr():
@@ -189,10 +189,10 @@ def push_deneigement_8hr():
     for x in lang_fr:
         data["fr"][x[0].isoformat()].append(x[2])
     for x in data["en"].keys():
-        dt = format_datetime(aniso8601.parse_datetime(x), u"EEEE d MMM 'at' h:mm a")
+        dt = format_datetime(aniso8601.parse_datetime(x), u"h:mm a")
         notifications.schedule_notifications(data["en"][x],
-            u"❄️ The snow removal period for your car's street starts in eight hours, on {}".format(dt))
+            u"❄️ Attention, snow removal starts in 8 hours, at {}!".format(dt))
     for x in data["fr"].keys():
-        dt = format_datetime(aniso8601.parse_datetime(x), u"EEEE d MMM à H'h'mm", locale='fr_FR')
+        dt = format_datetime(aniso8601.parse_datetime(x), u"H'h'mm", locale='fr_FR')
         notifications.schedule_notifications(data["fr"][x],
-            u"❄️ La période de déneigement de votre rue commence en huit heures, prévu pour le {}".format(dt))
+            u"❄️ Attention, le déneigement commence dans 8h, à {} !".format(dt))
