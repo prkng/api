@@ -6,6 +6,7 @@ from prkng.database import PostgresWrapper
 import aniso8601
 from babel.dates import format_datetime
 import datetime
+import json
 import pytz
 from redis import Redis
 from rq import Queue
@@ -37,7 +38,8 @@ def update_deneigement():
         return
     elif response['responseStatus'] != 0:
         # An error occurred
-        return
+        raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
+            response['responseDesc']))
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
@@ -112,7 +114,7 @@ def update_deneigement():
             )
             INSERT INTO temporary_restrictions (city, partner_id, slot_ids, start, finish,
                     rule, type, active, meta)
-                SELECT 'montreal', x.geobase_id::text, t.slot_ids, min(x.start), min(x.finish),
+                SELECT 'montreal', x.geobase_id::text, t.slot_ids, x.start, x.finish,
                     x.rule, 'snow', x.active, x.state::text
                 FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
                 JOIN tmp t ON t.id = x.geobase_id
@@ -131,7 +133,7 @@ def push_deneigement_scheduled():
     start = datetime.datetime.now()
     finish = start - datetime.timedelta(minutes=5)
     res = db.query("""
-        SELECT x.start, u.lang, u.sns_id
+        SELECT DISTINCT x.start, u.lang, u.sns_id
         FROM temporary_restrictions x
         JOIN checkins c ON c.slot_id = ANY(x.slot_ids)
         JOIN users u ON c.user_id = u.id
@@ -169,7 +171,7 @@ def push_deneigement_8hr():
     start = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern')) + datetime.timedelta(hours=8))
     finish = start - datetime.timedelta(minutes=5)
     res = db.query("""
-        SELECT x.start, u.lang, u.sns_id
+        SELECT DISTINCT x.start, u.lang, u.sns_id
         FROM temporary_restrictions x
         JOIN checkins c ON c.slot_id = ANY(x.slot_ids)
         JOIN users u ON c.user_id = u.id

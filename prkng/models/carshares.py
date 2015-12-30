@@ -145,7 +145,7 @@ class Carshares(object):
 
         req = """
             SELECT {properties}, 1 AS quantity FROM carshares c
-            WHERE c.city = '{city}' AND c.parked = true
+            WHERE c.city = '{city}' AND c.parked = true AND
                 ST_intersects(
                     ST_Transform(
                         ST_MakeEnvelope({nelng}, {nelat}, {swlng}, {swlat}, 4326),
