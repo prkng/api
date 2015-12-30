@@ -39,7 +39,7 @@ def update_deneigement():
     elif response['responseStatus'] != 0:
         # An error occurred
         raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
-            response['responseDesc']))
+            response['responseDesc'].encode('utf-8')))
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
@@ -139,6 +139,7 @@ def push_deneigement_scheduled():
         JOIN users u ON c.user_id = u.id
         WHERE (x.meta = '2' OR x.meta = '3') AND x.active = true AND x.type = 'snow'
             AND x.modified > '{}' AND x.modified < '{}'
+            AND x.start > (NOW() AT TIME ZONE 'US/Eastern' + INTERVAL '6 HOURS')
             AND c.active = true AND c.checkout_time IS NULL
             AND u.push_on_temp = true AND u.sns_id IS NOT NULL
             AND c.checkin_time > (NOW() - INTERVAL '14 DAYS')
