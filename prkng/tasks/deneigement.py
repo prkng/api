@@ -7,6 +7,7 @@ import aniso8601
 from babel.dates import format_datetime
 import datetime
 import json
+import os
 import pytz
 from redis import Redis
 from rq import Queue
@@ -28,11 +29,15 @@ def update_deneigement():
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
+    with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+        f.write("Snow removal API check: {} ===".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
     planification_request.fromDate = (datetime.datetime.now() - datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
+    with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+        f.write(" > API contacted successfully.")
     if response['responseStatus'] == 8:
         # No new data
         return
@@ -40,6 +45,8 @@ def update_deneigement():
         # An error occurred
         raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
             response['responseDesc'].encode('utf-8')))
+    with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+        f.write(" > Contains {} changed objects.".format(len(response['planifications']['planification'])))
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
@@ -58,16 +65,19 @@ def update_deneigement():
     values, record = [], "({},'{}'::timestamp,'{}'::timestamp,{},'{}'::jsonb,{})"
     for x in response['planifications']['planification']:
         if x['etatDeneig'] in [2, 3] and hasattr(x, 'dateDebutPlanif'):
+            debut, fin = x['dateDebutPlanif'], x['dateFinPlanif']
+            if hasattr(x, 'dateDebutReplanif'):
+                debut, fin = x['dateDebutReplanif'], x['dateFinReplanif']
             agenda = {str(z): [] for z in range(1,8)}
-            debutJour, finJour = x['dateDebutPlanif'].isoweekday(), x['dateFinPlanif'].isoweekday()
-            debutHeure = float(x['dateDebutPlanif'].hour) + (float(x['dateDebutPlanif'].minute) / 60.0)
-            finHeure = float(x['dateFinPlanif'].hour) + (float(x['dateFinPlanif'].minute) / 60.0)
+            debutJour, finJour = debut.isoweekday(), fin.isoweekday()
+            debutHeure = float(debut.hour) + (float(debut.minute) / 60.0)
+            finHeure = float(fin.hour) + (float(fin.minute) / 60.0)
             if debutJour == finJour:
                 agenda[str(debutJour)] = [[debutHeure, finHeure]]
             else:
                 agenda[str(debutJour)] = [[debutHeure, 24.0]]
                 agenda[str(finJour)] = [[0.0, finHeure]]
-                if (x['dateFinPlanif'].day - x['dateDebutPlanif'].day) > 1:
+                if (fin.day - debut.day) > 1:
                     if debutJour > finJour:
                         for z in range(debutJour, 8):
                             agenda[str(z)] = [[0.0,24.0]]
@@ -79,11 +89,13 @@ def update_deneigement():
             rule = {"code": "MTL-NEIGE", "description": "DÉNEIGEMENT PRÉVU DANS CE SECTEUR",
                 "season_start": None, "season_end": None, "agenda": agenda, "time_max_parking": None,
                 "special_days": None, "restrict_types": ["snow"], "permit_no": None}
-            values.append(record.format(x['coteRueId'], x['dateDebutPlanif'].strftime('%Y-%m-%d %H:%M:%S'),
-                x['dateFinPlanif'].strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
+            values.append(record.format(x['coteRueId'], debut.strftime('%Y-%m-%d %H:%M:%S'),
+                fin.strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
         elif x['etatDeneig'] in [0, 1, 4]:
             values.append(record.format(x['coteRueId'], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}', x['etatDeneig']))
+    with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+        f.write(" > Parsed into {} values to update.".format(len(values)))
 
     if values:
         # update temporary restrictions item when we are already tracking the blockface
@@ -98,7 +110,11 @@ def update_deneigement():
                 active = x.active, rule = x.rule, modified = NOW(), meta = x.state::text
             FROM tmp x
             WHERE d.city = 'montreal' AND d.type = 'snow' AND x.geobase_id::text = d.partner_id
+              AND (x.start != d.start OR x.finish != d.finish OR x.active != d.active
+                OR x.state::text != d.meta)
         """.format(",".join(values)))
+        with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+            f.write(" > Updated values.")
 
         # insert temporary restrictions for newly-mentioned blockfaces, and link with current slot IDs
         db.query("""
@@ -121,6 +137,8 @@ def update_deneigement():
                 WHERE (SELECT 1 FROM temporary_restrictions l WHERE l.type = 'snow'
                             AND l.partner_id = x.geobase_id::text LIMIT 1) IS NULL
         """.format(",".join(values)))
+        with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+            f.write(" > Inserted values.")
 
 
 def push_deneigement_scheduled():
