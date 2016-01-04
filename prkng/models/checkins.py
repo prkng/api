@@ -14,7 +14,6 @@ checkin_table = Table(
     Column('lat', Float),
     Column('checkin_time', DateTime, server_default=text('NOW()'), index=True),
     Column('checkout_time', DateTime),
-    Column('push_notify', Boolean, default=True),
     Column('active', Boolean)
 )
 
