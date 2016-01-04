@@ -257,10 +257,10 @@ def update_seattle_lots():
 
 
 def run_backup():
+    CONFIG = create_app().config
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
 
-    c = S3Connection(current_app.config["AWS_ACCESS_KEY"],
-        current_app.config["AWS_SECRET_KEY"])
+    c = S3Connection(CONFIG["AWS_ACCESS_KEY"], CONFIG["AWS_SECRET_KEY"])
 
     subprocess.check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {file_name}'.format(
         file_name=os.path.join('/tmp', file_name), **CONFIG),
