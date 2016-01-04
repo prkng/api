@@ -39,7 +39,7 @@ def update_deneigement():
     planification_request.fromDate = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30)).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
-    with open(logfile 'a') as f:
+    with open(logfile, 'a') as f:
         f.write(" > API contacted successfully.\n")
     if response['responseStatus'] == 8:
         # No new data

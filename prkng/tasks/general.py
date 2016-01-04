@@ -4,6 +4,7 @@ from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
 import boto.sns
+from boto.s3.connection import S3Connection
 import datetime
 import json
 import os
@@ -255,15 +256,22 @@ def update_seattle_lots():
         """.format(",".join(["('{}',{})".format(x["Id"], x["VacantSpaces"]) for x in data])))
 
 
-def run_backup(username, database):
-    backup_dir = os.path.join(os.path.dirname(os.environ["PRKNG_SETTINGS"]), 'backup')
+def run_backup():
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-    if not os.path.exists(backup_dir):
-        os.mkdir(backup_dir)
-    subprocess.check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {}'.format(os.path.join(backup_dir, file_name),
-        PG_USERNAME=username, PG_DATABASE=database),
+
+    c = S3Connection(current_app.config["AWS_ACCESS_KEY"],
+        current_app.config["AWS_SECRET_KEY"])
+
+    subprocess.check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {file_name}'.format(
+        file_name=os.path.join('/tmp', file_name), **CONFIG),
         shell=True)
-    return os.path.join(backup_dir, file_name)
+
+    b = c.get_bucket('prkng-bak')
+    k = b.initiate_multipart_upload(file_name, encrypt_key=True)
+    with open(os.path.join('/tmp', file_name), 'rb') as f:
+        k.upload_part_from_file(f, 1)
+    k.complete_upload()
+    return os.path.join('prkng-bak/', file_name)
 
 
 def update_analytics():

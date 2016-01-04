@@ -31,6 +31,8 @@ def init_tasks(debug=True):
     scheduler.schedule(scheduled_time=now, func=update_deneigement, interval=1800, result_ttl=3600, repeat=None)
 
     # Every day
+    if not debug:
+        scheduler.schedule(scheduled_time=now, func=run_backup, interval=86400, result_ttl=172800, repeat=None)
     scheduler.schedule(scheduled_time=now, func=update_zipcar, interval=86400, result_ttl=172800, repeat=None)
 
 
