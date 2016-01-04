@@ -30,23 +30,25 @@ def update_deneigement():
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
     with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-        f.write("Snow removal API check: {} ===".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
+        f.write("Snow removal API check: {} ===\n".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
-    planification_request.fromDate = (datetime.datetime.now() - datetime.timedelta(minutes=30)).strftime('%Y-%m-%dT%H:%M:%S')
+    planification_request.fromDate = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30)).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
     with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-        f.write(" > API contacted successfully.")
+        f.write(" > API contacted successfully.\n")
     if response['responseStatus'] == 8:
         # No new data
+        with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
+            f.write(" > No new data.\n\n")
         return
     elif response['responseStatus'] != 0:
         # An error occurred
         raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
             response['responseDesc'].encode('utf-8')))
     with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-        f.write(" > Contains {} changed objects.".format(len(response['planifications']['planification'])))
+        f.write(" > Contains {} changed objects.\n".format(len(response['planifications']['planification'])))
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
@@ -91,11 +93,11 @@ def update_deneigement():
                 "special_days": None, "restrict_types": ["snow"], "permit_no": None}
             values.append(record.format(x['coteRueId'], debut.strftime('%Y-%m-%d %H:%M:%S'),
                 fin.strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
-        elif x['etatDeneig'] in [0, 1, 4]:
+        elif x['etatDeneig'] in [0, 1, 4, 10]:
             values.append(record.format(x['coteRueId'], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}', x['etatDeneig']))
     with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-        f.write(" > Parsed into {} values to update.".format(len(values)))
+        f.write(" > Parsed into {} values to update.\n".format(len(values)))
 
     if values:
         # update temporary restrictions item when we are already tracking the blockface
@@ -114,7 +116,7 @@ def update_deneigement():
                 OR x.state::text != d.meta)
         """.format(",".join(values)))
         with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-            f.write(" > Updated values.")
+            f.write(" > Updated values.\n")
 
         # insert temporary restrictions for newly-mentioned blockfaces, and link with current slot IDs
         db.query("""
@@ -138,7 +140,7 @@ def update_deneigement():
                             AND l.partner_id = x.geobase_id::text LIMIT 1) IS NULL
         """.format(",".join(values)))
         with open(os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log'), 'a') as f:
-            f.write(" > Inserted values.")
+            f.write(" > Inserted values.\n")
 
 
 def push_deneigement_scheduled():
