@@ -783,10 +783,11 @@ get_checkin_parser.add_argument(
 checkin_model = api.model('Checkin', {
     'checkin_time': fields.String(),
     'checkout_time': fields.String(),
-    'long': fields.String(),
-    'lat': fields.String(),
+    'long': fields.Integer(),
+    'lat': fields.Integer(),
     'city': fields.String(),
-    'slot_id': fields.String(),
+    'slot_id': fields.Integer(),
+    'user_id': fields.Integer(),
     'id': fields.String(),
     'active': fields.Boolean()
 })

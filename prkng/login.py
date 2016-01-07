@@ -35,7 +35,7 @@ def email_register(
     email=email.lower()
     user = User.get_byemail(email)
     if user:
-        return "User already exists", 404
+        return "User already exists", 409
 
     # primary user doesn't exists, creating it
     user = User.add_user(
