@@ -8,7 +8,7 @@ here = os.path.abspath(os.path.dirname(__file__))
 
 requirements = (
     'flask==0.10.1',
-    'flask-restplus==0.4.0',
+    'flask-restplus==0.8.6',
     'itsdangerous==0.24',
     'flask-login==0.2.11',
     'flask-wtf==0.9.5',

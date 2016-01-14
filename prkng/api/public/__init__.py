@@ -6,6 +6,13 @@ from functools import wraps
 
 
 HEADER_API_KEY = 'X-API-KEY'
+authorizations = {
+  'apikey': {
+      'type': 'apiKey',
+      'in': 'header',
+      'name': 'X-API-KEY'
+  }
+}
 
 
 class PrkngApi(Api):
@@ -37,7 +44,8 @@ class PrkngApi(Api):
 api = PrkngApi(
     version='1.0',
     title='Prkng Public API',
-    description='On-street parking information API'
+    description='On-street parking information API',
+    authorizations=authorizations
 )
 
 def init_api(app):

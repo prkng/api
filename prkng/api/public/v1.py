@@ -51,34 +51,39 @@ api_key_parser.add_argument(
 )
 
 # define response models
-@api.model(fields={
-    'type': fields.String(description='GeoJSON Type', required=True, enum=GEOM_TYPES),
+geometry_point = api.model('GeometryPoint', {
+    'type': fields.String(required=True, enum=['Point']),
     'coordinates': fields.List(
-        fields.Raw,
+        fields.Float,
         description='The geometry as coordinates lists',
         required=True),
 })
-class Geometry(fields.Raw):
-    pass
 
+geometry_linestring = api.model('GeometryLinestring', {
+    'type': fields.String(required=True, enum=['LineString']),
+    'coordinates': fields.List(
+        fields.Float,
+        description='The geometry as coordinates lists',
+        required=True),
+})
 
-@api.model(fields={
-    '%s' % day: fields.List(fields.Raw)
+agenda_view = api.model('AgendaView', {
+    '%s' % day: fields.List(fields.List(fields.Float))
     for day in range(1, 8)
 })
-class AgendaView(fields.Raw):
-    pass
 
-
-@api.model(fields={
+button_locations = api.model('ButtonLocations', {
     'long': fields.Float(),
     'lat': fields.Float()
 })
-class ButtonLocations(fields.Raw):
-    pass
 
-
-@api.model(fields={
+rules_field = api.model('RulesField', {
+    'code': fields.String(
+        description='rule ID',
+        required=True),
+    'address': fields.String(
+        description='street name',
+        required=True),
     'description': fields.String(
         description='description of the parking rule',
         required=True),
@@ -91,7 +96,8 @@ class ButtonLocations(fields.Raw):
     'time_max_parking': fields.Integer(
         description='restriction on parking time (minutes)',
         required=True),
-    'agenda': AgendaView(
+    'agenda': fields.Nested(
+        agenda_view,
         description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
                        containing a list of time ranges when the restriction apply''',
         required=True),
@@ -100,41 +106,82 @@ class ButtonLocations(fields.Raw):
         required=True),
     'special_days': fields.String(required=True),
     'restrict_types': fields.List(
-        fields.Raw,
+        fields.String,
         description='special restriction details',
         required=True),
     'paid_hourly_rate': fields.Float(
-        description='hourly cost for paid parking here (if applicable)'),
-    'button_locations': fields.List(ButtonLocations(required=True))
+        description='hourly cost for paid parking here (if applicable)')
 })
-class SlotsField(fields.Raw):
-    pass
 
-
-@api.model(fields={
-    'indoor': fields.Boolean(),
-    'clerk': fields.Boolean(),
-    'valet': fields.Boolean()
+slots_field = api.model('SlotsField', {
+    'way_name': fields.String,
+    'button_locations': fields.List(fields.Nested(button_locations), required=True),
+    'restrict_types': fields.List(fields.String),
+    'compact': fields.Boolean(True)
 })
-class LotAttributes(fields.Raw):
-    pass
+
+slots_field_full = api.model('SlotsFieldFull', {
+    'way_name': fields.String,
+    'rules': fields.List(fields.Nested(rules_field)),
+    'button_locations': fields.List(fields.Nested(button_locations), required=True),
+    'compact': fields.Boolean(False)
+})
+
+slots_fields = api.model('v1SlotsGeoJSONFeature', {
+    'id': fields.Integer(required=True),
+    'type': fields.String(required=True, enum=['Feature']),
+    'geometry': fields.Nested(geometry_linestring),
+    'properties': fields.Nested(slots_field)
+})
+
+slots_fields_full = api.model('v1SlotFullGeoJSONFeature', {
+    'id': fields.Integer(required=True),
+    'type': fields.String(required=True, enum=['Feature']),
+    'geometry': fields.Nested(geometry_linestring),
+    'properties': fields.Nested(slots_field_full)
+})
+
+slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
+    'type': fields.String(required=True, enum=['FeatureCollection']),
+    'features': fields.List(fields.Nested(slots_fields))
+})
 
 
-@api.model(fields={
+lot_attributes = api.model('LotAttributes', {
+    'indoor': fields.Boolean,
+    'clerk': fields.Boolean,
+    'valet': fields.Boolean
+})
+
+lot_street_view = api.model('LotStreetView', {
+    'id': fields.String,
+    'head': fields.Float
+})
+
+carshares_field = api.model('CarsharesField', {
     'company': fields.String(
         description='name of carshare operator',
+        required=True),
+    'partner_id': fields.String(
+        description='DB identifier with the carshare operator',
         required=True),
     'name': fields.String(
         description='name of car (usually licence plate)',
         required=True),
+    'vin': fields.String(
+        description='VIN number of the car (if available)',
+        required=True),
+    'electric': fields.Boolean(
+        description='True if car is recognized as an EV',
+        required=True),
+    'until': fields.DateTime(
+        description='time the vehicle is available until (if applicable)',
+        required=True),
     'fuel': fields.Integer(
         description='Percentage of fuel remaining in vehicle (null = unknown)')
 })
-class CarsharesField(fields.Raw):
-    pass
 
-
-@api.model(fields={
+carshare_lots_field = api.model('CarshareLotsField', {
     'company': fields.String(
         description='name of carshare operator',
         required=True),
@@ -146,47 +193,62 @@ class CarsharesField(fields.Raw):
     'available': fields.Integer(
         description='Spaces currently available for carshares in this lot')
 })
-class CarshareLotsField(fields.Raw):
-    pass
 
 
-@api.model(fields={
+lots_field = api.model('LotsField', {
     'name': fields.String(
         description='name of parking lot / operator',
+        required=True),
+    'city': fields.String(
+        description='city name',
+        required=True),
+    'partner_id': fields.Integer(
+        description='ID of this lot for partner mgmt',
+        required=True),
+    'partner_name': fields.String(
+        description='name of partner for mgmt',
+        required=True),
+    'operator': fields.String(
+        description='name of parking lot operator',
+        required=True),
+    'capacity': fields.Integer(
+        description='total number of spaces in the lot',
+        required=True),
+    'available': fields.Integer(
+        description='number of spaces currently available in the lot',
         required=True),
     'address': fields.String(
         description='street address of lot entrance',
         required=True),
-    'agenda': AgendaView(
-        description='list of days when lot/garage is open, containing a list of time ranges when open',
+    'agenda': fields.Nested(
+        agenda_view,
+        description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
+                       containing a list of time ranges when the restriction apply''',
         required=True),
-    'attrs': LotAttributes(
+    'attrs': fields.Nested(
+        lot_attributes,
         description='list of amenities present at this lot/garage',
+        required=True),
+    'street_view': fields.Nested(
+        lot_street_view,
+        description='street view data object',
         required=True)
 })
-class LotsField(fields.Raw):
-    pass
 
 
-@api.model(fields={
+service_areas_version = api.model('ServiceAreasVersion', {
     'version': fields.String(description='version of resource'),
     'kml_addr': fields.String(description='URL to service areas dataset (KML format, gzipped)'),
     'geojson_addr': fields.String(description='URL to service areas dataset (GeoJSON format, gzipped)'),
     'kml_mask_addr': fields.String(description='URL to service areas mask dataset (KML format, gzipped)'),
     'geojson_mask_addr': fields.String(description='URL to service areas mask dataset (GeoJSON format, gzipped)')
 })
-class ServiceAreasVersion(fields.Raw):
-    pass
 
-
-@api.model(fields={0: ServiceAreasVersion()})
-class ServiceAreasVersions(fields.Raw):
-    pass
-
+service_areas_versions = api.model('ServiceAreasVersions', {0: fields.Nested(service_areas_version)})
 
 service_areas_model = api.model('ServiceAreasMeta', {
     'latest_version': fields.Integer(description='latest available version of resources'),
-    'versions': ServiceAreasVersions()
+    'versions': fields.Nested(service_areas_versions)
 })
 
 
@@ -208,7 +270,7 @@ class AreaAssets(Resource):
 
 
 cities_fields = api.model('CitiesFields', {
-    'id': fields.String(required=True),
+    'id': fields.Integer(required=True),
     'name': fields.String(required=True),
     'display_name': fields.String(required=True),
     'lat': fields.Float(required=True),
@@ -228,7 +290,7 @@ class Cities(Resource):
 
 
 permits_fields = api.model('PermitsFields', {
-    'id': fields.String(required=True),
+    'id': fields.Integer(required=True),
     'city': fields.String(required=True),
     'permit': fields.String(required=True),
     'residential': fields.Boolean(required=True)
@@ -256,7 +318,7 @@ permits_parser.add_argument(
 class Permits(Resource):
     @api.secure
     @api.marshal_list_with(permits_fields)
-    @api.doc(parser=permits_parser)
+    @api.doc(security='apikey', parser=permits_parser)
     def get(self):
         """
         Returns supported parking permits for a given city
@@ -264,18 +326,6 @@ class Permits(Resource):
         args = permits_parser.parse_args()
         return City.get_permits(args['city'], args['residential'] in ['true', 'True', True]), 200
 
-
-slots_fields = api.model('v1SlotsGeoJSONFeature', {
-    'id': fields.String(required=True),
-    'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': SlotsField(required=True),
-})
-
-slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
-    'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(slots_fields))
-})
 
 slot_parser = api.parser()
 slot_parser.add_argument(
@@ -303,7 +353,7 @@ slot_parser.add_argument(
 
 @ns.route('/slots/<string:id>', endpoint='slot_v1')
 class SlotResource(Resource):
-    @api.marshal_list_with(slots_fields)
+    @api.marshal_with(slots_fields_full)
     @api.doc(
         params={'id': 'slot id'},
         responses={404: "feature not found"}
@@ -392,8 +442,8 @@ slots_parser.add_argument(
 @ns.route('/slots', endpoint='slots_v1')
 class SlotsResource(Resource):
     @api.secure
-    @api.marshal_list_with(slots_collection_fields)
-    @api.doc(
+    @api.marshal_with(slots_collection_fields)
+    @api.doc(security='apikey',
         responses={404: "no feature found"}
     )
     @api.doc(parser=slots_parser)
@@ -465,24 +515,24 @@ parking_lot_parser.add_argument(
     help='If no lots found in given radius, return nearest X lots to lat/long'
 )
 
-lots_fields = api.model('LotsGeoJSONFeature', {
-    'id': fields.String(required=True),
+lots_fields = api.model('LotsFields', {
+    'id': fields.Integer(required=True),
     'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': LotsField(required=True),
+    'geometry': fields.Nested(geometry_point),
+    'properties': fields.Nested(lots_field)
 })
 
 lots_collection_fields = api.model('LotsGeoJSONFeatureCollection', {
     'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(lots_fields))
+    'features': fields.List(fields.Nested(lots_fields))
 })
 
 
 @ns.route('/lots', endpoint='parkinglots_v1')
 class Lots(Resource):
     @api.secure
-    @api.marshal_list_with(lots_collection_fields)
-    @api.doc(
+    @api.marshal_with(lots_collection_fields)
+    @api.doc(security='apikey',
         responses={404: "no feature found"}
     )
     @api.doc(parser=parking_lot_parser)
@@ -523,8 +573,8 @@ class Lots(Resource):
 @ns.route('/lots/<string:id>', endpoint='parkinglot_v1')
 class LotResource(Resource):
     @api.secure
-    @api.marshal_list_with(lots_fields)
-    @api.doc(
+    @api.marshal_with(lots_fields)
+    @api.doc(security='apikey',
         params={'id': 'lot id'},
         responses={404: "feature not found"}
     )
@@ -586,23 +636,23 @@ carshare_parser.add_argument(
 )
 
 carshares_fields = api.model('CarsharesGeoJSONFeature', {
-    'id': fields.String(required=True),
+    'id': fields.Integer(required=True),
     'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': CarsharesField(required=True),
+    'geometry': fields.Nested(geometry_point),
+    'properties': fields.Nested(carshares_field)
 })
 
 carshares_collection_fields = api.model('CarsharesGeoJSONFeatureCollection', {
     'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(carshares_fields))
+    'features': fields.List(fields.Nested(carshares_fields))
 })
 
 
 @ns.route('/carshares', endpoint='carshares_v1')
 class CarsharesResource(Resource):
     @api.secure
-    @api.marshal_list_with(carshares_collection_fields)
-    @api.doc(
+    @api.marshal_with(carshares_collection_fields)
+    @api.doc(security='apikey',
         responses={404: "no feature found"}
     )
     @api.doc(parser=carshare_parser)
@@ -637,23 +687,23 @@ class CarsharesResource(Resource):
 
 
 carshare_lots_fields = api.model('CarshareLotsGeoJSONFeature', {
-    'id': fields.String(required=True),
+    'id': fields.Integer(required=True),
     'type': fields.String(required=True, enum=['Feature']),
-    'geometry': Geometry(required=True),
-    'properties': CarshareLotsField(required=True),
+    'geometry': fields.Nested(geometry_point),
+    'properties': fields.Nested(carshare_lots_field)
 })
 
 carshare_lots_collection_fields = api.model('CarshareLotsGeoJSONFeatureCollection', {
     'type': fields.String(required=True, enum=['FeatureCollection']),
-    'features': api.as_list(fields.Nested(carshare_lots_fields))
+    'features': fields.List(fields.Nested(carshare_lots_fields))
 })
 
 
 @ns.route('/carshare_lots', endpoint='carsharelots_v1')
 class CarshareLotsResource(Resource):
     @api.secure
-    @api.marshal_list_with(carshare_lots_collection_fields)
-    @api.doc(
+    @api.marshal_with(carshare_lots_collection_fields)
+    @api.doc(security='apikey',
         responses={404: "no feature found"}
     )
     @api.doc(parser=carshare_parser)
@@ -705,11 +755,17 @@ user_model = api.model('User', {
     'name': fields.String(),
     'email': fields.String(),
     'apikey': fields.String(),
-    'created': fields.String(),
+    'created': fields.DateTime(),
     'auth_id': fields.String(),
-    'id': fields.String(),
+    'device_id': fields.String(),
+    'device_type': fields.String(),
+    'lang': fields.String(),
+    'last_hello': fields.DateTime(),
+    'id': fields.Integer(),
     'gender': fields.String(),
-    'image_url': fields.String()
+    'image_url': fields.String(),
+    'push_on_temp': fields.Boolean(),
+    'sns_id': fields.String()
 })
 
 
@@ -783,8 +839,7 @@ passwd_change_parser.add_argument(
 
 @ns.route('/login/changepass', endpoint='changepass_v1')
 class LoginChangePass(Resource):
-    @api.doc(parser=passwd_change_parser,
-            responses={200: "OK", 404: "Account not found", 400: "Reset code incorrect"})
+    @api.doc(False)
     def post(self):
         """
         Change an account's password via reset code
@@ -807,21 +862,22 @@ get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
 checkin_model = api.model('Checkin', {
-    'checkin_time': fields.String(),
-    'checkout_time': fields.String(),
-    'long': fields.Integer(),
-    'lat': fields.Integer(),
+    'checkin_time': fields.DateTime(),
+    'checkout_time': fields.DateTime(),
+    'long': fields.Float(),
+    'lat': fields.Float(),
     'city': fields.String(),
     'slot_id': fields.Integer(),
     'user_id': fields.Integer(),
-    'id': fields.String(),
+    'id': fields.Integer(),
     'active': fields.Boolean()
 })
 
 
 @ns.route('/checkins', endpoint='checkinlist_v1')
 class CheckinList(Resource):
-    @api.doc(parser=get_checkin_parser,
+    @api.marshal_list_with(checkin_model)
+    @api.doc(security='apikey', parser=get_checkin_parser,
              responses={401: "Invalid API key"})
     @api.secure
     def get(self):
@@ -835,7 +891,7 @@ class CheckinList(Resource):
         res = Checkins.get_all(g.user.id, limit)
         return res, 200
 
-    @api.doc(parser=post_checkin_parser, model=checkin_model,
+    @api.doc(security='apikey', parser=post_checkin_parser, model=checkin_model,
              responses={404: "No slot existing with this id", 201: "Resource created"})
     @api.secure
     def post(self):
@@ -848,7 +904,7 @@ class CheckinList(Resource):
             api.abort(404, "No slot existing with this id")
         return res, 201
 
-    @api.doc(parser=api_key_parser,
+    @api.doc(security='apikey', parser=api_key_parser,
              responses={204: "Resources hidden"})
     @api.secure
     def delete(self):
@@ -862,7 +918,7 @@ class CheckinList(Resource):
 @ns.route('/checkins/<string:id>', endpoint='checkins_v1')
 class Checkin(Resource):
     @api.doc(params={'id': 'checkin id'},
-             parser=api_key_parser,
+             security='apikey', parser=api_key_parser,
              responses={204: "Resource deleted"})
     @api.secure
     def delete(self, id):
@@ -885,12 +941,12 @@ update_profile_parser.add_argument('image_url', type=str, location='form', help=
 @ns.route('/user/profile', endpoint='profile_v1')
 class Profile(Resource):
     @api.secure
-    @api.doc(parser=api_key_parser, model=user_model)
+    @api.doc(security='apikey', parser=api_key_parser, model=user_model)
     def get(self):
         """Get information about a user"""
         return g.user.json, 200
 
-    @api.doc(parser=update_profile_parser, model=user_model)
+    @api.doc(security='apikey', parser=update_profile_parser, model=user_model)
     @api.secure
     def put(self):
         """Update user profile information"""
@@ -914,7 +970,7 @@ s3_url_model = api.model('S3 URL', {
 @ns.route('/images', endpoint='image_v1')
 class Image(Resource):
     @api.secure
-    @api.doc(parser=image_parser, model=s3_url_model)
+    @api.doc(security='apikey', parser=image_parser, model=s3_url_model)
     def post(self):
         """
         Generate an S3 URL for image submission
@@ -952,7 +1008,7 @@ report_parser.add_argument('notes', type=str,
 @ns.route('/reports', endpoint='report_v1')
 class Report(Resource):
     @api.secure
-    @api.doc(parser=report_parser,
+    @api.doc(security='apikey', parser=report_parser,
         responses={201: "Resource created"})
     def post(self):
         """Submit a report about incorrect data"""
@@ -973,7 +1029,7 @@ search_parser.add_argument(
 @ns.route('/analytics/search', endpoint='search_v1')
 class Search(Resource):
     @api.secure
-    @api.doc(parser=search_parser,
+    @api.doc(security='apikey', parser=search_parser,
         responses={201: "Resource created"})
     def post(self):
         """Send search query data"""
@@ -1002,7 +1058,7 @@ event_parser.add_argument(
 @ns.route('/analytics/event', endpoint='event_v1')
 class Event(Resource):
     @api.secure
-    @api.doc(parser=event_parser,
+    @api.doc(security='apikey', parser=event_parser,
         responses={201: "Resource created"})
     def post(self):
         """Send analytics event data"""
@@ -1039,7 +1095,7 @@ hello_parser.add_argument(
 @ns.route('/hello', endpoint='hello_v1')
 class Hello(Resource):
     @api.secure
-    @api.doc(parser=hello_parser,
+    @api.doc(security='apikey', parser=hello_parser,
         responses={200: "Hello there!"})
     def post(self):
         """Send analytics event data"""
