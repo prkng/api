@@ -33,31 +33,26 @@ def update_deneigement():
         logfile = '/home/parkng/log/deneigement.log'
 
     with open(logfile, 'a') as f:
-        f.write("Snow removal API check: {} ===\n".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
+        f.write("Snow removal API check: {} === ".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
     planification_request.fromDate = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30)).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
-    with open(logfile, 'a') as f:
-        f.write(" > API contacted successfully.\n")
     if response['responseStatus'] == 8:
         # No new data
         with open(logfile, 'a') as f:
-            f.write(" > No new data.\n\n")
-        return
+            f.write(" > All's well. (0)\n")
     elif response['responseStatus'] != 0:
         # An error occurred
         raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
             response['responseDesc'].encode('utf-8')))
-    with open(logfile, 'a') as f:
-        f.write(" > Contains {} changed objects.\n".format(len(response['planifications']['planification'])))
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
             city varchar,
-            partner_id varchar,
-            slot_ids integer[],
+            partner_id integer,
+            r15id varchar,
             modified timestamp default NOW(),
             start timestamp,
             finish timestamp,
@@ -100,50 +95,32 @@ def update_deneigement():
             values.append(record.format(x['coteRueId'], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}', x['etatDeneig']))
     with open(logfile, 'a') as f:
-        f.write(" > Parsed into {} values to update.\n".format(len(values)))
+        f.write(" > All's well. ({})\n".format(len(values)))
 
     if values:
         # update temporary restrictions item when we are already tracking the blockface
         db.query("""
-            WITH tmp AS (
-                SELECT x.*, g.name
-                FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
-                JOIN montreal_geobase_double d ON x.geobase_id = d.cote_rue_i
-                JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
-            )
             UPDATE temporary_restrictions d SET start = x.start, finish = x.finish,
                 active = x.active, rule = x.rule, modified = NOW(), meta = x.state::text
-            FROM tmp x
+            FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
             WHERE d.city = 'montreal' AND d.type = 'snow' AND x.geobase_id::text = d.partner_id
               AND (x.start != d.start OR x.finish != d.finish OR x.active != d.active
                 OR x.state::text != d.meta)
         """.format(",".join(values)))
-        with open(logfile, 'a') as f:
-            f.write(" > Updated values.\n")
 
         # insert temporary restrictions for newly-mentioned blockfaces, and link with current slot IDs
         db.query("""
-            WITH tmp AS (
-                SELECT DISTINCT ON (d.cote_rue_i) d.cote_rue_i AS id,
-                    array_agg(s.id) AS slot_ids
-                FROM montreal_geobase_double d
-                JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
-                JOIN slots s ON city = 'montreal' AND s.rid = g.id
-                    AND ST_isLeft(g.geom, ST_StartPoint(ST_LineMerge(d.geom)))
-                      = ST_isLeft(g.geom, ST_StartPoint(s.geom))
-                GROUP BY d.cote_rue_i
-            )
-            INSERT INTO temporary_restrictions (city, partner_id, slot_ids, start, finish,
-                    rule, type, active, meta)
-                SELECT 'montreal', x.geobase_id::text, t.slot_ids, x.start, x.finish,
-                    x.rule, 'snow', x.active, x.state::text
+            INSERT INTO temporary_restrictions (city, start, finish,
+                    rule, type, active, meta, partner_id, r15id)
+                SELECT DISTINCT 'montreal', x.start, x.finish, x.rule, 'snow',
+                    x.active, x.state::text, x.geobase_id,
+                    (CASE WHEN x.geobase_id = r.lrid THEN (r.r14id || '0')
+                     ELSE (r.r14id || '1') END)
                 FROM (VALUES {}) AS x(geobase_id, start, finish, active, rule, state)
-                JOIN tmp t ON t.id = x.geobase_id
+                JOIN roads r ON s.city = 'montreal' AND (r.lrid = x.geobase_id OR r.rrid = x.geobase_id)
                 WHERE (SELECT 1 FROM temporary_restrictions l WHERE l.type = 'snow'
                             AND l.partner_id = x.geobase_id::text LIMIT 1) IS NULL
         """.format(",".join(values)))
-        with open(logfile, 'a') as f:
-            f.write(" > Inserted values.\n\n")
 
 
 def push_deneigement_scheduled():

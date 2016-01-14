@@ -25,7 +25,7 @@ class Slots(object):
             duration = 24.0
             paid = city == "seattle"
         req += """
-            LEFT JOIN temporary_restrictions t ON t.city = s.city AND t.active = true AND s.id = ANY(t.slot_ids)
+            LEFT JOIN temporary_restrictions t ON t.city = s.city AND t.active = true AND s.r15id = t.r15id
             WHERE s.city = '{city}' AND
                 ST_Dwithin(
                     st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857),
@@ -108,8 +108,8 @@ class Slots(object):
         res = db.engine.execute("""
             SELECT {properties}, t.rule AS temporary_rule
             FROM slots s
-            LEFT JOIN temporary_restrictions t ON t.active = true AND {sid} = ANY(t.slot_ids)
-            WHERE s.id = {sid}
+            LEFT JOIN temporary_restrictions t ON t.active = true AND s.r15id = t.r15id
+            WHERE s.id = '{sid}'
             """.format(sid=sid, properties=','.join(["s."+x for x in properties]))).fetchall()
         res = map(lambda x: add_temporary_restrictions(x), res)
         if remove_na:

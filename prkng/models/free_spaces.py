@@ -11,7 +11,7 @@ free_spaces_table = Table(
     Column('id', Integer, primary_key=True),
     Column('time', DateTime, server_default=text('NOW()')),
     Column('address', String),
-    Column('slot_ids', ARRAY(Integer))
+    Column('slot_ids', ARRAY(String))
 )
 
 class FreeSpaces(object):
@@ -26,8 +26,8 @@ class FreeSpaces(object):
                 s.way_name,
                 s.geojson,
                 s.rules,
-                s.button_location->>'lat' AS lat,
-                s.button_location->>'long' AS long,
+                s.centerpoint->>'lat' AS lat,
+                s.centerpoint->>'long' AS long,
                 to_char(f.time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS since
             FROM slots s
             JOIN free_spaces f ON f.time >= (NOW() - INTERVAL '{} MIN')

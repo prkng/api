@@ -212,7 +212,7 @@ def get_slots():
     return jsonify(slots=slots), 200
 
 
-@admin.route('/api/slots/<int:id>')
+@admin.route('/api/slots/<string:id>')
 @auth_required()
 def get_slot(id):
     """
