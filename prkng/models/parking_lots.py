@@ -81,6 +81,25 @@ class ParkingLots(object):
         return db.engine.execute(req).fetchall()
 
     @staticmethod
+    def get_nearest(x, y, limit):
+        """
+        Retrieve the nearest X parking lots/garages to a given location (x, y).
+        """
+        req = """
+        SELECT {properties} FROM parking_lots
+        WHERE active = true
+        ORDER BY ST_Distance(geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
+        LIMIT {limit}
+        """.format(
+            properties=','.join(ParkingLots.properties),
+            x=x,
+            y=y,
+            limit=limit
+        )
+
+        return db.engine.execute(req).fetchall()
+
+    @staticmethod
     def get_boundbox(nelat, nelng, swlat, swlng):
         """
         Retrieve all parking lots / garages inside a given boundbox.

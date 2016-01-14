@@ -457,6 +457,13 @@ parking_lot_parser.add_argument(
     default=300,
     help='Radius search in meters; default is 300'
 )
+parking_lot_parser.add_argument(
+    'nearest',
+    type=int,
+    location='args',
+    default=None,
+    help='If no lots found in given radius, return nearest X lots to lat/long'
+)
 
 lots_fields = api.model('LotsGeoJSONFeature', {
     'id': fields.String(required=True),
@@ -495,6 +502,10 @@ class Lots(Resource):
 
         res = ParkingLots.get_within(args["longitude"], args["latitude"],
             args["radius"])
+
+        if not res and args["nearest"]:
+            res = ParkingLots.get_nearest(args["longitude"], args["latitude"],
+                args["nearest"])
 
         return FeatureCollection([
             Feature(
