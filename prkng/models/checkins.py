@@ -14,7 +14,8 @@ checkin_table = Table(
     Column('lat', Float),
     Column('checkin_time', DateTime, server_default=text('NOW()'), index=True),
     Column('checkout_time', DateTime),
-    Column('active', Boolean)
+    Column('active', Boolean, default=True),
+    Column('in_history', Boolean, default=True)
 )
 
 class Checkins(object):
@@ -64,7 +65,7 @@ class Checkins(object):
                 to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
             FROM checkins c
             JOIN slots s ON c.city = s.city AND c.slot_id = s.id
-            WHERE c.user_id = {uid}
+            WHERE c.user_id = {uid} AND c.in_history = true
             ORDER BY c.checkin_time DESC
             LIMIT {limit}
             """.format(uid=user_id, limit=limit)).fetchall()
@@ -105,3 +106,11 @@ class Checkins(object):
             (checkin_table.c.id == checkin_id)).values(active=False,
             checkout_time=res["created"] if res and left else None))
         return True
+
+    @staticmethod
+    def clear_history(user_id):
+        """
+        Flag checkins to no longer display for history (get_all) calls.
+        """
+        db.engine.execute(checkin_table.update().where(checkin_table.c.user_id == user_id)\
+            .values(in_history=False))

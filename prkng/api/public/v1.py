@@ -848,6 +848,16 @@ class CheckinList(Resource):
             api.abort(404, "No slot existing with this id")
         return res, 201
 
+    @api.doc(parser=api_key_parser,
+             responses={204: "Resources hidden"})
+    @api.secure
+    def delete(self):
+        """
+        Hide user's checkin history
+        """
+        Checkins.clear_history(g.user.id)
+        return "Resources hidden", 204
+
 
 @ns.route('/checkins/<string:id>', endpoint='checkins_v1')
 class Checkin(Resource):
