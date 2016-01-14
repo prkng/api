@@ -39,6 +39,23 @@ class Checkins(object):
         return dict(res)
 
     @staticmethod
+    def get_byid(id):
+        """
+        Get info on the user's current check-in
+        """
+        res = db.engine.execute("""
+            SELECT c.id, c.city, c.slot_id, s.way_name, c.long, c.lat, c.active,
+                to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
+                to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
+            FROM checkins c
+            JOIN slots s ON c.city = s.city AND c.slot_id = s.id
+            WHERE c.id = {id}
+        """.format(id=id)).first()
+        if not res:
+            return None
+        return dict(res)
+
+    @staticmethod
     def get_all(user_id, limit):
         res = db.engine.execute("""
             SELECT c.id, c.city, c.slot_id, s.way_name, c.long, c.lat, c.active,
@@ -59,20 +76,17 @@ class Checkins(object):
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
             (checkin_table.c.checkout_time == None)).values(active=False))
 
-        res = db.engine.execute("""
+        cid = db.engine.execute("""
             INSERT INTO checkins (user_id, city, slot_id, long, lat, active)
             SELECT
                 {user_id}, city, {slot_id},
-                (button_location->>'long')::float,
-                (button_location->>'lat')::float,
+                ST_X(ST_Line_Interpolate_Point(ST_Transform(geom, 4326), 0.5)),
+                ST_Y(ST_Line_Interpolate_Point(ST_Transform(geom, 4326), 0.5)),
                 true
             FROM slots WHERE id = {slot_id}
-            RETURNING *
+            RETURNING id
         """.format(user_id=user_id, slot_id=slot_id)).first()
-        res = dict(res)
-        res["checkin_time"] = res["checkin_time"].isoformat()
-        res["checkout_time"] = res["checkout_time"].isoformat() if res["checkout_time"] else None
-        return res
+        return Checkins.get_byid(cid[0])
 
     @staticmethod
     def remove(user_id, checkin_id=None, left=True):
