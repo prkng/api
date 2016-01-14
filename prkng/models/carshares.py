@@ -129,6 +129,46 @@ class Carshares(object):
         return data
 
     @staticmethod
+    def get_nearest(city, x, y, limit, company=False):
+        """
+        Get nearest parked carshares in a city to a certain lat/long.
+        """
+        qry = """
+          WITH tmp AS (
+            SELECT {properties}, 1 AS quantity FROM carshares c
+            WHERE c.city = '{city}' AND c.parked = true
+            ORDER BY ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
+        """
+        if company and "," in company:
+            qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",") if z != "zipcar"]))
+        elif company and company != "zipcar":
+            qry += "AND c.company = '{}'".format(company)
+        if company and "zipcar" in company:
+            qry += """
+                UNION ALL
+                SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
+                JOIN carshare_lots l ON c.lot_id = l.id
+                WHERE c.city = '{city}' AND c.parked = true
+                    AND c.company = 'zipcar'
+                ORDER BY ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
+            """
+        qry += """
+            )
+            SELECT * FROM tmp
+            LIMIT {limit}
+        """
+        res = db.engine.execute(qry.format(properties=', '.join(["c."+z for z in Carshares.properties]),
+            city=city, x=x, y=y, limit=limit)).fetchall()
+        data = []
+        for x in res:
+            x = list(x)
+            for y in enumerate(x):
+                if type(y[1]) == datetime.datetime:
+                    x[y[0]] = y[1].isoformat()
+            data.append(x)
+        return data
+
+    @staticmethod
     def get_boundbox(nelat, nelng, swlat, swlng):
         """
         Retrieve all parked carshares inside a given boundbox.
@@ -197,6 +237,26 @@ class Carshares(object):
             qry += "AND company = '{}'".format(company)
         return db.engine.execute(qry.format(properties=', '.join(Carshares.lot_properties),
             city=city, x=x, y=y, radius=radius)).fetchall()
+
+    @staticmethod
+    def get_lots_nearest(city, x, y, limit, company=False):
+        """
+        Get nearest carshare lots in a city to a certain lat/long.
+        """
+        qry = """
+            SELECT {properties} FROM carshare_lots
+            WHERE city = '{city}'
+        """
+        if company and "," in company:
+            qry += "AND company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",")]))
+        elif company:
+            qry += "AND company = '{}'".format(company)
+        qry += """
+            ORDER BY ST_Distance(geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
+            LIMIT {limit}
+        """
+        return db.engine.execute(qry.format(properties=', '.join(Carshares.lot_properties),
+            city=city, x=x, y=y, limit=limit)).fetchall()
 
     @staticmethod
     def get_all(company, city):

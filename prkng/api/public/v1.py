@@ -577,6 +577,13 @@ carshare_parser.add_argument(
     required=False,
     help='Return carshares for a particular company (or companies, comma-separated) only'
 )
+carshare_parser.add_argument(
+    'nearest',
+    type=int,
+    location='args',
+    default=None,
+    help='If no carshares found in given radius, return nearest X cars to lat/long'
+)
 
 carshares_fields = api.model('CarsharesGeoJSONFeature', {
     'id': fields.String(required=True),
@@ -611,6 +618,10 @@ class CarsharesResource(Resource):
 
         res = Carshares.get_within(city, args['longitude'], args['latitude'], args['radius'],
             args['company'] or False)
+
+        if not res and args["nearest"]:
+            res = Carshares.get_nearest(city, args["longitude"], args["latitude"],
+                args["nearest"], args['company'] or False)
 
         return FeatureCollection([
             Feature(
@@ -658,6 +669,10 @@ class CarshareLotsResource(Resource):
 
         res = Carshares.get_lots_within(city, args['longitude'], args['latitude'], args['radius'],
             args['company'] or False)
+
+        if not res and args["nearest"]:
+            res = Carshares.get_lots_nearest(city, args["longitude"], args["latitude"],
+                args["nearest"], args['company'] or False)
 
         return FeatureCollection([
             Feature(
