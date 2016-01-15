@@ -874,7 +874,7 @@ get_checkin_parser.add_argument(
 
 update_checkin_parser = copy.deepcopy(api_key_parser)
 update_checkin_parser.add_argument(
-    'is_hidden', type=str, default="false", help='Slot identifier', location='query')
+    'is_hidden', type=str, default="false", help='Slot identifier', location='form')
 
 checkin_model = api.model('Checkin', {
     'checkin_time': fields.DateTime(),
@@ -945,7 +945,7 @@ class Checkin(Resource):
         args = update_checkin_parser.parse_args()
         args['is_hidden'] = args['is_hidden'] not in ['false', 'False', False]
         Checkins.update(g.user.id, id, args['is_hidden'])
-        return "Resource deleted", 204
+        return "Resource modified", 200
 
     @api.doc(params={'id': 'checkin id'},
              security='apikey', parser=api_key_parser,
