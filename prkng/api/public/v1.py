@@ -62,7 +62,7 @@ geometry_point = api.model('GeometryPoint', {
 geometry_linestring = api.model('GeometryLinestring', {
     'type': fields.String(required=True, enum=['LineString']),
     'coordinates': fields.List(
-        fields.Float,
+        fields.List(fields.Float),
         description='The geometry as coordinates lists',
         required=True),
 })
@@ -148,9 +148,10 @@ slots_collection_fields = api.model('v1SlotsGeoJSONFeatureCollection', {
 
 
 lot_attributes = api.model('LotAttributes', {
+    'card': fields.Boolean,
+    'valet': fields.Boolean,
     'indoor': fields.Boolean,
-    'clerk': fields.Boolean,
-    'valet': fields.Boolean
+    'handicap': fields.Boolean
 })
 
 lot_street_view = api.model('LotStreetView', {
@@ -194,6 +195,17 @@ carshare_lots_field = api.model('CarshareLotsField', {
         description='Spaces currently available for carshares in this lot')
 })
 
+lot_agenda_view_object = api.model('LotAgendaViewObject', {
+    'max': fields.Float,
+    'daily': fields.Float,
+    'hourly': fields.Float,
+    'hours': fields.List(fields.Float)
+})
+
+lot_agenda_view = api.model('LotAgendaView', {
+    '%s' % day: fields.List(fields.Nested(lot_agenda_view_object))
+    for day in range(1, 8)
+})
 
 lots_field = api.model('LotsField', {
     'name': fields.String(
@@ -220,8 +232,7 @@ lots_field = api.model('LotsField', {
     'address': fields.String(
         description='street address of lot entrance',
         required=True),
-    'agenda': fields.Nested(
-        agenda_view,
+    'agenda': fields.Nested(lot_agenda_view,
         description='''list of days when the restriction apply (1: monday, ..., 7: sunday)
                        containing a list of time ranges when the restriction apply''',
         required=True),
@@ -244,7 +255,7 @@ service_areas_version = api.model('ServiceAreasVersion', {
     'geojson_mask_addr': fields.String(description='URL to service areas mask dataset (GeoJSON format, gzipped)')
 })
 
-service_areas_versions = api.model('ServiceAreasVersions', {0: fields.Nested(service_areas_version)})
+service_areas_versions = api.model('ServiceAreasVersions', {'0': fields.Nested(service_areas_version)})
 
 service_areas_model = api.model('ServiceAreasMeta', {
     'latest_version': fields.Integer(description='latest available version of resources'),
@@ -511,7 +522,7 @@ parking_lot_parser.add_argument(
     'nearest',
     type=int,
     location='args',
-    default=None,
+    default=0,
     help='If no lots found in given radius, return nearest X lots to lat/long'
 )
 
@@ -631,7 +642,7 @@ carshare_parser.add_argument(
     'nearest',
     type=int,
     location='args',
-    default=None,
+    default=0,
     help='If no carshares found in given radius, return nearest X cars to lat/long'
 )
 
@@ -861,6 +872,10 @@ get_checkin_parser = copy.deepcopy(api_key_parser)
 get_checkin_parser.add_argument(
     'limit', type=int, default=10, help='Slot identifier', location='query')
 
+update_checkin_parser = copy.deepcopy(api_key_parser)
+update_checkin_parser.add_argument(
+    'is_hidden', type=str, default="false", help='Slot identifier', location='query')
+
 checkin_model = api.model('Checkin', {
     'checkin_time': fields.DateTime(),
     'checkout_time': fields.DateTime(),
@@ -917,6 +932,21 @@ class CheckinList(Resource):
 
 @ns.route('/checkins/<string:id>', endpoint='checkins_v1')
 class Checkin(Resource):
+    @api.doc(params={'id': 'checkin id'},
+             security='apikey', parser=update_checkin_parser,
+             responses={200: "Resource updated"})
+    @api.secure
+    def put(self, id):
+        """
+        Modify an existing checkin.
+
+        Presently only used to set `is_hidden` flag to True or False.
+        """
+        args = update_checkin_parser.parse_args()
+        args['is_hidden'] = args['is_hidden'] not in ['false', 'False', False]
+        Checkins.update(g.user.id, id, args['is_hidden'])
+        return "Resource deleted", 204
+
     @api.doc(params={'id': 'checkin id'},
              security='apikey', parser=api_key_parser,
              responses={204: "Resource deleted"})
