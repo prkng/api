@@ -73,11 +73,12 @@ class City(object):
                 c.lat,
                 c.checkout_time IS NULL AS active,
                 a.auth_type AS user_type,
-                s.rules
+                COALESCE(s.rules, '[]'::jsonb) AS rules
             FROM checkins c
-            JOIN slots s ON s.id = c.slot_id
+            LEFT JOIN slots s ON s.id = c.slot_id
             JOIN users u ON c.user_id = u.id
-            JOIN cities ct ON ST_intersects(s.geom, ct.geom)
+            JOIN cities ct ON (ST_intersects(s.geom, ct.geom)
+                OR ST_intersects(ST_transform(ST_SetSRID(ST_MakePoint(c.long, c.lat), 4326), 3857), ct.geom))
             JOIN
                 (SELECT auth_type, user_id, max(id) AS id
                     FROM users_auth GROUP BY auth_type, user_id) a
