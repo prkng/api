@@ -9,6 +9,7 @@ import datetime
 import json
 import os
 import pytz
+import time
 from redis import Redis
 from rq import Queue
 from suds.client import Client
@@ -28,30 +29,44 @@ def update_deneigement():
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
+    r = Redis(db=1)
     logfile = os.path.join(os.path.expanduser('~'), 'log', 'deneigement.log')
     if not CONFIG["DEBUG"]:
         logfile = '/home/parkng/log/deneigement.log'
+
+    now = int(time.time())
+    since = r.get("prkng:snowdt")
+    if since:
+        since = datetime.datetime().fromtimestamp(int(now)).replace(tzinfo=pytz.utc)
+    else:
+        since = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30))
 
     with open(logfile, 'a') as f:
         f.write("Snow removal API check: {} ===\n".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
     planification_request = client.factory.create('getPlanificationsForDate')
-    planification_request.fromDate = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30)).astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%dT%H:%M:%S')
+    planification_request.fromDate = since.astimezone(pytz.timezone('US/Eastern')).strftime('%Y-%m-%dT%H:%M:%S')
     planification_request.tokenString = CONFIG["PLANIFNEIGE_API_KEY"]
     response = client.service.GetPlanificationsForDate(planification_request)
     with open(logfile, 'a') as f:
         f.write(" > API contacted successfully.\n")
     if response['responseStatus'] == 8:
         # No new data
+        r.set("prkng:snowdt", now)
         with open(logfile, 'a') as f:
             f.write(" > No new data.\n\n")
         return
     elif response['responseStatus'] != 0:
         # An error occurred
+        with open(logfile, 'a') as f:
+            f.write(" > CALL FAILED: code {}, message: {}\n\n".format(response['responseStatus'],
+                response['responseDesc'].encode('utf-8')))
         raise Exception("Info-Neige call failed: code {}, message: {}".format(response['responseStatus'],
             response['responseDesc'].encode('utf-8')))
+    r.set("prkng:snowdt", now)
     with open(logfile, 'a') as f:
         f.write(" > Contains {} changed objects.\n".format(len(response['planifications']['planification'])))
+
     db.query("""
         CREATE TABLE IF NOT EXISTS temporary_restrictions (
             id serial primary key,
