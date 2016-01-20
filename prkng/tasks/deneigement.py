@@ -37,7 +37,7 @@ def update_deneigement():
     now = int(time.time())
     since = r.get("prkng:snowdt")
     if since:
-        since = datetime.datetime().fromtimestamp(int(now)).replace(tzinfo=pytz.utc)
+        since = datetime.datetime.fromtimestamp(int(since)).replace(tzinfo=pytz.utc)
     else:
         since = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30))
 
