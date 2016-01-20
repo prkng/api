@@ -135,22 +135,22 @@ class Carshares(object):
         """
         qry = """
           WITH tmp AS (
-            SELECT {properties}, 1 AS quantity FROM carshares c
+            (SELECT {properties}, 1 AS quantity FROM carshares c
             WHERE c.city = '{city}' AND c.parked = true
-            ORDER BY ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
         """
         if company and "," in company:
             qry += "AND c.company = ANY(ARRAY[{}])".format(",".join(["'"+z+"'" for z in company.split(",") if z != "zipcar"]))
         elif company and company != "zipcar":
             qry += "AND c.company = '{}'".format(company)
+        qry += " ORDER BY ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857)))"
         if company and "zipcar" in company:
             qry += """
                 UNION ALL
-                SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
+                (SELECT DISTINCT ON (c.lot_id) {properties}, l.capacity AS quantity FROM carshares c
                 JOIN carshare_lots l ON c.lot_id = l.id
                 WHERE c.city = '{city}' AND c.parked = true
                     AND c.company = 'zipcar'
-                ORDER BY ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857))
+                ORDER BY c.lot_id, ST_Distance(c.geom, st_transform('SRID=4326;POINT({x} {y})'::geometry, 3857)))
             """
         qry += """
             )
