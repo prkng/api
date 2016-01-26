@@ -271,6 +271,7 @@ def run_backup():
     with open(os.path.join('/tmp', file_name), 'rb') as f:
         k.upload_part_from_file(f, 1)
     k.complete_upload()
+    os.unlink(os.path.join('/tmp', file_name))
     return os.path.join('prkng-bak/', file_name)
 
 
