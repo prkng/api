@@ -107,8 +107,8 @@ def update_deneigement():
                         for z in range(debutJour + 1, finJour + 1):
                             agenda[str(z)] = [[0.0,24.0]]
             rule = {"code": "MTL-NEIGE", "description": "DÉNEIGEMENT PRÉVU DANS CE SECTEUR",
-                "season_start": None, "season_end": None, "agenda": agenda, "time_max_parking": None,
-                "special_days": None, "restrict_types": ["snow"], "permit_no": None}
+                "periods": [], "agenda": agenda, "time_max_parking": None, "special_days": None,
+                "restrict_types": ["snow"], "permit_no": None}
             values.append(record.format(x['coteRueId'], debut.strftime('%Y-%m-%d %H:%M:%S'),
                 fin.strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
         elif x['etatDeneig'] in [0, 1, 4, 10]:

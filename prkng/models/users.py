@@ -155,7 +155,9 @@ class User(UserMixin):
         To be used for admin functions only.
         """
         res = db.engine.execute("""
-            SELECT DISTINCT u.id, u.name, u.email, u.lang, u.last_hello, count(c.id) AS count
+            SELECT DISTINCT u.id, u.name, u.email, u.lang,
+                to_char(u.last_hello, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_hello,
+                count(c.id) AS count
             FROM users u
             LEFT JOIN checkins c ON c.user_id = u.id
             GROUP BY u.id

@@ -84,6 +84,8 @@ class Slots(object):
             swlng=swlng
         )
 
+
+        checkin = None
         slots = db.engine.execute(req).fetchall()
         slots = map(lambda x: dict(x), slots)
         if checkin and invert:
@@ -91,11 +93,18 @@ class Slots(object):
         elif checkin:
             slots = map(lambda x: on_restriction(x, checkin, float(duration), True, permit), slots)
         if type == 1:
-            slots = filter(lambda x: "paid" in [z for y in x.rules for z in y["restrict_types"]], slots)
+            slots = filter(lambda x: "paid" in [z for y in x["rules"] for z in y["restrict_types"]], slots)
         elif type == 2:
-            slots = filter(lambda x: "permit" in [z for y in x.rules for z in y["restrict_types"]], slots)
+            slots = filter(lambda x: "permit" in [z for y in x["rules"] for z in y["restrict_types"]], slots)
         elif type == 3:
-            slots = filter(lambda x: any([y["time_max_parking"] for y in x.rules]), slots)
+            slots = filter(lambda x: any([y["time_max_parking"] for y in x["rules"]]), slots)
+
+        for x in slots:
+            if not x:
+                continue
+            for y in x["rules"]:
+                if "paid" in y["restrict_types"]:
+                    x["restrict_types"] = ["paid"]
 
         return filter(lambda x: x != False, slots)
 

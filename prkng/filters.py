@@ -39,25 +39,12 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
             # not concerned, going to the next rule
             continue
 
-        # first test season day/month
-        start_month, start_day = "", ""
-        if rule['season_start']:
-            start_month, start_day = [int(x) for x in rule['season_start'].split('-')]
-        end_month, end_day = "", ""
-        if rule['season_end']:
-            end_month, end_day = [int(x) for x in rule['season_end'].split('-')]
-        season_match = season_matching(
-            start_day,
-            start_month,
-            end_day,
-            end_month,
-            day,
-            month
-        )
-
-        if not season_match:
-            # not concerned, going to the next rule
-            continue
+        # first test period days/months
+        if rule["periods"]:
+            period_matches = [period_matching(period, day, month) for period in rule["periods"]]
+            if not any(period_match):
+                # not concerned, going to the next rule
+                continue
 
         max_time_ok = True
         time_range_ok = True
@@ -142,34 +129,19 @@ def remove_not_applicable(slot, checkin, permit=False):
     day = checkin.strftime('%d')  # 07
 
     for rule in slot.rules:
-        # first test season day/month
-        start_month, start_day = "", ""
-        if rule['season_start']:
-            start_month, start_day = [int(x) for x in rule['season_start'].split('-')]
-        end_month, end_day = "", ""
-        if rule['season_end']:
-            end_month, end_day = [int(x) for x in rule['season_end'].split('-')]
-        season_match = season_matching(
-            start_day,
-            start_month,
-            end_day,
-            end_month,
-            day,
-            month
-        )
-
-        if not season_match:
-            slot.rules.remove(rule)
-        elif "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
-            slot.rules.remove(rule)
+        # first test period days/months
+        if rule["periods"]:
+            period_matches = [period_matching(period, day, month) for period in rule["periods"]]
+            if not any(period_match):
+                slot.rules.remove(rule)
+            elif "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
+                slot.rules.remove(rule)
     return slot
 
 
-def season_matching(start_day, start_month, end_day, end_month,
-                    day, month):
-    if not start_month:
-        # no season restriction so matching ok
-        return True
+def period_matching(period, day, month):
+    start_day, start_month = int(period[0].split("-")[1]), int(period[0].split("-")[0])
+    end_day, end_month = int(period[1].split("-")[1]), int(period[1].split("-")[0])
 
     if start_month < end_month and not (month >= start_month and month <= end_month):
         # month out of range

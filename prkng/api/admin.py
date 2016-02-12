@@ -155,9 +155,9 @@ def add_correction():
     data = request.get_json()["correction"]
     corr = Corrections.add(data["slot_id"], "XX-"+data["code"],
         data["city"], data["description"], data["initials"],
-        data.get("season_start", ""), data.get("season_end", ""),
-        data.get("time_max_parking", 0.0), json.dumps(data["agenda"]),
-        data.get("special_days", ""), data.get("restrict_types", ""))
+        data.get("periods", []), data.get("time_max_parking", 0.0),
+        json.dumps(data["agenda"]), data.get("special_days", ""),
+        data.get("restrict_types", ""))
     return jsonify(correction=corr), 201
 
 
@@ -196,7 +196,7 @@ def get_slots():
         request.args['swLng'],
         slot_props,
         request.args.get('checkin'),
-        request.args.get('duration'),
+        request.args.get('duration', 0.25),
         int(request.args.get('type', 0)),
         request.args.get('invert') in [True, "true"]
     )
