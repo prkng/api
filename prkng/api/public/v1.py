@@ -882,6 +882,7 @@ checkin_model = api.model('Checkin', {
     'long': fields.Float(),
     'lat': fields.Float(),
     'city': fields.String(),
+    'way_name': fields.String(),
     'slot_id': fields.Integer(),
     'user_id': fields.Integer(),
     'id': fields.Integer(),
@@ -1092,11 +1093,6 @@ class Event(Resource):
         else:
             Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
                 args["event"])
-
-        # FIXME when we migrate to 1.3
-        # checkout of the last spot and add departure time
-        if args["event"] == "fence_response_yes":
-            Checkins.remove(g.user.id, left=True)
 
         return "Resource created", 201
 

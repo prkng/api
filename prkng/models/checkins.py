@@ -60,9 +60,7 @@ class Checkins(object):
     def get_all(user_id, limit):
         res = db.engine.execute("""
             SELECT c.id, c.city, c.slot_id, s.way_name, c.long, c.lat, c.active,
-                to_char(c.checkin_time, 'YYYY-MM-DD HH24:MI:SS"Z"') AS created,
-                to_char(c.checkin_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkin_time,
-                to_char(c.checkout_time, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS checkout_time
+                c.checkin_time, c.checkout_time
             FROM checkins c
             JOIN slots s ON c.city = s.city AND c.slot_id = s.id
             WHERE c.user_id = {uid} AND c.is_hidden != true
@@ -90,17 +88,11 @@ class Checkins(object):
         return Checkins.get_byid(cid[0])
 
     @staticmethod
-    def remove(user_id, checkin_id=None, left=True):
+    def remove(user_id, checkin_id, left=True):
         # get last fence departure time, use as checkout time if user has left
         res = event_table.select((event_table.c.user_id == user_id) &\
                 (event_table.c.event == 'left_fence')).order_by(desc(event_table.c.created))\
                 .execute().first()
-
-        # FIXME for 1.3
-        # geofence checkouts don't have the checkin ID, so get the last one
-        if not checkin_id:
-            checkin_id = checkin_table.select((checkin_table.c.user_id == user_id))\
-                .order_by(desc(checkin_table.c.checkin_time)).execute().first()["id"]
 
         db.engine.execute(checkin_table.update().where((checkin_table.c.user_id == user_id) & \
             (checkin_table.c.id == checkin_id)).values(active=False,

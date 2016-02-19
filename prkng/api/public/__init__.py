@@ -26,9 +26,7 @@ class PrkngApi(Api):
         '''Enforce authentication'''
         @wraps(func)
         def wrapper(*args, **kwargs):
-
             apikey = request.headers.get(HEADER_API_KEY)
-
             if not apikey:
                 return 'Invalid API Key', 401
 
@@ -52,5 +50,5 @@ def init_api(app):
     """
     Initialize extensions into flask application
     """
-    api.ui = app.config["DEBUG"]
+    api._doc = app.config["DEBUG"]
     api.init_app(app)
