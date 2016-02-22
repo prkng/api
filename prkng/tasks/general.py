@@ -4,6 +4,7 @@ from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
 import boto.sns
+from boto.exception import BotoServerError
 from boto.s3.connection import S3Connection
 import datetime
 import json
@@ -129,7 +130,7 @@ def send_notifications():
                     try:
                         amz.subscribe(mg_arn, "application", id)
                     except:
-                        pass
+                        continue
                 elif id.startswith("arn:aws:sns"):
                     # this must be a topic ARN, send to it immediately
                     amz.publish(message=message, message_structure=message_structure, target_arn=id)
@@ -139,7 +140,10 @@ def send_notifications():
         else:
             # Less than 10 device IDs or topic ARNs. Send to them immediately
             for id in [x for x in device_ids if x.startswith("arn:aws:sns")]:
-                amz.publish(message=message, message_structure=message_structure, target_arn=id)
+                try:
+                    amz.publish(message=message, message_structure=message_structure, target_arn=id)
+                except BotoServerError:
+                    continue
 
 
 def update_parkingpanda():
@@ -151,15 +155,16 @@ def update_parkingpanda():
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
+    parkingpanda_url = "https://www.parkingpanda.com/api/v2/locations" if not CONFIG["DEBUG"] else "http://dev.parkingpanda.com/api/v2/locations"
+
     for city, addr in [("newyork", "4 Pennsylvania Plaza, New York, NY")]:
         # grab data from parkingpanda api
         start = datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         finish = (start + datetime.timedelta(hours=23, minutes=59))
-        data = requests.get("https://www.parkingpanda.com/api/v2/locations",
-            params={"search": addr, "miles": 20.0, "startDate": start.strftime("%m/%d/%Y"),
-                "startTime": start.strftime("%H:%M"), "endDate": finish.strftime("%m/%d/%Y"),
-                "endTime": finish.strftime("%H:%M"), "onlyavailable": False,
-                "showSoldOut": True, "peer": False})
+        data = requests.get(parkingpanda_url, params={"search": addr, "miles": 20.0,
+                "startDate": start.strftime("%m/%d/%Y"), "startTime": start.strftime("%H:%M"),
+                "endDate": finish.strftime("%m/%d/%Y"), "endTime": finish.strftime("%H:%M"),
+                "onlyavailable": False, "showSoldOut": True, "peer": False})
         data = data.json()["data"]["locations"]
 
         hourToFloat = lambda x: float(x.split(":")[0]) + (float(x.split(":")[1][0:2]) / 60) + (12 if "PM" in x and x.split(":")[0] != "12" else 0)

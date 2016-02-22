@@ -34,6 +34,7 @@ class ParkingLots(object):
         'city',
         'name',
         'partner_name',
+        'partner_id',
         'operator',
         'capacity',
         'available',

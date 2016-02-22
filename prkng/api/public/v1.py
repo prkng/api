@@ -214,7 +214,7 @@ lots_field = api.model('LotsField', {
     'city': fields.String(
         description='city name',
         required=True),
-    'partner_id': fields.Integer(
+    'partner_id': fields.String(
         description='ID of this lot for partner mgmt',
         required=True),
     'partner_name': fields.String(
