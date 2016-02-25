@@ -3,12 +3,14 @@ from __future__ import unicode_literals
 from prkng.api.public import api
 from prkng.models import Analytics, Carshares, Checkins, City, Images, ParkingLots, Reports, Slots, User, UserAuth
 from prkng.login import facebook_signin, google_signin, email_register, email_signin, email_update
+from prkng.tasks.general import parking_panda_welcome_email
 from prkng.utils import timestamp
 
 import copy
 from geojson import loads, FeatureCollection, Feature
-from flask import render_template, Response, g, request
+from flask import Response, g, request
 from flask.ext.restplus import Resource, fields
+from rq import Queue
 import time
 
 
@@ -850,7 +852,6 @@ passwd_change_parser.add_argument(
 
 @ns.route('/login/changepass', endpoint='changepass_v1')
 class LoginChangePass(Resource):
-    @api.doc(False)
     def post(self):
         """
         Change an account's password via reset code
@@ -1089,6 +1090,11 @@ class Event(Resource):
         # enter geofence arrival/departure data directly into database
         if "fence" in args["event"]:
             Analytics.add_event(g.user.id, args.get("latitude"), args.get("longitude"),
+                args["event"])
+        elif "parking_panda" in args["event"]:
+            q = Queue('low', connection=Redis(db=1))
+            q.enqueue(parking_panda_welcome_email, g.user.name, g.user.email)
+            Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),
                 args["event"])
         else:
             Analytics.add_event_tobuf(g.user.id, args.get("latitude"), args.get("longitude"),

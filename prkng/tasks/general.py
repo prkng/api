@@ -3,6 +3,7 @@
 from prkng import create_app, notifications
 from prkng.database import PostgresWrapper
 
+import boto.ses
 import boto.sns
 from boto.exception import BotoServerError
 from boto.s3.connection import S3Connection
@@ -157,7 +158,8 @@ def update_parkingpanda():
 
     parkingpanda_url = "https://www.parkingpanda.com/api/v2/locations" if not CONFIG["DEBUG"] else "http://dev.parkingpanda.com/api/v2/locations"
 
-    for city, addr in [("newyork", "4 Pennsylvania Plaza, New York, NY")]:
+    for city, addr in [("boston", "Faneuil Hall, Boston, MA"),
+            ("newyork", "4 Pennsylvania Plaza, New York, NY")]:
         # grab data from parkingpanda api
         start = datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern'))
         finish = (start + datetime.timedelta(hours=23, minutes=59))
@@ -278,6 +280,17 @@ def run_backup():
     k.complete_upload()
     os.unlink(os.path.join('/tmp', file_name))
     return os.path.join('prkng-bak/', file_name)
+
+
+def parking_panda_welcome_email(uname, uemail):
+    CONFIG = create_app().config
+    c = boto.ses.connect_to_region("us-west-2",
+        aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
+        aws_secret_access_key=CONFIG["AWS_SECRET_KEY"])
+    # don't bother with flask app context
+    with open(os.path.join(os.path.dirname(os.path.dirname(__file__)), "templates/welcome_parking_panda.html"), "r") as f:
+        c.send_email("noreply@prk.ng", "Reserved Parking? You're on your way!",
+            "", uemail, html_body=f.read().replace("{{ uname }}", uname))
 
 
 def update_analytics():
