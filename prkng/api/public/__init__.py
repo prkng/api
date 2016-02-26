@@ -50,5 +50,6 @@ def init_api(app):
     """
     Initialize extensions into flask application
     """
-    api._doc = app.config["DEBUG"]
+    if not app.config["DEBUG"]:
+        api._doc = False
     api.init_app(app)

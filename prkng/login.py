@@ -140,7 +140,7 @@ def facebook_signin(access_token):
     # get user profile
     resp = requests.get(
         "https://graph.facebook.com/me",
-        params={'access_token': access_token, 'fields': 'id,name,first_name,last_name,gender,picture'}
+        params={'access_token': access_token, 'fields': 'id,email,name,first_name,last_name,gender,picture'}
     )
     me = resp.json()
 
