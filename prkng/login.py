@@ -140,7 +140,7 @@ def facebook_signin(access_token):
     # get user profile
     resp = requests.get(
         "https://graph.facebook.com/me",
-        params={'access_token': access_token}
+        params={'access_token': access_token, 'fields': 'id,name,first_name,last_name,gender,picture'}
     )
     me = resp.json()
 
@@ -150,26 +150,21 @@ def facebook_signin(access_token):
     if 'email' not in me:
         return 'Email information not provided, cannot register user', 401
 
-    # fetch current profile pic
-    resp = requests.get(
-        "https://graph.facebook.com/me/picture",
-        params={'access_token': access_token, 'redirect': False, 'type': 'normal'}
-    )
-    pic = resp.json()["data"].get('url', '')
-
     # check if user exists with its email as unique identifier
     user = User.get_byemail(me['email'])
     if not user:
         # primary user doesn't exists, creating it
         user = User.add_user(
             name=me['name'],
+            first_name=me['first_name'],
+            last_name=me['last_name'],
             email=me['email'],
             gender=me.get('gender', None),
-            image_url=pic)
+            image_url=me["picture"]["data"]["url"] if me.get('picture') else '')
     else:
         # if already exists just update with a new apikey and profile pic
         user.update_apikey(User.generate_apikey(user.email))
-        user.update_profile(image_url=pic)
+        user.update_profile(image_url=me["picture"]["data"]["url"] if me.get('picture') else '')
     # known facebook account ?
     auth_id = 'facebook${}'.format(me['id'])
     user_auth = UserAuth.exists(auth_id)
@@ -219,6 +214,7 @@ def google_signin(access_token):
 
         me = {}
         id, email, name, picture = data['sub'], data['email'], data['name'], data.get('picture', '')
+        first_name, last_name = data.get('given_name', ''), data.get('family_name', '')
     else:
         # Google OAuth 2.0 (1.3 and below)
         resp = requests.get(
@@ -246,6 +242,7 @@ def google_signin(access_token):
             return 'Email information not provided, cannot register user', 401
 
         id, email, name, picture = me['id'], me['email'], me['name'], me.get('picture', '')
+        first_name, last_name = me.get('given_name', ''), me.get('family_name', '')
 
     auth_id = 'google${}'.format(id)
 
@@ -258,6 +255,8 @@ def google_signin(access_token):
         # primary user doesn't exists, creating it
         user = User.add_user(
             name=name,
+            first_name=first_name,
+            last_name=last_name,
             email=email,
             gender=None,
             image_url=picture)

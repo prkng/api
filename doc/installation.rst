@@ -7,7 +7,7 @@ System requirements
 - postgresql >= 9.4
 - postgresql-server-dev-9.4
 - postgresql-contrib-9.4
-- postgis >= 2.1 (with shp2pgsql command line)
+- postgis >= 2.2 (with shp2pgsql command line)
 - ogr2ogr >= 1.9.0 (gdal-bin package)
 - osm2pgsql >= 0.87
 - osmconvert (osmctools package)

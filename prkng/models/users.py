@@ -24,6 +24,8 @@ user_table = Table(
     metadata,
     Column('id', Integer, primary_key=True),
     Column('name', String, nullable=False),
+    Column('first_name', String),
+    Column('last_name', String),
     Column('gender', String(10)),
     Column('email', String(60), index=True, unique=True, nullable=False),
     Column('created', DateTime, server_default=text('NOW()'), index=True),
@@ -81,15 +83,22 @@ class User(UserMixin):
         """
         Update profile information
         """
+        name = name.encode('utf-8') if name else ""
+        email = email.encode('utf-8') if email else ""
+        first_name = name.split(" ", 1)[0]
+        last_name = name.split(" ", 1)[1] if " " in name else ""
+
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
-            .values(name=(name.encode('utf-8') if name else self.name),
-                    email=(email.encode('utf-8') if email else self.email),
+            .values(name=name or self.name, first_name=first_name or self.first_name,
+                    last_name=last_name or self.last_name, email=email or self.email,
                     gender=gender or self.gender,
                     image_url=image_url or self.image_url
             )
         )
-        self.name = name.encode('utf-8') if name else self.name
-        self.email = email.encode('utf-8') if email else self.email
+        self.name = name or self.name
+        self.first_name = first_name or self.first_name
+        self.last_name = last_name or self.last_name
+        self.email = email or self.email
         self.gender = gender or self.gender
         self.image_url = image_url or self.image_url
 
@@ -155,17 +164,25 @@ class User(UserMixin):
         To be used for admin functions only.
         """
         res = db.engine.execute("""
-            SELECT DISTINCT ON (u.id) u.id, u.name, u.email, u.lang, u.device_type,
+            SELECT DISTINCT ON (u.id) u.id, u.first_name, u.last_name, u.email, u.lang, u.device_type,
+                to_char(u.created, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS created,
                 to_char(u.last_hello, 'YYYY-MM-DD"T"HH24:MI:SS"Z"') AS last_hello,
-                x.city AS last_city, count(c.id) AS count
+                x.city AS last_city, array_to_string(ae.share_svcs, ',') AS carshares,
+                count(c.id) AS count
             FROM users u
             LEFT JOIN checkins c ON c.user_id = u.id
+            LEFT JOIN (
+                SELECT user_id, array_agg(DISTINCT substring(event from 'login_(.*)$')) AS share_svcs
+                FROM analytics_event
+                WHERE event LIKE '%%login_%%'
+                GROUP BY user_id
+            ) ae ON ae.user_id = u.id
             LEFT JOIN (
                 SELECT DISTINCT ON (user_id) user_id, city
                 FROM checkins
                 ORDER BY user_id, checkin_time DESC
             ) x ON x.user_id = u.id
-            GROUP BY u.id, x.city
+            GROUP BY u.id, x.city, ae.share_svcs
             ORDER BY u.id
         """).fetchall()
         return [
@@ -215,7 +232,7 @@ class User(UserMixin):
         return res
 
     @staticmethod
-    def add_user(name=None, email=None, gender=None, image_url=None):
+    def add_user(name="", first_name=None, last_name=None, email=None, gender=None, image_url=None):
         """
         Add a new user.
         Raise an exception in case of already exists.
@@ -223,7 +240,9 @@ class User(UserMixin):
         apikey = User.generate_apikey(email)
         # insert data
         db.engine.execute(user_table.insert().values(
-            name=name, email=email, apikey=apikey, gender=gender, image_url=image_url))
+            email=email, name=name, first_name=first_name if first_name else name.split(" ", 1)[0],
+            last_name=last_name if last_name else (name.split(" ", 1)[1] if " " in name else ""),
+            apikey=apikey, gender=gender, image_url=image_url))
         # retrieve new user informations
         res = user_table.select(user_table.c.email == email).execute().first()
         return User(res)
