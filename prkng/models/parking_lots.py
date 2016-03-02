@@ -137,12 +137,12 @@ class ParkingLots(object):
             """.format(sid=lid, properties=','.join(ParkingLots.properties))).fetchall()
 
     @staticmethod
-    def get_bypartnerid(pid):
+    def get_bypartnerid(pname, pid):
         """
         Retrieve lot/garage information by its partner ID
         """
         return db.engine.execute("""
             SELECT {properties}
             FROM parking_lots
-            WHERE partner_id = '{pid}'
-            """.format(pid=pid, properties=','.join(ParkingLots.properties))).fetchall()
+            WHERE partner_name = '{pname}' AND partner_id = '{pid}'
+            """.format(pname=pname, pid=pid, properties=','.join(ParkingLots.properties))).fetchall()

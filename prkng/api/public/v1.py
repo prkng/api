@@ -526,6 +526,12 @@ parking_lot_parser.add_argument(
     help='If no lots found in given radius, return nearest X lots to lat/long'
 )
 parking_lot_parser.add_argument(
+    'partner_name',
+    type=str,
+    location='args',
+    help='Return only the lot with the corresponding partner name'
+)
+parking_lot_parser.add_argument(
     'partner_id',
     type=str,
     location='args',
@@ -562,7 +568,7 @@ class Lots(Resource):
             return "Requires either lat/long or partner_id", 400
 
         if args.get("partner_id"):
-            res = ParkingLots.get_bypartnerid(args["partner_id"])
+            res = ParkingLots.get_bypartnerid(args.get("partner_name"), args["partner_id"])
         else:
             # push map search data to analytics
             Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
