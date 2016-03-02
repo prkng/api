@@ -79,14 +79,15 @@ class User(UserMixin):
             """.format(key=newkey, user_id=self.id))
         self.apikey = newkey
 
-    def update_profile(self, name=None, email=None, gender=None, image_url=None):
+    def update_profile(self, name=None, first_name=None, last_name=None, email=None,
+            gender=None, image_url=None):
         """
         Update profile information
         """
         name = name.encode('utf-8') if name else ""
         email = email.encode('utf-8') if email else ""
-        first_name = name.split(" ", 1)[0]
-        last_name = name.split(" ", 1)[1] if " " in name else ""
+        first_name = first_name or name.split(" ", 1)[0]
+        last_name = last_name or (name.split(" ", 1)[1] if " " in name else "")
 
         db.engine.execute(user_table.update().where(user_table.c.id == self.id)\
             .values(name=name or self.name, first_name=first_name or self.first_name,

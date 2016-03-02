@@ -135,3 +135,14 @@ class ParkingLots(object):
             FROM parking_lots
             WHERE id = {sid}
             """.format(sid=lid, properties=','.join(ParkingLots.properties))).fetchall()
+
+    @staticmethod
+    def get_bypartnerid(pid):
+        """
+        Retrieve lot/garage information by its partner ID
+        """
+        return db.engine.execute("""
+            SELECT {properties}
+            FROM parking_lots
+            WHERE partner_id = '{pid}'
+            """.format(pid=pid, properties=','.join(ParkingLots.properties))).fetchall()

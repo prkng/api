@@ -503,14 +503,12 @@ parking_lot_parser.add_argument(
     'latitude',
     type=float,
     location='args',
-    required=True,
     help='Latitude in degrees (WGS84)'
 )
 parking_lot_parser.add_argument(
     'longitude',
     type=float,
     location='args',
-    required=True,
     help='Longitude in degrees (WGS84)'
 )
 parking_lot_parser.add_argument(
@@ -526,6 +524,12 @@ parking_lot_parser.add_argument(
     location='args',
     default=0,
     help='If no lots found in given radius, return nearest X lots to lat/long'
+)
+parking_lot_parser.add_argument(
+    'partner_id',
+    type=str,
+    location='args',
+    help='Return only the lot with the corresponding partner ID'
 )
 
 lots_fields = api.model('LotsFields', {
@@ -554,21 +558,26 @@ class Lots(Resource):
         Return parking lots and garages around the point defined by (x, y)
         """
         args = parking_lot_parser.parse_args()
+        if not args.get("latitude") and not args.get("longitude") and not args.get("partner_id"):
+            return "Requires either lat/long or partner_id", 400
 
-        # push map search data to analytics
-        Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
-            args["longitude"], args["radius"])
+        if args.get("partner_id"):
+            res = ParkingLots.get_bypartnerid(args["partner_id"])
+        else:
+            # push map search data to analytics
+            Analytics.add_pos_tobuf("lots", g.user.id, args["latitude"],
+                args["longitude"], args["radius"])
 
-        city = City.get(args['longitude'], args['latitude'])
-        if not city:
-            api.abort(404, "no feature found")
+            city = City.get(args['longitude'], args['latitude'])
+            if not city:
+                api.abort(404, "no feature found")
 
-        res = ParkingLots.get_within(args["longitude"], args["latitude"],
-            args["radius"])
+            res = ParkingLots.get_within(args["longitude"], args["latitude"],
+                args["radius"])
 
-        if not res and args["nearest"]:
-            res = ParkingLots.get_nearest(args["longitude"], args["latitude"],
-                args["nearest"])
+            if not res and args["nearest"]:
+                res = ParkingLots.get_nearest(args["longitude"], args["latitude"],
+                    args["nearest"])
 
         return FeatureCollection([
             Feature(
@@ -766,6 +775,8 @@ login_parser.add_argument('picture', type=str, location='form', help='Profile: P
 
 user_model = api.model('User', {
     'name': fields.String(),
+    'first_name': fields.String(),
+    'last_name': fields.String(),
     'email': fields.String(),
     'apikey': fields.String(),
     'created': fields.DateTime(),
