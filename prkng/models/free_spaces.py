@@ -15,10 +15,20 @@ free_spaces_table = Table(
 )
 
 class FreeSpaces(object):
+    """
+    An object to manage free space data.
+
+    A 'free space' is created when a carshare has been recorded as leaving a slot on the street. It can be assumed that the departure of the carshare has created a free space to park on-street, which would be of use to users trying to park in that neighbourhood.
+    """
+
     @staticmethod
     def get(minutes=5):
         """
-        Get slots with car2gos that have recently left
+        Get free spaces with carshares that have recently left.
+        A free space object consists of the slot ID, the way name, its geometry object, applicable rules for that slot, and the approximate time of departure.
+
+        :param minutes: Max age of the carshare departure. Default 5 (int)
+        :returns: Free Space object (dict)
         """
         res = db.engine.execute("""
             SELECT

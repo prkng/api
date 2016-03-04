@@ -34,13 +34,13 @@ def update_deneigement():
     if not CONFIG["DEBUG"]:
         logfile = '/home/parkng/log/deneigement.log'
 
+    # get snow removal API changes that have occurred since our last known successful check
     now = int(time.time())
     since = r.get("prkng:snowdt")
     if since:
         since = datetime.datetime.fromtimestamp(int(since)).replace(tzinfo=pytz.utc)
     else:
         since = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc) - datetime.timedelta(minutes=30))
-
     with open(logfile, 'a') as f:
         f.write("Snow removal API check: {} ===\n".format(datetime.datetime.now().strftime('%Y-%m-%dT%H:%M:%S')))
     client = Client("https://servicesenligne2.ville.montreal.qc.ca/api/infoneige/InfoneigeWebService?WSDL")
@@ -50,6 +50,7 @@ def update_deneigement():
     response = client.service.GetPlanificationsForDate(planification_request)
     with open(logfile, 'a') as f:
         f.write(" > API contacted successfully.\n")
+
     if response['responseStatus'] == 8:
         # No new data
         r.set("prkng:snowdt", now)
@@ -84,10 +85,12 @@ def update_deneigement():
     """)
     values, record = [], "({},'{}'::timestamp,'{}'::timestamp,{},'{}'::jsonb,{})"
     for x in response['planifications']['planification']:
+        # if snow removal scheduled or rescheduled and we have a start time...
         if x['etatDeneig'] in [2, 3] and hasattr(x, 'dateDebutPlanif'):
             debut, fin = x['dateDebutPlanif'], x['dateFinPlanif']
             if hasattr(x, 'dateDebutReplanif'):
                 debut, fin = x['dateDebutReplanif'], x['dateFinReplanif']
+            # translate start/end times into a rule agenda object
             agenda = {str(z): [] for z in range(1,8)}
             debutJour, finJour = debut.isoweekday(), fin.isoweekday()
             debutHeure = float(debut.hour) + (float(debut.minute) / 60.0)
@@ -95,6 +98,7 @@ def update_deneigement():
             if debutJour == finJour:
                 agenda[str(debutJour)] = [[debutHeure, finHeure]]
             else:
+                # split multi-day restrictions over the midnight divide
                 agenda[str(debutJour)] = [[debutHeure, 24.0]]
                 agenda[str(finJour)] = [[0.0, finHeure]]
                 if (fin.day - debut.day) > 1:
@@ -106,11 +110,13 @@ def update_deneigement():
                     else:
                         for z in range(debutJour + 1, finJour + 1):
                             agenda[str(z)] = [[0.0,24.0]]
+            # create the rule object with associated dates/times agenda
             rule = {"code": "MTL-NEIGE", "description": "DÉNEIGEMENT PRÉVU DANS CE SECTEUR",
                 "season_start": None, "season_end": None, "agenda": agenda, "time_max_parking": None,
                 "special_days": None, "restrict_types": ["snow"], "permit_no": None}
             values.append(record.format(x['coteRueId'], debut.strftime('%Y-%m-%d %H:%M:%S'),
                 fin.strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
+        # if snow removal is done or unscheduled, make sure the restriction is deactivated
         elif x['etatDeneig'] in [0, 1, 4, 10]:
             values.append(record.format(x['coteRueId'], datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'),
                 datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S'), 'false', '{}', x['etatDeneig']))
@@ -143,9 +149,11 @@ def update_deneigement():
                     array_agg(s.id) AS slot_ids
                 FROM montreal_geobase_double d
                 JOIN montreal_roads_geobase g ON d.id_trc = g.id_trc
+                JOIN montreal_geobase r ON g.id_trc = r.id_trc
                 JOIN slots s ON city = 'montreal' AND s.rid = g.id
-                    AND ST_isLeft(g.geom, ST_StartPoint(ST_LineMerge(d.geom)))
-                      = ST_isLeft(g.geom, ST_StartPoint(s.geom))
+                    AND ST_isLeft(ST_LineMerge(r.geom), ST_LineInterpolatePoint(ST_LineMerge(d.geom), 0.5))
+                      = ST_isLeft(g.geom, ST_LineInterpolatePoint(s.geom, 0.5))
+                WHERE ST_GeometryType(ST_LineMerge(d.geom)) = 'ST_LineString'
                 GROUP BY d.cote_rue_i
             )
             INSERT INTO temporary_restrictions (city, partner_id, slot_ids, start, finish,
@@ -162,6 +170,9 @@ def update_deneigement():
 
 
 def push_deneigement_scheduled():
+    """
+    Push messages to users when snow removal is initially scheduled for their checkin location.
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
@@ -201,11 +212,15 @@ def push_deneigement_scheduled():
 
 
 def push_deneigement_8hr():
+    """
+    Push messages to users when the snow removal period for their checkin location is exactly eight hours away
+    """
     CONFIG = create_app().config
     db = PostgresWrapper(
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
+    # grab the appropriate checkins to send pushes to by slot ID
     start = (datetime.datetime.utcnow().replace(tzinfo=pytz.utc).astimezone(pytz.timezone('US/Eastern')) + datetime.timedelta(hours=8))
     finish = start - datetime.timedelta(minutes=5)
     res = db.query("""

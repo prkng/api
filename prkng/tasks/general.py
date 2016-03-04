@@ -47,15 +47,18 @@ def hello_amazon():
     for d in ["ios", "ios-sbx", "android"]:
         for x in r.hkeys('prkng:hello-amazon:'+d):
             try:
+                # create SNS platform endpoint with saved user device ID, and save endpoint to DB
                 device_id = r.hget('prkng:hello-amazon:'+d, x)
                 arn = amz.create_platform_endpoint(CONFIG["AWS_SNS_APPS"][d], device_id, x.encode('utf-8'))
                 arn = arn['CreatePlatformEndpointResponse']['CreatePlatformEndpointResult']['EndpointArn']
                 values.append("({},'{}')".format(x, arn))
                 r.hdel('prkng:hello-amazon:'+d, x)
                 if not CONFIG["DEBUG"]:
+                    # add the user to associated mass-push topics
                     amz.subscribe(CONFIG["AWS_SNS_TOPICS"]["all_users"], "application", arn)
                     amz.subscribe(CONFIG["AWS_SNS_TOPICS"][d+"_users"], "application", arn)
             except Exception, e:
+                # if the token already exists, grab and save the existing one instead
                 if "already exists with the same Token" in e.message:
                     arn = re.search("Endpoint (arn:aws:sns\S*)\s.?", e.message)
                     if not arn:
@@ -86,12 +89,14 @@ def send_notifications():
     if not keys:
         return
 
+    # for each message to push...
     for pid in keys:
         message = r.hget('prkng:push', pid)
         r.hdel('prkng:push', pid)
         device_ids = r.lrange('prkng:push:'+pid, 0, -1)
         r.delete('prkng:push:'+pid)
 
+        # if the message looks like a JSON, structure it accordingly
         message_structure = None
         if message.startswith("{") and message.endswith("}"):
             message_structure = "json"
@@ -158,6 +163,7 @@ def update_parkingpanda():
 
     parkingpanda_url = "https://www.parkingpanda.com/api/v2/locations" if not CONFIG["DEBUG"] else "http://dev.parkingpanda.com/api/v2/locations"
 
+    # for each city we serve...
     for city, addr in [("boston", "Faneuil Hall, Boston, MA"),
             ("newyork", "4 Pennsylvania Plaza, New York, NY")]:
         # grab data from parkingpanda api
@@ -169,17 +175,22 @@ def update_parkingpanda():
                 "onlyavailable": False, "showSoldOut": True, "peer": False})
         data = data.json()["data"]["locations"]
 
+        # converts times like "8:00AM" to float-based times like 8.0
         hourToFloat = lambda x: float(x.split(":")[0]) + (float(x.split(":")[1][0:2]) / 60) + (12 if "PM" in x and x.split(":")[0] != "12" else 0)
+
         values = []
+        # for each lot received from their API...
         for x in data:
             x["displayName"] = x["displayName"].replace("'","''").encode("utf-8")
             x["displayAddress"] = x["displayAddress"].replace("'","''").encode("utf-8")
             x["description"] = x["description"].replace("'","''").encode("utf-8")
             basic = "('{}','{}','{}',{},{},'{}','{}','SRID=4326;POINT({} {})'::geometry,'{}'::jsonb,'{}'::jsonb)"
+            # if it's open 24/7, give it a standard all-open agenda
             if x["isOpen247"]:
                 agenda = {str(y): [{"max": None, "hourly": None, "daily": x["price"],
                     "hours": [0.0,24.0]}] for y in range(1,8)}
             else:
+                # create an agenda based on opening days/times as reported, with given price
                 agenda = {str(y): [] for y in range(1,8)}
                 for y in x["hoursOfOperation"]:
                     if not y["isOpen"]:
@@ -187,6 +198,7 @@ def update_parkingpanda():
                     hours = [hourToFloat(y["timeOfDayOpen"]), hourToFloat(y["timeOfDayClose"])]
                     if y["timeOfDayClose"] == "11:59 PM":
                         hours[1] = 24.0
+                    # if the closing time is the next day, handle the time overlap between days
                     if hours != [0.0, 24.0] and hours[0] > hours[1]:
                         nextday = str(y["dayOfWeek"]+2) if (y["dayOfWeek"] < 6) else "1"
                         agenda[nextday].append({"max": None, "hourly": None,
@@ -218,6 +230,7 @@ def update_parkingpanda():
                 x["availableSpaces"], x["displayAddress"], x["description"],
                 x["longitude"], x["latitude"], json.dumps(agenda), json.dumps(attrs)))
 
+        # persist the new lots or updated ones to the database
         if values:
             db.query("""
                 UPDATE parking_lots l SET available = d.available, agenda = d.agenda, attrs = d.attrs,
@@ -249,7 +262,7 @@ def update_seattle_lots():
         "host='{PG_HOST}' port={PG_PORT} dbname={PG_DATABASE} "
         "user={PG_USERNAME} password={PG_PASSWORD} ".format(**CONFIG))
 
-    # grab data from city of seattle dot
+    # grab data from city of seattle DOT
     data = requests.get("http://web6.seattle.gov/sdot/wsvcEparkGarageOccupancy/Occupancy.asmx/GetGarageList",
         params={"prmGarageID": "G", "prmMyCallbackFunctionName": ""})
     data = json.loads(data.text.lstrip("(").rstrip(");"))
@@ -264,15 +277,21 @@ def update_seattle_lots():
 
 
 def run_backup():
+    """
+    Backs up our local database to an encrypted bucket on Amazon S3.
+
+    :returns: Path to database backup in S3 (str)
+    """
     CONFIG = create_app().config
     file_name = 'prkng-{}.sql.gz'.format(datetime.datetime.now().strftime('%Y%m%d-%H%M%S'))
-
     c = S3Connection(CONFIG["AWS_ACCESS_KEY"], CONFIG["AWS_SECRET_KEY"])
 
+    # dump the DB to compressed temporary file
     subprocess.check_call('pg_dump -c -U {PG_USERNAME} {PG_DATABASE} | gzip > {file_name}'.format(
         file_name=os.path.join('/tmp', file_name), **CONFIG),
         shell=True)
 
+    # upload and encrypt database dump and remove the temp file
     b = c.get_bucket('prkng-bak')
     k = b.initiate_multipart_upload(file_name, encrypt_key=True)
     with open(os.path.join('/tmp', file_name), 'rb') as f:
@@ -283,6 +302,9 @@ def run_backup():
 
 
 def parking_panda_welcome_email(uname, uemail):
+    """
+    Send a welcome email to users that have just signed up for Parking Panda features.
+    """
     CONFIG = create_app().config
     c = boto.ses.connect_to_region("us-west-2",
         aws_access_key_id=CONFIG["AWS_ACCESS_KEY"],
@@ -306,9 +328,11 @@ def update_analytics():
     data = r.lrange('prkng:analytics:pos', 0, -1)
     r.delete('prkng:analytics:pos')
 
+    # insert Map Location Data (positions)
     values = ["({}, {}, {}, '{}'::timestamp, '{}')".format(x["user_id"], x["lat"], x["long"],
         x["created"], x["search_type"]) for x in map(lambda y: json.loads(y), data)]
     if values:
+        # create MultiPoint with positions that occur within five-minute increments
         pos_query = """
             WITH tmp AS (
                 SELECT
@@ -332,6 +356,7 @@ def update_analytics():
     data = r.lrange('prkng:analytics:event', 0, -1)
     r.delete('prkng:analytics:event')
 
+    # insert buffered Event data
     if data:
         event_query = "INSERT INTO analytics_event (user_id, lat, long, created, event) VALUES "
         event_query += ",".join(["({}, {}, {}, '{}', '{}')".format(x["user_id"], x["lat"] or "NULL",

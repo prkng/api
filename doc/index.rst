@@ -1,17 +1,15 @@
-Welcome to Prkng-api !
+Welcome to Prkng-API !
 ======================
 
-**prkng-api** is the backend side of the prkng application.
-
-**prkng-api** is built with Python and Flask and relies on PostgreSQL/PostGIS
-to store and process the parking datas
+**prkng-api** is the backend side of the Prkng application, tasked with serving the data produced by **prkng-process** through a Flask-powered REST API.
 
 Contents:
 
 .. toctree::
-   :maxdepth: 1
+   :maxdepth: 2
 
-   changelog
    installation
    api
+   models
+   tasks
    newcity

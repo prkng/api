@@ -6,11 +6,19 @@ from boto.s3.connection import S3Connection
 
 
 class Images(object):
+    """
+    This class handles report and avatar image management, including uploading the images to Amazon S3.
+    """
+
     @staticmethod
     def generate_s3_url(image_type, file_name):
         """
-        Generate S3 submission URL valid for 24h, with which the user can upload an
-        avatar or a report image.
+        Generate an S3 submission URL.
+        The URL is valid for 24h, with which the user can upload an avatar or a report image.
+
+        :param image_type: either 'report' or 'avatar' (str)
+        :param file_name: the name of the image as uploaded, incl. extension (str)
+        :returns: dict with keys `request_url` and `access_url`. Upload to the request URL, access the image from the access URL.
         """
         file_name = random_string(16) + "." + file_name.rsplit(".")[1]
 

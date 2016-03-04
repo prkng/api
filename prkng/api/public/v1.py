@@ -1040,7 +1040,7 @@ report_parser.add_argument('city', type=str, required=False, default='montreal',
     location='form', help='city name')
 report_parser.add_argument('image_url', type=str, required=True,
     location='form', help='report image URL')
-report_parser.add_argument('notes', type=str,
+report_parser.add_argument('notes', type=unicode,
     location='form', help='report notes')
 
 

@@ -44,6 +44,14 @@ carshare_lots_table = Table(
 
 
 class Carshares(object):
+    """
+    This class handles the representation of carshares and carshare parking lots across different service areas.
+
+    A carshare is a vehicle that can be shared between different users that subscribe to the same service, such as Car2Go, Communauto, or Zipcar. These services all have different characteristics but are served through our database as identical `carshare` objects that can be reserved through the accompanying company's API.
+
+    Certain cities also have special reserved lots for a specific company's carshare vehicles, these can be retrieved from this object as well.
+    """
+
     properties = (
         'id',
         'geojson',
@@ -79,7 +87,11 @@ class Carshares(object):
     @staticmethod
     def get(company, name):
         """
-        Get a carshare by its company and car name.
+        Retrieve a specific carshare.
+
+        :param company: name of the carshare company (str)
+        :param name: vehicle `name` field -- usually maps to the car's license plate number (str)
+        :returns: Carshare object (dict)
         """
         res = db.engine.execute("""
             SELECT * FROM carshares WHERE company = '{}' AND name = '{}' LIMIT 1
@@ -90,6 +102,13 @@ class Carshares(object):
     def get_within(city, x, y, radius, company=False):
         """
         Get all parked carshares in a city within a particular radius.
+
+        :param city: city name that is being searched in (str)
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param radius: radius in meters to search in (int)
+        :param company: filter by carshare company name (str), or False to get all
+        :returns: list of Carshare objects (dicts)
         """
         qry = """
             SELECT {properties}, 1 AS quantity FROM carshares c
@@ -132,6 +151,13 @@ class Carshares(object):
     def get_nearest(city, x, y, limit, company=False):
         """
         Get nearest parked carshares in a city to a certain lat/long.
+
+        :param city: city name that is being searched in (str)
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param limit: number of nearest carshares to retrieve (int)
+        :param company: filter by carshare company name (str), or False to get all
+        :returns: list of Carshare objects (dicts)
         """
         qry = """
           WITH tmp AS (
@@ -172,6 +198,12 @@ class Carshares(object):
     def get_boundbox(nelat, nelng, swlat, swlng):
         """
         Retrieve all parked carshares inside a given boundbox.
+
+        :param nelat: latitude of northeast corner (int)
+        :param nelng: longitude of northeast corner (int)
+        :param swlat: latitude of southwest corner (int)
+        :param swlng: longitude of southwest corner (int)
+        :returns: list of Carshare objects (dicts)
         """
 
         res = db.engine.execute("""
@@ -221,6 +253,13 @@ class Carshares(object):
     def get_lots_within(city, x, y, radius, company=False):
         """
         Get all carshare lots in a city within a particular radius.
+
+        :param city: city name that is being searched in (str)
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param radius: radius in meters to search in (int)
+        :param company: filter by carshare company name (str), or False to get all
+        :returns: list of Carshare lot objects (dicts)
         """
         qry = """
             SELECT {properties} FROM carshare_lots
@@ -242,6 +281,13 @@ class Carshares(object):
     def get_lots_nearest(city, x, y, limit, company=False):
         """
         Get nearest carshare lots in a city to a certain lat/long.
+
+        :param city: city name that is being searched in (str)
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param limit: number of nearest carshare lots to retrieve (int)
+        :param company: filter by carshare company name (str), or False to get all
+        :returns: list of Carshare lot objects (dicts)
         """
         qry = """
             SELECT {properties} FROM carshare_lots
@@ -262,6 +308,10 @@ class Carshares(object):
     def get_all(company, city):
         """
         Get all active carshare records for a city and company.
+
+        :param company: company name (str)
+        :param city: city to search in (str)
+        :returns: list of Carshare objects (dicts)
         """
         res = db.engine.execute("""
             SELECT

@@ -4,8 +4,19 @@ import aniso8601
 
 
 class City(object):
+    """
+    A class to manage interaction with different cities that the app serves (also referred to as `service areas`).
+    """
+
     @staticmethod
     def get(x, y):
+        """
+        Get the current city based on location data.
+
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :returns: name of current city (str)
+        """
         city = db.engine.execute("""
             SELECT name FROM cities
             WHERE ST_Intersects(geom, ST_Buffer(ST_Transform('SRID=4326;POINT({x} {y})'::geometry, 3857), 3))
@@ -14,6 +25,12 @@ class City(object):
 
     @staticmethod
     def get_all():
+        """
+        Get all cities that we currently service.
+        A city object contains its `name`, `display_name`, the `lat` and `long` of its map center (i.e. the default point at which the map opens on app load), and a rough approximation of the `urban_area_radius`.
+
+        :returns: list of City objects (dicts)
+        """
         res = db.engine.execute("""
             SELECT
                 gid AS id,
@@ -29,6 +46,11 @@ class City(object):
 
     @staticmethod
     def get_assets():
+        """
+        Obtain all links for city polygon masks (map statics).
+
+        :returns: list of City asset objects (dicts)
+        """
         res = db.engine.execute("""
             SELECT
                 version,
@@ -46,6 +68,14 @@ class City(object):
 
     @staticmethod
     def get_permits(city, residential=False):
+        """
+        Get all parking permits found within a specific city.
+        A Permit object includes the `city` in question, as well as the `permit` name/number, and if it is `residential` or not.
+
+        :param city: city name (str)
+        :param residential: True to exclude commercial parking permits (bool)
+        :returns: list of Permit objects (dicts)
+        """
         res = "SELECT * FROM permits WHERE city = '{city}'"
         if residential:
             res += " AND residential = true"
@@ -58,6 +88,15 @@ class City(object):
 
     @staticmethod
     def get_checkins(city, start, end):
+        """
+        Get all checkins in a city within a certain period.
+        Used for Admin interface only.
+
+        :param city: city name (str)
+        :param start: start time to filter from (ISO-8601 str)
+        :param end: end time to filter to (ISO-8601 str)
+        :returns: list of Checkin objects (obj)
+        """
         res = db.engine.execute("""
             SELECT
                 c.id,
@@ -97,6 +136,13 @@ class City(object):
 
     @staticmethod
     def get_reports(city):
+        """
+        Get all reports made in a city.
+        Used for Admin interface only.
+
+        :param city: city name (str)
+        :returns: list of Report objects (obj)
+        """
         res = db.engine.execute("""
             SELECT
                 r.id,
@@ -129,6 +175,13 @@ class City(object):
 
     @staticmethod
     def get_corrections(city):
+        """
+        Get all report corrections made in a city.
+        Used for Admin interface only.
+
+        :param city: city name (str)
+        :returns: list of Correction objects (obj)
+        """
         res = db.engine.execute("""
             SELECT
                 c.*,

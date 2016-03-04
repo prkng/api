@@ -5,13 +5,28 @@ import datetime
 
 
 class Slots(object):
+    """
+    An object allowing the management of Slots.
+
+    Slots are lines that represent contiguous curb space for contiguous parking regulation. Put differently, they represent the linear parking spaces on a street that adhere to a particular regulation or set of regulations. They are the principal objects displayed in Prkng's client map view.
+    """
+
     @staticmethod
     def get_within(city, x, y, radius, duration, properties, checkin=None, permit=False, carsharing=False):
         """
-        Retrieve the nearest slots (geometry and ID) within ``radius`` meters of a
-        given location (x, y).
+        Retrieve the nearest slots to a given location.
+        Applies restrictions and filtering before sending the response.
 
-        Apply restrictions before sending the response
+        :param city: city name (str)
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param radius: radius in meters to search within (int)
+        :param duration: duration of the desired parking time (float)
+        :param properties: properties to return on the Slot object (list)
+        :param checkin: timestamp for the start of the desired parking time (ISO-8601 str)
+        :param permit: comma-separated list of permits to exclude from restriction filtering (str)
+        :param carsharing: True if carsharing restrictions should also be applied to the filter (bool)
+        :returns: list of Slot objects (dicts)
         """
         checkin = checkin or datetime.datetime.now()
         duration = duration or 0.5
@@ -54,6 +69,19 @@ class Slots(object):
             permit=False, invert=False):
         """
         Retrieve all slots inside a given boundbox.
+        Used only for Admin interface.
+
+        :param nelat: latitude of northeast corner (int)
+        :param nelng: longitude of northeast corner (int)
+        :param swlat: latitude of southwest corner (int)
+        :param swlng: longitude of southwest corner (int)
+        :param properties: properties to return on the Slot object (list)
+        :param checkin: timestamp for the start of the desired parking time (ISO-8601 str)
+        :param duration: duration of the desired parking time (float)
+        :param type: type of filtering to do (1 for paid only, 2 for permit only, 3 for time max only) (int)
+        :param permit: comma-separated list of permits to exclude from restriction filtering (str)
+        :param invert: True to instead return slots that would be restricted under these conditions (bool)
+        :returns: list of Slot objects (dicts)
         """
 
         res = db.engine.execute("""
@@ -102,7 +130,14 @@ class Slots(object):
     @staticmethod
     def get_byid(sid, properties, remove_na=False, checkin=False, permit=False):
         """
-        Retrieve slot information by its ID
+        Retrieve slot information by its ID.
+
+        :param sid: slot ID (int)
+        :param properties: properties to return on the Slot object (list)
+        :param remote_na: True to remove restrictions that are not applicable (bool)
+        :param checkin: timestamp for the start of the desired parking time (ISO-8601 str)
+        :param permit: comma-separated list of permits to exclude from restriction filtering (str)
+        :returns: Slot object (dict)
         """
         checkin = checkin or datetime.datetime.now()
         res = db.engine.execute("""

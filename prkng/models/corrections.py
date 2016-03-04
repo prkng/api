@@ -24,10 +24,31 @@ corrections_table = Table(
 
 
 class Corrections(object):
+    """
+    A class to retrieve and manage Correction objects.
+
+    Corrections are manually-made adjustments to a city's parking data, based on reports received and actioned on by Prkng staff. They persist between data updates to allow our corrections to always be visible for certain slots/roads until they are removed.
+    """
+
     @staticmethod
     def add(
             slot_id, code, city, description, initials, season_start, season_end,
             time_max_parking, agenda, special_days, restrict_types):
+        """
+        Add a correction to the database. Must apply before it will take effect.
+
+        :param slot_id: the slot ID to add the correction for (int)
+        :param code: the new or existing rule code to use (str)
+        :param description: if adding a new rule, use this description for it (str)
+        :param initials: initials of the Prkng staff member making this correction (str)
+        :param season_start: month-day of the start of the season (e.g. '04-01'), or empty string (str)
+        :param season_end: month-day of the end of the season (e.g. '11-30'), or empty string (str)
+        :param time_max_parking: time in minutes for max parking restrictions, or None (int)
+        :param agenda: Agenda object for the rule (dict)
+        :param special_days: special days for which this rule is to be in effect (str)
+        :param restrict_types: array of applicable restrict types (strs)
+        :returns: Correction object (dict)
+        """
         # get signposts by slot ID
         res = db.engine.execute("""
             SELECT way_name, signposts FROM slots WHERE city = '{city}' AND id = {id}
@@ -56,6 +77,9 @@ class Corrections(object):
 
     @staticmethod
     def process_corrected_rules():
+        """
+        Process the corrected rules in-system. Namely, checks to see if any rules exist with the same properties. If one does, it is used in the place of the rule code/description given to that rule already. If it doesn't, it is added to the rules table as a new rule.
+        """
         db.engine.execute("""
             WITH s AS (
               -- get the rule if it already exists
@@ -88,6 +112,9 @@ class Corrections(object):
 
     @staticmethod
     def process_corrections():
+        """
+        Process corrections and set the changed rules as being applicable for their given slots.
+        """
         db.engine.execute("""
             WITH r AS (
               SELECT
@@ -121,12 +148,21 @@ class Corrections(object):
 
     @staticmethod
     def apply():
+        """
+        Shortcut to run `process_corrected_rules` and `process_corrections`.
+        """
         # apply any pending corrections to existing slots
         Corrections.process_corrected_rules()
         Corrections.process_corrections()
 
     @staticmethod
     def get(id):
+        """
+        Get a correction by its ID.
+
+        :param id: correction ID (int)
+        :returns: Correction object (dict)
+        """
         res = db.engine.execute("""
             SELECT
                 c.*,
@@ -150,6 +186,12 @@ class Corrections(object):
 
     @staticmethod
     def delete(id):
+        """
+        Delete a correction from the database.
+        Corrections need to be applied again in order to complete the removal process.
+
+        :param id: correction ID (int)
+        """
         db.engine.execute("""
             DELETE FROM corrections
             WHERE id = {}

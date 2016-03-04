@@ -22,7 +22,7 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
     month = checkin.date().month  # month as number
     isodow = checkin.isoweekday()  # 1->7
     year = checkin.year  # 2015
-    day = checkin.strftime('%d')  # 07
+    day = int(checkin.strftime('%d'))  # 07
 
     slot['restrict_types'] = []
 
@@ -74,10 +74,10 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
             for start, stop in filter(bool, tsranges):
 
                 try:
-                    start_time = datetime(year, month, int(day), hour=int(start), minute=int(start % 1 * 60)) \
+                    start_time = datetime(year, month, day, hour=int(start), minute=int(start % 1 * 60)) \
                         + timedelta(days=absoluteday)
                     #  hack to avoid ValueError: hour must be in 0..23
-                    stop_time = datetime(year, month, int(day), hour=int(stop-1), minute=int(stop % 1 * 60)) \
+                    stop_time = datetime(year, month, day, hour=int(stop-1), minute=int(stop % 1 * 60)) \
                         + timedelta(days=absoluteday, hours=1)
                 except TypeError:
                     raise Exception("Data integrity error on {}, please review rules".format(rule['code']))

@@ -28,6 +28,14 @@ lots_table = Table(
 
 
 class ParkingLots(object):
+    """
+    A class to manage parking lots.
+
+    Parking lots are represented by points on a map which depict the approximate location of a garage or lot where multiple vehicles can park off-street. Many details are associated with them, such as a special agenda which represents open hours and pricing windows.
+
+    If the parking lot has a `partner_name` and `partner_id`, they are a shared representation of a lot for which we have details that come from an external source, such as Parking Panda.
+    """
+
     properties = (
         'id',
         'geojson',
@@ -47,8 +55,9 @@ class ParkingLots(object):
     @staticmethod
     def get_all():
         """
-        Retrieve the nearest parking lots/garages within ``radius`` meters of a
-        given location (x, y).
+        Retrieve all parking lots/garages.
+
+        :returns: list of Parking Lot objects (dicts)
         """
         req = """
         SELECT {properties} FROM parking_lots
@@ -60,8 +69,12 @@ class ParkingLots(object):
     @staticmethod
     def get_within(x, y, radius):
         """
-        Retrieve the nearest parking lots/garages within ``radius`` meters of a
-        given location (x, y).
+        Retrieve the nearest parking lots/garages.
+
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param radius: radius in meters to search within (int)
+        :returns: list of Parking Lot objects (int)
         """
         req = """
         SELECT {properties} FROM parking_lots
@@ -84,7 +97,12 @@ class ParkingLots(object):
     @staticmethod
     def get_nearest(x, y, limit):
         """
-        Retrieve the nearest X parking lots/garages to a given location (x, y).
+        Retrieve the nearest X parking lots/garages to a given location.
+
+        :param x: longitude (int)
+        :param y: latitude (int)
+        :param limit: number of nearest lots to return (int)
+        :returns: list of Parking Lot objects (int)
         """
         req = """
         SELECT {properties} FROM parking_lots
@@ -104,6 +122,12 @@ class ParkingLots(object):
     def get_boundbox(nelat, nelng, swlat, swlng):
         """
         Retrieve all parking lots / garages inside a given boundbox.
+
+        :param nelat: latitude of northeast corner (int)
+        :param nelng: longitude of northeast corner (int)
+        :param swlat: latitude of southwest corner (int)
+        :param swlng: longitude of southwest corner (int)
+        :returns: list of Parking Lot objects (dicts)
         """
         req = """
         SELECT {properties} FROM parking_lots
@@ -128,7 +152,10 @@ class ParkingLots(object):
     @staticmethod
     def get_byid(lid):
         """
-        Retrieve lot/garage information by its ID
+        Retrieve lot/garage information by its ID.
+
+        :param lid: lot ID (int)
+        :returns: Parking Lot object (dict)
         """
         return db.engine.execute("""
             SELECT {properties}
@@ -139,7 +166,11 @@ class ParkingLots(object):
     @staticmethod
     def get_bypartnerid(pname, pid):
         """
-        Retrieve lot/garage information by its partner ID
+        Retrieve lot/garage information by its partner name and ID.
+
+        :param pname: partner name (str)
+        :param pid: partner ID (str)
+        :returns: Parking Lot object (dict)
         """
         return db.engine.execute("""
             SELECT {properties}

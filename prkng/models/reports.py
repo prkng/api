@@ -21,8 +21,25 @@ report_table = Table(
 
 
 class Reports(object):
+    """
+    A class to manage and retrieve user-generated Reports.
+
+    Reports are submissions made to Prkng by users that wish to inform us of incorrect data they found for parking spaces on-street. We use this information to create Corrections that will correct the incorrect data until the city does so themselves. Reports include user data, location data, notes and a photo of the correct regulation.
+    """
+
     @staticmethod
     def add(user_id, city, slot_id, lng, lat, url, notes):
+        """
+        Add a new report.
+
+        :param user_id: user ID (int)
+        :param city: city name (str)
+        :param slot_id: slot ID (opt int)
+        :param lng: longitude (int)
+        :param lat: latitude (int)
+        :param url: URL for the report image (str)
+        :param notes: user-generated notes for this report (str/unicode)
+        """
         db.engine.execute("""
             INSERT INTO reports (user_id, city, signposts, way_name, long, lat, image_url, notes)
             SELECT {user_id}, '{city}', s.signposts, s.way_name, {lng}, {lat},
@@ -31,10 +48,16 @@ class Reports(object):
               WHERE s.city = '{city}'
                 AND s.id = {slot_id}
         """.format(user_id=user_id, city=city, slot_id=slot_id or "NULL", lng=lng, lat=lat,
-            image_url=url, notes=notes))
+            image_url=url, notes=notes.encode("utf-8").replace("'", "''")))
 
     @staticmethod
     def get(id):
+        """
+        Get a report based on its ID.
+
+        :param id: report ID (int)
+        :returns: Report object (dict)
+        """
         res = db.engine.execute("""
             SELECT
                 r.id,
@@ -64,6 +87,14 @@ class Reports(object):
 
     @staticmethod
     def set_progress(id, progress):
+        """
+        Set the internal processing progress of this report.
+        Used in Admin interface.
+
+        :param id: report ID (int)
+        :param progress: progress value (int)
+        :returns: Report object (dict)
+        """
         res = db.engine.execute("""
             UPDATE reports r
               SET progress = {}
@@ -74,4 +105,9 @@ class Reports(object):
 
     @staticmethod
     def delete(id):
+        """
+        Delete a report.
+
+        :param id: report ID (int)
+        """
         db.engine.execute(report_table.delete().where(report_table.c.id == id))

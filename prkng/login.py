@@ -30,7 +30,15 @@ def email_register(
         email=None, password=None, name=None, gender=None, birthyear=None,
         image_url=None):
     """
-    Signup with an email and a password
+    Signup with an email and password.
+
+    :param email: email address (str)
+    :param password: unhashed password (str)
+    :param name: user's full name (opt str)
+    :param gender: gender (opt str)
+    :param birthyear: birth year (opt str)
+    :param image_url: URL to user profile image (opt str)
+    :returns: User (obj) or status message, HTTP code
     """
     email=email.lower()
     user = User.get_byemail(email)
@@ -72,7 +80,17 @@ def email_update(
         user, email=None, password=None, name=None, gender=None, birthyear=None,
         image_url=None):
     """
-    Update user profile with new information
+    Update user profile with new information.
+    Provide only the fields you want to change.
+
+    :param user: User (obj)
+    :param email: email address (opt str)
+    :param password: unhashed password IF user wants to change (opt str)
+    :param name: user's full name (opt str)
+    :param gender: gender (opt str)
+    :param birthyear: birth year (opt str)
+    :param image_url: URL to user profile image (opt str)
+    :returns: User (obj) or status message, HTTP code
     """
     user.update_profile(name, email, gender, image_url)
     auth_id = 'email${}'.format(user.id)
@@ -92,7 +110,11 @@ def email_update(
 
 def email_signin(email, password):
     """
-    Signin with an email and a password
+    Signin with an email and a password.
+
+    :param email: email address (str)
+    :param password: unhashed password (str)
+    :returns: User (obj) or status message, HTTP code
     """
     user = User.get_byemail(email)
 
@@ -121,8 +143,11 @@ def email_signin(email, password):
 
 def facebook_signin(access_token):
     """
-    Authorize user given its access_token.
-    Add it to the db if not already present
+    Authorize user via Facebook oAuth login.
+    Add to the DB as authentication method if not already present.
+
+    :param access_token: access token as returned from Facebook login window on client (str)
+    :returns: User (obj) or status message, HTTP code
     """
     # verify access token has been requested with the correct app id
     resp = requests.get(
@@ -193,9 +218,11 @@ def facebook_signin(access_token):
 
 def google_signin(access_token):
     """
-    Authorize user given its access_token.
-    Add it to the db if not already present
+    Authorize user via Google Login.
+    Add to the DB as authentication method if not already present.
 
+    :param access_token: access token as returned from Google login window on client (str)
+    :returns: User (obj) or status message, HTTP code
     """
     # verify access token has been requested with the correct app id
     if access_token.startswith("eyJh"):

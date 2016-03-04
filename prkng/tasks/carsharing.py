@@ -272,7 +272,8 @@ def update_zipcar():
     data = raw.json()["locations"]
     for x in data:
         if not x["address"]["city"] or not x["address"]["city"] \
-                in ["Seattle", "New York", "Brooklyn", "Queens", "Staten Island"]:
+                in ["Seattle", "New York", "Brooklyn", "Queens", "Staten Island",
+                    "Boston", "Cambridge"]:
             continue
         city = x["address"]["city"].encode("utf-8").lower()
         if x["address"]["city"] in ["New York", "Brooklyn", "Queens", "Staten Island"]:
