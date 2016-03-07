@@ -12,4 +12,4 @@ Contents:
    api
    models
    tasks
-   newcity
+   modules

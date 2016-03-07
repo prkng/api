@@ -24,8 +24,8 @@ System requirements
 Database configuration
 ======================
 
-This document assumes that you have already configured a postgresql database running
-with the postgis extension.
+This document assumes that you have already configured a PostgreSQL database running
+with the PostGIS extension.
 
 Configuration recommended for the **shared_buffer** parameter (postgresql.conf) is 1/4 of the RAM.
 The **checkpoint_segment** can be increased to 128 to speed up data loading.
@@ -129,7 +129,7 @@ Build the documentation
     $ cd doc/
     $ make html
 
-Go to ``<file:///home/user/path/to/prkng/doc/_build/html>`_
+Go to `<file:///home/user/path/to/prkng/doc/_build/html>`_
 
 
 Build the admin interface
@@ -165,27 +165,6 @@ Command line ``prkng``
 
 .. code-block:: bash
 
-    $ prkng update
-
-This command will:
-
-    - download the most recent parking informations for:
-
-        - Montréal
-        - Québec
-
-    - download associated OpenStreetMap areas
-    - load the previous data in the PostgreSQL database (overwrite older data)
-    - load districts (shapefiles provided in the repo for each city)
-
-.. code-block:: bash
-
-    $ prkng process
-
-This command will process all data and generate parking slots (will erase any older data)
-
-.. code-block:: bash
-
     $ prkng serve
 
 Launch a development server.
@@ -193,9 +172,15 @@ Go to your browser and check `<http://localhost:5000>`_
 
 .. code-block:: bash
 
-    $ prkng update-areas
+    $ prkng init-tasks
 
-Re-imports the service area shapefiles from the `data` directory, stores metadata and uploads statics to S3.
+Creates and initializes periodic tasks.
+
+.. code-block:: bash
+
+    $ prkng import $PATH
+
+Imports an archive of parking data, exported from prkng-process.
 
 .. code-block:: bash
 

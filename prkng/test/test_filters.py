@@ -103,7 +103,7 @@ def test_on_restrictions_multiplerangeaday():
 def test_on_restrictions_flexible():
     rule_view = [
         {
-            'restrict_typ': None,
+            'restrict_types': [],
             'code': 'AV-AB',
             'description': 'A 08h-09h30 LUN. AU VEN.',
             'time_max_parking': None,
@@ -118,7 +118,7 @@ def test_on_restrictions_flexible():
             'season_start': None
         },
         {
-            'restrict_typ': 'maintenance',
+            'restrict_types': ['maintenance'],
             'code': 'EU-TF+F',
             'description': 'P ENTRETIEN (ORANGE) 07h-19h ou 19h-07h (flexible)',
             'time_max_parking': None,
@@ -141,7 +141,7 @@ def test_on_restrictions_flexible():
 def test_on_restrictions_permit():
     rule_view = [
         {
-            'restrict_typ': None,
+            'restrict_types': [],
             'code': 'AV-AB',
             'description': 'A 08h-09h30 LUN. AU VEN.',
             'time_max_parking': None,
@@ -157,7 +157,7 @@ def test_on_restrictions_permit():
             'season_end': None
         },
         {
-            'restrict_typ': 'permit',
+            'restrict_types': ['permit'],
             'permit_no': 151,
             'code': 'R-PF',
             'description': 'P RESERVE S3R 09h-23h',
