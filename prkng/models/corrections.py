@@ -11,7 +11,7 @@ corrections_table = Table(
     Column('signposts', ARRAY(Integer)),
     Column('code', String),
     Column('description', String),
-    Column('periods', ARRAY(ARRAY(String))),
+    Column('periods', ARRAY(String)),
     Column('time_max_parking', Integer),
     Column('agenda', JSONB),
     Column('special_days', String),

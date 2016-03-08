@@ -42,7 +42,7 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
         # first test period days/months
         if rule["periods"]:
             period_matches = [period_matching(period, day, month) for period in rule["periods"]]
-            if not any(period_match):
+            if not any(period_matches):
                 # not concerned, going to the next rule
                 continue
 
