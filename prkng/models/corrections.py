@@ -116,31 +116,28 @@ class Corrections(object):
         Process corrections and set the changed rules as being applicable for their given slots.
         """
         db.engine.execute("""
-            WITH r AS (
-              SELECT
-                city,
-                signposts,
-                array_to_json(
-                  array_agg(distinct
-                  json_build_object(
-                    'code', code,
-                    'description', description,
-                    'season_start', season_start,
-                    'season_end', season_end,
-                    'address', address,
-                    'agenda', agenda,
-                    'time_max_parking', time_max_parking,
-                    'special_days', special_days,
-                    'restrict_types', restrict_types,
-                    'permit_no', NULL
-                  )::jsonb
-                ))::jsonb AS rules
-              FROM corrections
-              GROUP BY city, signposts
-            )
             UPDATE slots s
               SET rules = r.rules
-              FROM r
+              FROM (SELECT
+                    city,
+                    signposts,
+                    array_to_json(
+                      array_agg(distinct
+                      json_build_object(
+                        'code', code,
+                        'description', description,
+                        'season_start', season_start,
+                        'season_end', season_end,
+                        'address', address,
+                        'agenda', agenda,
+                        'time_max_parking', time_max_parking,
+                        'special_days', special_days,
+                        'restrict_types', restrict_types,
+                        'permit_no', NULL
+                      )::jsonb
+                    ))::jsonb AS rules
+                  FROM corrections
+                  GROUP BY city, signposts) r
               WHERE s.city = r.city
                 AND s.signposts = r.signposts
                 AND s.rules <> r.rules

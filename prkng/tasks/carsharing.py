@@ -278,6 +278,8 @@ def update_zipcar():
         city = x["address"]["city"].encode("utf-8").lower()
         if x["address"]["city"] in ["New York", "Brooklyn", "Queens", "Staten Island"]:
             city = "newyork"
+        if x["address"]["city"] in ["Boston", "Cambridge"]:
+            city = "boston"
         lots.append("('{}','{}','{}',{},'SRID=4326;POINT({} {})'::geometry)".format(
             x["location_id"], city, x["display_name"].replace("'", "''").encode("utf-8"),
             len(x["vehicles"]), x["coordinates"]["lng"], x["coordinates"]["lat"]
