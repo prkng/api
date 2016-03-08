@@ -112,8 +112,8 @@ def update_deneigement():
                             agenda[str(z)] = [[0.0,24.0]]
             # create the rule object with associated dates/times agenda
             rule = {"code": "MTL-NEIGE", "description": "DÉNEIGEMENT PRÉVU DANS CE SECTEUR",
-                "season_start": None, "season_end": None, "agenda": agenda, "time_max_parking": None,
-                "special_days": None, "restrict_types": ["snow"], "permit_no": None}
+                "periods": [], "agenda": agenda, "time_max_parking": None, "special_days": None,
+                "restrict_types": ["snow"], "permit_no": None}
             values.append(record.format(x['coteRueId'], debut.strftime('%Y-%m-%d %H:%M:%S'),
                 fin.strftime('%Y-%m-%d %H:%M:%S'), 'true', json.dumps(rule), x['etatDeneig']))
         # if snow removal is done or unscheduled, make sure the restriction is deactivated

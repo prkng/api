@@ -11,8 +11,7 @@ corrections_table = Table(
     Column('signposts', ARRAY(Integer)),
     Column('code', String),
     Column('description', String),
-    Column('season_start', String),
-    Column('season_end', String),
+    Column('periods', ARRAY(ARRAY(String))),
     Column('time_max_parking', Integer),
     Column('agenda', JSONB),
     Column('special_days', String),
@@ -32,7 +31,7 @@ class Corrections(object):
 
     @staticmethod
     def add(
-            slot_id, code, city, description, initials, season_start, season_end,
+            slot_id, code, city, description, initials, periods,
             time_max_parking, agenda, special_days, restrict_types):
         """
         Add a correction to the database. Must apply before it will take effect.
@@ -41,8 +40,7 @@ class Corrections(object):
         :param code: the new or existing rule code to use (str)
         :param description: if adding a new rule, use this description for it (str)
         :param initials: initials of the Prkng staff member making this correction (str)
-        :param season_start: month-day of the start of the season (e.g. '04-01'), or empty string (str)
-        :param season_end: month-day of the end of the season (e.g. '11-30'), or empty string (str)
+        :param periods: comma-separated month-day of the start and end of each season (e.g. '04-01,11-30'), or empty string (str)
         :param time_max_parking: time in minutes for max parking restrictions, or None (int)
         :param agenda: Agenda object for the rule (dict)
         :param special_days: special days for which this rule is to be in effect (str)
@@ -60,15 +58,14 @@ class Corrections(object):
         res = db.engine.execute(
             """
             INSERT INTO corrections
-                (initials, address, signposts, code, city, description, season_start, season_end,
+                (initials, address, signposts, code, city, description, periods,
                     time_max_parking, agenda, special_days, restrict_types)
             SELECT '{initials}', '{address}', ARRAY{signposts}, '{code}', '{city}', '{description}',
-                {season_start}, {season_end}, {time_max_parking}, '{agenda}'::jsonb,
+                '{{{}}}'::varchar[][], {time_max_parking}, '{agenda}'::jsonb,
                 {special_days}, '{{{restrict_types}}}'::varchar[]
             RETURNING *
             """.format(initials=initials, address=res[0], signposts=res[1], code=code, city=city,
-                description=description, season_start="'"+season_start+"'" if season_start else "NULL",
-                season_end="'"+season_end+"'" if season_end else "NULL",
+                description=description, periods=periods if periods else "{}",
                 time_max_parking=time_max_parking or "NULL", agenda=agenda,
                 special_days="'"+special_days+"'" if special_days else "NULL",
                 restrict_types=restrict_types if restrict_types else "")
@@ -85,8 +82,7 @@ class Corrections(object):
               -- get the rule if it already exists
               SELECT c.id, r.code, r.description FROM corrections c
                 LEFT JOIN rules r
-                   ON r.season_start     = c.season_start
-                  AND r.season_end       = c.season_end
+                   ON r.periods          = c.periods
                   AND r.time_max_parking = c.time_max_parking
                   AND r.agenda           = c.agenda
                   AND r.special_days     = c.special_days
@@ -94,9 +90,9 @@ class Corrections(object):
             ), i AS (
               -- if it doesn't exist, create it
               INSERT INTO rules
-                (code, description, season_start, season_end, time_max_parking,
+                (code, description, periods, time_max_parking,
                   agenda, special_days, restrict_types)
-                SELECT c.code, c.description, c.season_start, c.season_end, c.time_max_parking,
+                SELECT c.code, c.description, c.periods, c.time_max_parking,
                   c.agenda, c.special_days, c.restrict_types
                   FROM corrections c, s
                   WHERE c.id = s.id AND s.code IS NULL
@@ -126,8 +122,7 @@ class Corrections(object):
                       json_build_object(
                         'code', code,
                         'description', description,
-                        'season_start', season_start,
-                        'season_end', season_end,
+                        'periods', periods,
                         'address', address,
                         'agenda', agenda,
                         'time_max_parking', time_max_parking,

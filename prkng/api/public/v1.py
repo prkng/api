@@ -83,17 +83,8 @@ rules_field = api.model('RulesField', {
     'code': fields.String(
         description='rule ID',
         required=True),
-    'address': fields.String(
-        description='street name',
-        required=True),
     'description': fields.String(
         description='description of the parking rule',
-        required=True),
-    'season_start': fields.String(
-        description='when the permission begins in the year (ex: 12-01 for december 1)',
-        required=True),
-    'season_end': fields.String(
-        description='when the permission no longer applies',
         required=True),
     'time_max_parking': fields.Integer(
         description='restriction on parking time (minutes)',
@@ -867,7 +858,7 @@ passwd_change_parser.add_argument(
     'passwd', type=str, required=True, help='New password', location='form')
 
 
-@ns.route('/login/changepass', endpoint='changepass_v1')
+@ns.route('/login/changepass', doc=False, endpoint='changepass_v1')
 class LoginChangePass(Resource):
     def post(self):
         """
