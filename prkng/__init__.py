@@ -2,6 +2,7 @@
 from os.path import join, abspath, exists, dirname
 
 from flask import Flask
+from flask.ext.cors import CORS
 
 from .logger import Logger, set_level
 
@@ -24,6 +25,7 @@ def create_app(env='Defaults'):
     app = Flask(__name__)
     app.config.from_object('prkng.settings.{env}'.format(env=env))
     app.config.from_envvar('PRKNG_SETTINGS', silent=True)
+    CORS(app, origins=["http://prk.ng", "https://prk.ng"])
 
     custom_settings = join(join(dirname(abspath(__file__)), '..'), 'prkng.cfg')
 

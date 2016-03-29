@@ -27,7 +27,7 @@ def on_restriction(slot, checkin, duration, paid=True, permit=False):
     slot['restrict_types'] = []
 
     # add any applicable temporary restrictions into the main rules list
-    if slot['temporary_rule']:
+    if slot.get('temporary_rule'):
         slot["rules"].append(slot["temporary_rule"])
 
     # analyze each rule: leave it alone if it is not currently restricted, return False if it is

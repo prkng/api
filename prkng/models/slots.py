@@ -113,13 +113,14 @@ class Slots(object):
         )
 
 
-        checkin = None
         slots = db.engine.execute(req).fetchall()
         slots = map(lambda x: dict(x), slots)
         if checkin and invert:
             slots = map(lambda x: on_restriction(x, checkin, float(duration), True, permit), slots)
         elif checkin:
             slots = map(lambda x: on_restriction(x, checkin, float(duration), True, permit), slots)
+        slots = filter(lambda x: x != False, slots)
+        
         if type == 1:
             slots = filter(lambda x: "paid" in [z for y in x["rules"] for z in y["restrict_types"]], slots)
         elif type == 2:
@@ -128,13 +129,11 @@ class Slots(object):
             slots = filter(lambda x: any([y["time_max_parking"] for y in x["rules"]]), slots)
 
         for x in slots:
-            if not x:
-                continue
             for y in x["rules"]:
                 if "paid" in y["restrict_types"]:
                     x["restrict_types"] = ["paid"]
 
-        return filter(lambda x: x != False, slots)
+        return slots
 
     @staticmethod
     def get_byid(sid, properties, remove_na=False, checkin=False, permit=False):
