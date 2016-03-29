@@ -132,7 +132,7 @@ def remove_not_applicable(slot, checkin, permit=False):
         # first test period days/months
         if rule["periods"]:
             period_matches = [period_matching(period, day, month) for period in rule["periods"]]
-            if not any(period_match):
+            if not any(period_matches):
                 slot.rules.remove(rule)
             elif "permit" in rule['restrict_types'] and (permit == 'all' or str(rule.get('permit_no')) in str(permit).split(",")):
                 slot.rules.remove(rule)
